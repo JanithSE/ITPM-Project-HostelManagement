@@ -1,25 +1,31 @@
 export default function Payments() {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-4">Payments</h1>
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
+    <div className="content-card">
+      <h1 className="page-title mb-4">Payments</h1>
+      <div className="table-wrap">
+        <table className="table-admin">
           <thead>
             <tr>
-              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">ID</th>
-              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Student</th>
-              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Amount</th>
-              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Date</th>
-              <th className="px-4 py-2 text-left text-sm font-medium text-gray-700">Actions</th>
+              <th>ID</th>
+              <th>Student</th>
+              <th>Amount</th>
+              <th>Date</th>
+              <th>Actions</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-200">
-            <tr><td className="px-4 py-3 text-gray-600">—</td><td className="px-4 py-3 text-gray-600">—</td><td className="px-4 py-3 text-gray-600">—</td><td className="px-4 py-3 text-gray-600">—</td><td className="px-4 py-3"><button className="text-primary-600 text-sm font-medium">Details</button></td></tr>
+          <tbody>
+            <tr>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td>—</td>
+              <td><button type="button" className="table-action-link">Details</button></td>
+            </tr>
           </tbody>
         </table>
       </div>
-      <div className="mt-4">
-        <button className="bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700">Record Payment</button>
+      <div className="actions-row">
+        <button type="button" className="btn-table-primary">Record Payment</button>
       </div>
     </div>
   )

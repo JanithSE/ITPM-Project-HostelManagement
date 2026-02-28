@@ -18,28 +18,25 @@ export default function StudentNavbar() {
   ]
 
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-14 items-center">
-          <Link to="/student" className="text-primary-600 font-semibold text-lg">
+    <header className="student-header">
+      <nav className="student-nav-inner">
+        <div className="student-nav-bar">
+          <Link to="/student" className="site-logo">
             UniHostel
           </Link>
-          <div className="flex items-center gap-2 flex-wrap justify-end">
+          <div className="student-nav-links">
             {navLinks.map(({ to, label }) => (
               <NavLink
                 key={to}
                 to={to}
                 className={({ isActive }) =>
-                  `px-3 py-2 rounded-md text-sm font-medium transition-colors ${isActive ? 'text-primary-600 bg-primary-50' : 'text-gray-600 hover:text-primary-600'}`
+                  `student-nav-link ${isActive ? 'student-nav-link-active' : 'student-nav-link-inactive'}`
                 }
               >
                 {label}
               </NavLink>
             ))}
-            <button
-              onClick={handleLogout}
-              className="bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors"
-            >
+            <button type="button" onClick={handleLogout} className="btn-logout">
               Logout
             </button>
           </div>

@@ -1,9 +1,9 @@
 export default function Inquiries() {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Inquiries</h1>
-      <p className="text-gray-600 mb-6">Submit and track your inquiries. (Placeholder)</p>
-      <button className="bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors">
+    <div className="content-card">
+      <h1 className="page-title">Inquiries</h1>
+      <p className="page-description">Submit and track your inquiries. (Placeholder)</p>
+      <button type="button" className="btn-primary-action">
         New Inquiry
       </button>
     </div>

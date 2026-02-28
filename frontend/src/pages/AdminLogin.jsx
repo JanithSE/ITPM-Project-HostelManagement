@@ -26,53 +26,43 @@ export default function AdminLogin() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
+    <div className="auth-page">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Admin Login</h1>
-          <p className="text-gray-600 text-sm mb-6">Sign in to the admin dashboard</p>
-          {error && (
-            <p className="mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="auth-card">
+          <h1 className="auth-title">Admin Login</h1>
+          <p className="auth-subtitle">Sign in to the admin dashboard</p>
+          {error && <p className="auth-error" role="alert">{error}</p>}
+          <form onSubmit={handleSubmit} className="auth-form">
             <div>
-              <label htmlFor="admin-email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email
-              </label>
+              <label htmlFor="admin-email" className="auth-label">Email</label>
               <input
                 id="admin-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="auth-input"
                 placeholder="admin@example.com"
                 required
               />
             </div>
             <div>
-              <label htmlFor="admin-password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
+              <label htmlFor="admin-password" className="auth-label">Password</label>
               <input
                 id="admin-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                className="auth-input"
                 placeholder="••••••••"
                 required
               />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary-600 text-white py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50"
-            >
+            <button type="submit" disabled={loading} className="btn-submit">
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </form>
-          <p className="mt-4 text-center text-sm text-gray-600">
-            <Link to="/" className="text-primary-600 hover:underline">Back to home</Link>
+          <p className="auth-footer">
+            <Link to="/" className="auth-link">Back to home</Link>
           </p>
         </div>
       </div>
