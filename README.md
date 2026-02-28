@@ -41,7 +41,7 @@ Server runs at `http://localhost:5000`.
 ```bash
 cd frontend
 npm install
-npm run dev
+npm run dev     # or npm start
 ```
 
 App runs at `http://localhost:5173`.
@@ -53,20 +53,23 @@ App runs at `http://localhost:5173`.
 | Admin   | admin@unihostel.com   | admin123   |
 | Student | student@unihostel.com | student123 |
 
+Students can also **sign up** at `/signup`; no seed needed for new accounts.
+
 ## API overview
 
-| Path              | Auth   | Description        |
-|-------------------|--------|--------------------|
-| POST /api/auth/student-login | No  | Student login      |
-| POST /api/auth/admin-login   | No  | Admin login        |
-| /api/users        | Admin  | CRUD users         |
-| /api/hostels      | Yes    | List/create hostels |
-| /api/bookings     | Yes    | Bookings           |
-| /api/payments     | Yes    | Payments           |
-| /api/inquiries    | Yes    | Inquiries          |
-| /api/latepass     | Yes    | Late passes        |
-| /api/complains    | Yes    | Complaints         |
-| /api/inventory    | Admin  | Inventory          |
-| /api/maintenance  | Yes    | Maintenance        |
+| Path | Auth | Description |
+|------|------|-------------|
+| POST /api/auth/student-signup | No | Student registration |
+| POST /api/auth/student-login | No | Student login |
+| POST /api/auth/admin-login | No | Admin login |
+| /api/users | Admin | CRUD users |
+| /api/hostels | Yes | List/create hostels |
+| /api/bookings | Yes | Bookings |
+| /api/payments | Yes | Payments |
+| /api/inquiries | Yes | Inquiries |
+| /api/latepass | Yes | Late passes |
+| /api/complains | Yes | Complaints |
+| /api/inventory | Admin | Inventory |
+| /api/maintenance | Yes | Maintenance |
 
 Send JWT in header: `Authorization: Bearer <token>`.
