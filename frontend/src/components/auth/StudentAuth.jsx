@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation, Link } from 'react-router-dom'
-import { authApi } from '../api/client'
+import { authApi } from '../../shared/api/client'
 
 const TAB_SIGNIN = 'signin'
 const TAB_SIGNUP = 'signup'

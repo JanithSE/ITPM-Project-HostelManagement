@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { authApi } from '../api/client'
+import { authApi } from '../../shared/api/client'
 
-export default function StudentLogin() {
-  const [email, setEmail] = useState('')
+export default function AdminLogin() {
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -14,10 +14,10 @@ export default function StudentLogin() {
     setError('')
     setLoading(true)
     try {
-      const data = await authApi.studentLogin(email, password)
+      const data = await authApi.adminLogin(username, password)
       localStorage.setItem('token', data.token)
       localStorage.setItem('role', data.role)
-      navigate('/student/hostels')
+      navigate('/admin/users')
     } catch (err) {
       setError(err.message || 'Login failed')
     } finally {
@@ -29,26 +29,26 @@ export default function StudentLogin() {
     <div className="auth-page">
       <div className="w-full max-w-md">
         <div className="auth-card">
-          <h1 className="auth-title">Student Login</h1>
-          <p className="auth-subtitle">Sign in to your student account</p>
+          <h1 className="auth-title">Admin Login</h1>
+          <p className="auth-subtitle">Sign in to the admin dashboard</p>
           {error && <p className="auth-error" role="alert">{error}</p>}
           <form onSubmit={handleSubmit} className="auth-form">
             <div>
-              <label htmlFor="email" className="auth-label">Email</label>
+              <label htmlFor="admin-username" className="auth-label">Username</label>
               <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="admin-username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="auth-input"
-                placeholder="you@example.com"
+                placeholder="admin"
                 required
               />
             </div>
             <div>
-              <label htmlFor="password" className="auth-label">Password</label>
+              <label htmlFor="admin-password" className="auth-label">Password</label>
               <input
-                id="password"
+                id="admin-password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -62,9 +62,6 @@ export default function StudentLogin() {
             </button>
           </form>
           <p className="auth-footer">
-            Don&apos;t have an account? <Link to="/signup" className="auth-link">Sign up</Link>
-          </p>
-          <p className="auth-footer-secondary">
             <Link to="/" className="auth-link">Back to home</Link>
           </p>
         </div>
