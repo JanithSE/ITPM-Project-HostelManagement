@@ -11,6 +11,7 @@ import StudentDashboard from './components/dashboard/StudentDashboard'
 import AdminDashboard from './components/dashboard/AdminDashboard'
 import WardenDashboard from './components/dashboard/WardenDashboard'
 import Hostels from './components/hostels/Hostels'
+import AdminHostels from './components/hostels/AdminHostels'
 import StudentPayments from './components/payments/StudentPayments'
 import AdminPayments from './components/payments/AdminPayments'
 import StudentInquiries from './components/inquiries/StudentInquiries'
@@ -75,6 +76,7 @@ export default function App() {
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<Users />} />
         <Route path="booking" element={<Booking />} />
+        <Route path="hostels" element={<AdminHostels />} />
         <Route path="payments" element={<AdminPayments />} />
         <Route path="latepass" element={<AdminLatepass />} />
         <Route path="inventory" element={<Inventory />} />
