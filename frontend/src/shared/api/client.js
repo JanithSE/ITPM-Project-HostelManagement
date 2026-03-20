@@ -27,4 +27,8 @@ export const authApi = {
     apiFetch('/auth/student-login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   adminLogin: (email, password) =>
     apiFetch('/auth/admin-login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  wardenLogin: (email, password) =>
+    apiFetch('/auth/warden-login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  wardenSignup: (payload) =>
+    apiFetch('/auth/warden-signup', { method: 'POST', body: JSON.stringify(payload) }),
 }

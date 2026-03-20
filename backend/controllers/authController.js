@@ -42,6 +42,110 @@ export const studentSignup = async (req, res) => {
   }
 }
 
+export const wardenSignup = async (req, res) => {
+  try {
+    const {
+      fullName,
+      email,
+      phoneNumber,
+      nic,
+      address,
+      gender,
+      assignedHostel,
+      password,
+    } = req.body || {}
+
+    if (!fullName || !email || !phoneNumber || !nic || !address || !gender || !assignedHostel || !password) {
+      return res.status(400).json({ error: 'All fields are required' })
+    }
+
+    const emailNorm = String(email).trim().toLowerCase()
+    if (!emailNorm) {
+      return res.status(400).json({ error: 'Valid email required' })
+    }
+    if (String(password).length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' })
+    }
+
+    const existing = await User.findOne({ email: emailNorm })
+    if (existing) {
+      return res.status(400).json({ error: 'Email already registered' })
+    }
+
+    const user = await User.create({
+      name: String(fullName).trim(),
+      email: emailNorm,
+      password,
+      role: 'warden',
+      phoneNumber: String(phoneNumber).trim(),
+      nic: String(nic).trim(),
+      address: String(address).trim(),
+      gender: String(gender).trim().toLowerCase(),
+      assignedHostel: String(assignedHostel).trim(),
+    })
+
+    const token = signToken(user)
+    res.status(201).json({
+      token,
+      role: 'warden',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        nic: user.nic,
+        address: user.address,
+        gender: user.gender,
+        assignedHostel: user.assignedHostel,
+      },
+    })
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(400).json({ error: 'Email already registered' })
+    }
+    if (err.name === 'ValidationError') {
+      const msg = Object.values(err.errors).map((e) => e.message).join('. ')
+      return res.status(400).json({ error: msg || 'Validation failed' })
+    }
+    res.status(500).json({ error: err.message || 'Warden registration failed' })
+  }
+}
+
+export const wardenLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body || {}
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' })
+    }
+    const emailNorm = String(email).trim().toLowerCase()
+    const user = await User.findOne({ email: emailNorm, role: 'warden' })
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' })
+    }
+    const valid = await user.comparePassword(password)
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid email or password' })
+    }
+    const token = signToken(user)
+    res.json({
+      token,
+      role: 'warden',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        nic: user.nic,
+        address: user.address,
+        gender: user.gender,
+        assignedHostel: user.assignedHostel,
+      },
+    })
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
 export const studentLogin = async (req, res) => {
   try {
     const { email, password } = req.body || {}

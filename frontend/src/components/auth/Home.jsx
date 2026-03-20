@@ -55,6 +55,9 @@ export default function Home() {
               <Link to="/signup" className="nav-link-outline">
                 Sign up
               </Link>
+              <Link to="/warden/login" className="nav-link-outline">
+                Warden
+              </Link>
               <Link to="/admin/login" className="btn-primary-solid">
                 Admin Login
               </Link>
