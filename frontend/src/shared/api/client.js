@@ -32,3 +32,13 @@ export const authApi = {
   wardenSignup: (payload) =>
     apiFetch('/auth/warden-signup', { method: 'POST', body: JSON.stringify(payload) }),
 }
+
+export const hostelApi = {
+  listHostels: () => apiFetch('/hostels'),
+  createHostel: (payload) =>
+    apiFetch('/hostels', { method: 'POST', body: JSON.stringify(payload) }),
+  updateHostel: (id, payload) =>
+    apiFetch(`/hostels/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  deleteHostel: (id) =>
+    apiFetch(`/hostels/${id}`, { method: 'DELETE' }),
+}

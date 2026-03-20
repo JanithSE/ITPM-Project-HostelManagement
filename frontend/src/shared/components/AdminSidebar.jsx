@@ -14,6 +14,7 @@ export default function AdminSidebar() {
     { to: '/admin/booking', label: 'Booking' },
     { to: '/admin/payments', label: 'Payments' },
     { to: '/admin/latepass', label: 'Latepass' },
+    { to: '/admin/hostels', label: 'Hostels' },
     { to: '/admin/inventory', label: 'Inventory' },
     { to: '/admin/inquiries', label: 'Inquiries' },
     { to: '/admin/maintenance', label: 'Maintenance' },
