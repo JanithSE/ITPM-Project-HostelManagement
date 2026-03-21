@@ -5,6 +5,16 @@ function getToken() {
   return localStorage.getItem('token')
 }
 
+function mapNetworkError(err) {
+  const msg = err?.message || ''
+  if (msg === 'Failed to fetch' || msg.includes('NetworkError') || err?.name === 'TypeError') {
+    return new Error(
+      'Cannot reach the server. Start the backend on port 5001 (e.g. from the project root: npm run dev, or cd backend && npm run dev) while the Vite app is running.'
+    )
+  }
+  return err
+}
+
 export async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path}`
   const headers = {
@@ -14,10 +24,44 @@ export async function apiFetch(path, options = {}) {
   const token = getToken()
   if (token) headers.Authorization = `Bearer ${token}`
 
-  const res = await fetch(url, { ...options, headers })
+  let res
+  try {
+    res = await fetch(url, { ...options, headers })
+  } catch (err) {
+    throw mapNetworkError(err)
+  }
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || res.statusText)
   return data
+}
+
+/** POST multipart (e.g. payment proof). Do not set Content-Type — browser sets boundary. */
+export async function apiPostForm(path, formData) {
+  const url = `${API_BASE}${path}`
+  const headers = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  let res
+  try {
+    res = await fetch(url, { method: 'POST', headers, body: formData })
+  } catch (err) {
+    throw mapNetworkError(err)
+  }
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || res.statusText)
+  return data
+}
+
+export const paymentApi = {
+  listMine: () => apiFetch('/payments/my'),
+  create: (formData) => apiPostForm('/payments', formData),
+}
+
+export const latepassApi = {
+  listMine: () => apiFetch('/latepass/my'),
+  create: (payload) =>
+    apiFetch('/latepass', { method: 'POST', body: JSON.stringify(payload) }),
 }
 
 export const authApi = {

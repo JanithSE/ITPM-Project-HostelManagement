@@ -1,6 +1,3 @@
-// Alias file to match spec name casing (Latepass vs LatePass)
-export { default } from './LatePass.js'
-
 import mongoose from 'mongoose'
 
 const latePassSchema = new mongoose.Schema(
@@ -9,6 +6,10 @@ const latePassSchema = new mongoose.Schema(
     date: { type: Date, default: Date.now },
     returnTime: { type: String, trim: true },
     reason: { type: String, trim: true },
+
+    roomType: { type: String, trim: true },
+    facilityType: { type: String, trim: true },
+    transactionReference: { type: String, trim: true },
     status: {
       type: String,
       // Keep old statuses for backward compatibility with existing documents

@@ -39,13 +39,26 @@ export const createPayment = async (req, res) => {
   try {
     const studentId = req.user._id
 
-    const proofFromFile = req.file ? `/uploads/${req.file.filename}` : null
+    if (!req.file) {
+      return res.status(400).json({ error: 'Payment proof file is required (PDF or image)' })
+    }
+
+    const proofFromFile = `/uploads/${req.file.filename}`
     const proofUrl = proofFromFile || req.body.proofUrl || null
+
+    const amountRaw = req.body.amount
+    const amountNum = typeof amountRaw === 'string' ? Number.parseFloat(amountRaw) : Number(amountRaw)
+    const roomNoTrim = String(req.body.roomNo ?? '').trim() || undefined
+
+    if (Number.isNaN(amountNum) || amountNum <= 0) {
+      return res.status(400).json({ error: 'Valid amount is required' })
+    }
 
     const payment = await Payment.create({
       student: studentId,
       month: req.body.month,
-      amount: req.body.amount,
+      amount: amountNum,
+      ...(roomNoTrim ? { roomNo: roomNoTrim } : {}),
       roomType: req.body.roomType,
       facilityType: req.body.facilityType,
       transactionReference: req.body.transactionReference,

@@ -13,7 +13,7 @@ export default function StudentNavbar() {
     { to: '/student/hostels', label: 'Our Hostels' },
     { to: '/student/payments', label: 'Payments' },
     { to: '/student/inquiries', label: 'Inquiries' },
-    { to: '/student/latepass', label: 'Latepass' },
+    { to: '/student/latepass', label: 'Late pass' },
     { to: '/student/complains', label: 'Complains' },
   ]
 

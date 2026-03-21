@@ -28,3 +28,7 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+
+# Uploaded payment proofs (keep folder via .gitkeep)
+backend/uploads/*
+!backend/uploads/.gitkeep

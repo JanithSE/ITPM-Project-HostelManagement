@@ -13,7 +13,7 @@ export default function AdminSidebar() {
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/booking', label: 'Booking' },
     { to: '/admin/payments', label: 'Payments' },
-    { to: '/admin/latepass', label: 'Latepass' },
+    { to: '/admin/latepass', label: 'Late pass' },
     { to: '/admin/hostels', label: 'Hostels' },
     { to: '/admin/inventory', label: 'Inventory' },
     { to: '/admin/inquiries', label: 'Inquiries' },
