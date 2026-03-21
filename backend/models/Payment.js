@@ -8,6 +8,8 @@ const paymentSchema = new mongoose.Schema(
     month: { type: String, required: true, trim: true },
     amount: { type: Number, required: true },
 
+    roomNo: { type: String, trim: true },
+
     // Hostel-specific details (free-form strings)
     roomType: { type: String, trim: true },
     facilityType: { type: String, trim: true },

@@ -41,6 +41,9 @@ export const createLatepass = async (req, res) => {
       date: req.body.date,
       returnTime: req.body.returnTime,
       reason: req.body.reason,
+      roomType: req.body.roomType,
+      facilityType: req.body.facilityType,
+      transactionReference: req.body.transactionReference,
       status: 'pending',
       // adminRemarks can only be saved by admin during workflow update
     })
