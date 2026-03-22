@@ -1,9 +1,9 @@
 const STYLES = {
   pending: 'bg-amber-100 text-amber-800 ring-amber-600/20',
   processing: 'bg-blue-100 text-blue-800 ring-blue-600/20',
-  completed: 'bg-emerald-100 text-emerald-800 ring-emerald-600/20',
-  paid: 'bg-emerald-100 text-emerald-800 ring-emerald-600/20',
-  approved: 'bg-emerald-100 text-emerald-800 ring-emerald-600/20',
+  completed: 'bg-primary-100 text-primary-800 ring-primary-600/20',
+  paid: 'bg-primary-100 text-primary-800 ring-primary-600/20',
+  approved: 'bg-primary-100 text-primary-800 ring-primary-600/20',
   rejected: 'bg-red-100 text-red-800 ring-red-600/20',
   failed: 'bg-red-100 text-red-800 ring-red-600/20',
 }

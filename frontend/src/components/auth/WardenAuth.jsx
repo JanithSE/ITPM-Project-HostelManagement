@@ -215,7 +215,7 @@ function WardenRegisterForm({ onSuccess }) {
   return (
     <>
       {error && <p className="auth-error" role="alert">{error}</p>}
-      {success && <p className="mb-4 text-sm text-green-700 bg-green-50 px-3 py-2 rounded-lg">{success}</p>}
+      {success && <p className="mb-4 text-sm text-primary-800 bg-primary-50 px-3 py-2 rounded-xl border border-primary-100">{success}</p>}
       <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label htmlFor="warden-fullName" className="auth-label">Full name</label>

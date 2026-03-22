@@ -1,27 +1,23 @@
 import express from 'express'
 import {
-  getAllPayments,
   getMyPayments,
+  getAdminPayments,
+  getPaymentById,
   createPayment,
-  updatePaymentStatus,
+  patchPaymentStatus,
 } from '../controllers/paymentController.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
-import { proofUploadMiddleware } from '../middleware/upload.js'
+import { paymentProofUploadMiddleware } from '../middleware/upload.js'
 
 const router = express.Router()
 
 router.use(authMiddleware)
 
-// POST /api/payments – student creates their own payment
-router.post('/', requireRole('student'), proofUploadMiddleware, createPayment)
+router.get('/my', requireRole('student'), getMyPayments)
+router.get('/admin', requireRole('admin'), getAdminPayments)
+router.get('/:id', getPaymentById)
 
-// GET /api/payments/my – logged-in user only
-router.get('/my', getMyPayments)
-
-// GET /api/payments – admin: all; student: own
-router.get('/', getAllPayments)
-
-// PUT /api/payments/:id – admin updates workflow status
-router.put('/:id', requireRole('admin'), updatePaymentStatus)
+router.post('/', requireRole('student'), paymentProofUploadMiddleware, createPayment)
+router.patch('/:id/status', requireRole('admin'), patchPaymentStatus)
 
 export default router

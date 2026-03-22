@@ -12,6 +12,8 @@ const userSchema = new mongoose.Schema(
     address: { type: String, trim: true, default: '' },
     gender: { type: String, trim: true, lowercase: true, default: '' },
     assignedHostel: { type: String, trim: true, default: '' },
+    /** University / registration ID — used to match late-pass group requests */
+    universityId: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 )

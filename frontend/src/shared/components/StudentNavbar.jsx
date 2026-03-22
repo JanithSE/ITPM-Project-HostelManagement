@@ -1,4 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
+import ThemeToggle from './ThemeToggle'
 
 export default function StudentNavbar() {
   const navigate = useNavigate()
@@ -36,6 +37,7 @@ export default function StudentNavbar() {
                 {label}
               </NavLink>
             ))}
+            <ThemeToggle />
             <button type="button" onClick={handleLogout} className="btn-logout">
               Logout
             </button>
