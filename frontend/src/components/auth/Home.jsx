@@ -46,6 +46,9 @@ export default function Home() {
         <div className="container-main">
           <div className="site-header-inner">
             <Link to="/" className="site-logo">
+              <span className="site-logo-mark" aria-hidden>
+                UH
+              </span>
               UniHostel
             </Link>
             <nav className="nav-links">
@@ -70,16 +73,24 @@ export default function Home() {
         <div className="hero-pattern" aria-hidden />
         <div className="hero-content">
           <div className="hero-inner">
-            <h1 className="hero-title">Your home away from home</h1>
+            <h1 className="hero-title">Campus living, simplified — one place for rooms, fees &amp; late passes</h1>
             <p className="hero-tagline">
-              Safe, affordable campus hostels with everything you need to focus on your studies and make the most of university life.
+              UniHostel helps you find a bed, pay on time, and stay compliant with hostel rules — all with a clean student dashboard and admin tools staff actually enjoy using.
             </p>
-            <a href="#hostels" className="hero-cta">
-              View hostels
-              <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </a>
+            <div className="hero-cta-row">
+              <Link to="/signup" className="hero-cta">
+                Get started free
+                <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+              <a href="#hostels" className="hero-cta-secondary">
+                Browse hostels
+                <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </a>
+            </div>
           </div>
         </div>
       </section>
@@ -89,6 +100,27 @@ export default function Home() {
           <p className="about-text">
             <span className="brand-name">UniHostel</span> manages campus accommodation so you can book rooms, pay fees, request late passes, and raise inquiries—all in one place. Students get a simple dashboard; admins get full control.
           </p>
+        </div>
+      </section>
+
+      <section className="stats-strip" aria-label="At a glance">
+        <div className="stats-strip-inner">
+          <p className="stats-strip-heading">Why students choose UniHostel</p>
+          <div className="stats-grid">
+            <div className="stat-card">
+              <p className="stat-card-value">500+</p>
+              <p className="stat-card-label">Beds managed</p>
+            </div>
+            <div className="stat-card">
+              <p className="stat-card-value">24/7</p>
+              <p className="stat-card-label">Support ready</p>
+            </div>
+            <div className="stat-card">
+              <p className="stat-card-value">100%</p>
+              <p className="stat-card-label">Online payments</p>
+            </div>
+          </div>
+          <p className="stat-card-footnote">Built for busy semesters — fewer queues, clearer status, faster approvals.</p>
         </div>
       </section>
 
@@ -138,7 +170,10 @@ export default function Home() {
 
       <footer className="site-footer">
         <div className="container-main">
-          <p className="site-footer-inner">UniHostel — Campus hostel management</p>
+          <h2 className="site-footer-title">Leading campus hostel management</h2>
+          <p className="site-footer-inner">
+            UniHostel — rooms, payments, late passes, and admin workflows in one modern experience.
+          </p>
         </div>
       </footer>
     </div>

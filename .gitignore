@@ -29,6 +29,8 @@ Thumbs.db
 coverage/
 .nyc_output/
 
-# Uploaded payment proofs (keep folder via .gitkeep)
-backend/uploads/*
-!backend/uploads/.gitkeep
+# Uploaded files (keep empty dirs via .gitkeep)
+backend/uploads/payments/*
+!backend/uploads/payments/.gitkeep
+backend/uploads/latepass/*
+!backend/uploads/latepass/.gitkeep

@@ -1,4 +1,5 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
+import ThemeToggle from '../components/ThemeToggle'
 
 export default function WardenLayout() {
   const navigate = useNavigate()
@@ -17,7 +18,7 @@ export default function WardenLayout() {
       <header className="student-header">
         <div className="student-nav-inner">
           <div className="student-nav-bar">
-            <Link to="/warden" className="text-lg font-bold text-primary-600">
+            <Link to="/warden" className="text-lg font-bold text-primary-600 dark:text-primary-400">
               UniHostel · Warden
             </Link>
             <div className="student-nav-links">
@@ -27,6 +28,7 @@ export default function WardenLayout() {
               >
                 Dashboard
               </Link>
+              <ThemeToggle />
               <button type="button" onClick={handleLogout} className="btn-logout">
                 Log out
               </button>

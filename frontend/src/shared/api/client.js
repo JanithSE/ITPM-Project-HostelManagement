@@ -55,13 +55,14 @@ export async function apiPostForm(path, formData) {
 
 export const paymentApi = {
   listMine: () => apiFetch('/payments/my'),
+  listAdmin: () => apiFetch('/payments/admin'),
   create: (formData) => apiPostForm('/payments', formData),
 }
 
 export const latepassApi = {
   listMine: () => apiFetch('/latepass/my'),
-  create: (payload) =>
-    apiFetch('/latepass', { method: 'POST', body: JSON.stringify(payload) }),
+  listAdmin: () => apiFetch('/latepass/admin'),
+  create: (formData) => apiPostForm('/latepass', formData),
 }
 
 export const authApi = {

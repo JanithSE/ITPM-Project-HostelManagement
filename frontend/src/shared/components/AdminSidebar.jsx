@@ -1,4 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
+import ThemeToggle from './ThemeToggle'
 
 export default function AdminSidebar() {
   const navigate = useNavigate()
@@ -40,7 +41,10 @@ export default function AdminSidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="admin-sidebar-footer">
+      <div className="admin-sidebar-footer flex flex-col gap-2">
+        <div className="flex justify-center pb-1">
+          <ThemeToggle />
+        </div>
         <button type="button" onClick={handleLogout} className="btn-logout w-full">
           Logout
         </button>
