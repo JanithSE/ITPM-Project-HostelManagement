@@ -10,18 +10,17 @@ import { authMiddleware, requireRole } from '../middleware/auth.js'
 const router = express.Router()
 
 router.use(authMiddleware)
-router.use(requireRole('admin'))
 
 // GET /api/inventory
-router.get('/', listInventory)
+router.get('/', requireRole('admin', 'warden'), listInventory)
 
 // POST /api/inventory
-router.post('/', createInventoryItem)
+router.post('/', requireRole('admin'), createInventoryItem)
 
 // PATCH /api/inventory/:id
-router.patch('/:id', updateInventoryItem)
+router.patch('/:id', requireRole('admin'), updateInventoryItem)
 
 // DELETE /api/inventory/:id
-router.delete('/:id', deleteInventoryItem)
+router.delete('/:id', requireRole('admin'), deleteInventoryItem)
 
 export default router

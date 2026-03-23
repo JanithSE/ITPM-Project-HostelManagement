@@ -2,7 +2,8 @@ import Complain from '../models/Complain.js'
 
 export const listComplains = async (req, res) => {
   try {
-    const query = req.user.role === 'admin' ? {} : { student: req.user._id }
+    // Admin and Warden can see all complaints; students only see their own.
+    const query = ['admin', 'warden'].includes(req.user.role) ? {} : { student: req.user._id }
     const complains = await Complain.find(query)
       .populate('student', 'name email')
       .sort({ createdAt: -1 })

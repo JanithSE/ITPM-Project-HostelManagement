@@ -14,6 +14,7 @@ import latepassRoutes from './routes/latepass.js'
 import complainsRoutes from './routes/complains.js'
 import inventoryRoutes from './routes/inventory.js'
 import maintenanceRoutes from './routes/maintenance.js'
+import roomsRoutes from './routes/rooms.js'
 
 await connectDB()
 
@@ -38,6 +39,7 @@ app.use('/api/latepass', latepassRoutes)
 app.use('/api/complains', complainsRoutes)
 app.use('/api/inventory', inventoryRoutes)
 app.use('/api/maintenance', maintenanceRoutes)
+app.use('/api/rooms', roomsRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true })
