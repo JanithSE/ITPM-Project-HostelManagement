@@ -11,21 +11,20 @@ import { authMiddleware, requireRole } from '../middleware/auth.js'
 const router = express.Router()
 
 router.use(authMiddleware)
-router.use(requireRole('admin'))
 
 // GET /api/users
-router.get('/', getUsers)
+router.get('/', requireRole('admin', 'warden'), getUsers)
 
 // POST /api/users
-router.post('/', createUser)
+router.post('/', requireRole('admin'), createUser)
 
 // GET /api/users/:id
-router.get('/:id', getUserById)
+router.get('/:id', requireRole('admin', 'warden'), getUserById)
 
 // PATCH /api/users/:id
-router.patch('/:id', updateUser)
+router.patch('/:id', requireRole('admin'), updateUser)
 
 // DELETE /api/users/:id
-router.delete('/:id', deleteUser)
+router.delete('/:id', requireRole('admin'), deleteUser)
 
 export default router
