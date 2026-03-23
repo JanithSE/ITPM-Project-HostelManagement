@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import path from 'path'
+import { fileURLToPath } from 'url'
 import { connectDB } from './config/db.js'
 import authRoutes from './routes/auth.js'
 import usersRoutes from './routes/users.js'
@@ -21,6 +23,11 @@ const PORT = process.env.PORT || 5001
 
 app.use(cors({ origin: true, credentials: true }))
 app.use(express.json())
+
+// Serve uploaded proof files (for payment proofUrl)
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 app.use('/api/auth', authRoutes)
 app.use('/api/users', usersRoutes)

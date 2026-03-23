@@ -47,7 +47,8 @@ export async function connectDB() {
       console.error('   4. Try getting a fresh connection string from Atlas')
     }
     
-    console.error(`\n🔗 Connection URI: ${uri.replace(/:[^:@]+@/, ':****@')}`)
+    const redactedUri = uri ? uri.replace(/:[^:@]+@/, ':****@') : '<missing MONGODB_URI>'
+    console.error(`\n🔗 Connection URI: ${redactedUri}`)
     process.exit(1)
   }
 }

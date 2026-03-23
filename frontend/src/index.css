@@ -2,15 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+@layer base {
+  html.dark {
+    color-scheme: dark;
+  }
+  body {
+    margin: 0;
+    @apply font-sans antialiased text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100;
+  }
 }
 
-/* Layout */
+/* Layout & marketing */
 @layer components {
   .page-container {
-    @apply min-h-screen bg-slate-50;
+    @apply min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-blue-950/20;
   }
   .container-main {
     @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
@@ -18,60 +23,96 @@ body {
 
   /* Header */
   .site-header {
-    @apply sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-slate-200 shadow-sm;
+    @apply sticky top-0 z-50 border-b border-slate-100 bg-white/90 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90;
   }
   .site-header-inner {
-    @apply flex justify-between items-center h-16;
+    @apply flex justify-between items-center h-16 md:h-[4.25rem];
   }
   .site-logo {
-    @apply flex items-center gap-2 text-xl font-bold text-primary-600;
+    @apply flex items-center gap-2.5 text-xl font-extrabold tracking-tight text-primary-600 dark:text-primary-400;
+  }
+  .site-logo-mark {
+    @apply flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-sm font-bold text-white shadow-md shadow-primary-600/25;
   }
   .nav-links {
-    @apply flex items-center gap-3;
+    @apply flex items-center gap-2 sm:gap-3 flex-wrap justify-end;
   }
   .nav-link-text {
-    @apply text-slate-600 hover:text-primary-600 font-medium px-4 py-2 rounded-lg hover:bg-primary-50 transition-colors;
+    @apply rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-primary-50 hover:text-primary-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400;
   }
   .nav-link-outline {
-    @apply text-primary-600 hover:bg-primary-50 font-medium px-4 py-2 rounded-lg transition-colors border border-primary-600;
+    @apply rounded-full border border-primary-200 px-4 py-2 text-sm font-medium text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-800 dark:text-primary-400 dark:hover:bg-slate-800;
   }
   .btn-primary-solid {
-    @apply bg-primary-600 text-white font-medium px-4 py-2 rounded-lg hover:bg-primary-700 shadow-md shadow-primary-600/25 transition-all;
+    @apply bg-zinc-900 text-white font-semibold px-5 py-2.5 rounded-full hover:bg-zinc-800 shadow-lg shadow-zinc-900/15 transition-all duration-200 text-sm;
   }
 
-  /* Hero */
+  /* Hero — light, airy (reference: Smart Order / stat cards) */
   .hero {
-    @apply relative overflow-hidden bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white;
+    @apply relative overflow-hidden bg-gradient-to-b from-blue-50/90 via-white to-white dark:from-slate-950 dark:via-slate-950 dark:to-slate-900;
   }
   .hero-pattern {
-    @apply absolute inset-0 opacity-80;
-    background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    @apply absolute inset-0 opacity-40 pointer-events-none;
+    background-image: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.08) 0%, transparent 45%),
+      radial-gradient(circle at 80% 60%, rgba(99, 102, 241, 0.06) 0%, transparent 40%);
   }
   .hero-content {
     @apply relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
   }
   .hero-inner {
-    @apply py-20 sm:py-28;
+    @apply py-16 sm:py-24 lg:py-28 max-w-3xl;
   }
   .hero-title {
-    @apply text-4xl sm:text-5xl font-bold tracking-tight mb-4;
+    @apply mb-5 text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 sm:text-5xl lg:text-[3.25rem] dark:text-slate-50;
   }
   .hero-tagline {
-    @apply text-lg sm:text-xl text-primary-100 max-w-2xl mb-8;
+    @apply mb-10 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400;
+  }
+  .hero-cta-row {
+    @apply flex flex-col sm:flex-row flex-wrap gap-4 items-stretch sm:items-center;
   }
   .hero-cta {
-    @apply inline-flex items-center gap-2 bg-white text-primary-700 font-semibold px-6 py-3 rounded-xl hover:bg-primary-50 shadow-lg transition-colors;
+    @apply inline-flex items-center justify-center gap-2 bg-zinc-900 text-white font-semibold px-8 py-3.5 rounded-full hover:bg-zinc-800 shadow-xl shadow-zinc-900/20 transition-all duration-200 text-sm sm:text-base;
+  }
+  .hero-cta-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-slate-200 bg-white px-8 py-3.5 text-sm font-semibold text-slate-800 transition-all duration-200 hover:border-primary-200 hover:bg-primary-50/50 sm:text-base dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-primary-700 dark:hover:bg-slate-800;
   }
   .hero-cta-icon {
-    @apply w-4 h-4;
+    @apply w-5 h-5;
+  }
+
+  /* Stats strip */
+  .stats-strip {
+    @apply border-y border-slate-100 bg-white py-16 sm:py-20 dark:border-slate-800 dark:bg-slate-950;
+  }
+  .stats-strip-inner {
+    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  .stats-strip-heading {
+    @apply mb-10 text-center text-sm font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400;
+  }
+  .stats-grid {
+    @apply grid sm:grid-cols-3 gap-6 lg:gap-8;
+  }
+  .stat-card {
+    @apply rounded-3xl border border-slate-100/80 bg-white p-8 text-center shadow-card transition-all duration-300 hover:border-primary-100 hover:shadow-soft lg:p-10 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-primary-900;
+  }
+  .stat-card-value {
+    @apply text-4xl sm:text-5xl font-extrabold text-primary-600 mb-2 tracking-tight;
+  }
+  .stat-card-label {
+    @apply text-sm font-semibold text-slate-800 sm:text-base dark:text-slate-100;
+  }
+  .stat-card-footnote {
+    @apply mx-auto mt-10 max-w-lg text-center text-sm text-slate-500 dark:text-slate-400;
   }
 
   /* About strip */
   .about-strip {
-    @apply bg-white border-b border-slate-200 py-12;
+    @apply bg-blue-50/50 py-14 sm:py-16 dark:bg-slate-900/50;
   }
   .about-text {
-    @apply text-slate-600 text-center text-lg max-w-3xl mx-auto;
+    @apply mx-auto max-w-3xl text-center text-lg leading-relaxed text-slate-600 dark:text-slate-400;
   }
   .brand-name {
     @apply font-semibold text-primary-600;
@@ -79,225 +120,273 @@ body {
 
   /* Hostel section */
   .hostel-section {
-    @apply py-16;
+    @apply py-16 sm:py-20;
   }
   .section-heading {
-    @apply text-2xl sm:text-3xl font-bold text-slate-900 mb-2;
+    @apply mb-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-slate-50;
   }
   .section-subtitle {
-    @apply text-slate-600 mb-10;
+    @apply mb-12 text-lg text-slate-600 dark:text-slate-400;
   }
   .hostel-grid {
-    @apply grid sm:grid-cols-2 lg:grid-cols-4 gap-6;
+    @apply grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8;
   }
   .hostel-card {
-    @apply bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm hover:shadow-md hover:border-primary-200 transition-all duration-200;
+    @apply overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-100 hover:shadow-soft dark:border-slate-700 dark:bg-slate-900 dark:hover:border-primary-800;
   }
   .hostel-card-image {
-    @apply h-32 bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center;
+    @apply flex h-36 items-center justify-center bg-gradient-to-br from-primary-100 to-indigo-100 dark:from-primary-900 dark:to-slate-900;
   }
   .hostel-card-icon {
-    @apply w-14 h-14 text-primary-500;
+    @apply w-14 h-14 text-primary-600;
   }
   .hostel-card-body {
-    @apply p-5;
+    @apply p-6;
   }
   .hostel-card-header {
     @apply flex items-start justify-between gap-2 mb-2;
   }
   .hostel-card-title {
-    @apply font-bold text-slate-900 text-lg;
+    @apply text-lg font-bold text-slate-900 dark:text-slate-50;
   }
   .hostel-price {
-    @apply text-primary-600 font-semibold whitespace-nowrap;
+    @apply text-primary-600 font-bold whitespace-nowrap text-sm;
   }
   .hostel-location {
     @apply text-slate-500 text-sm mb-3 flex items-center gap-1;
   }
   .hostel-location-icon {
-    @apply w-4 h-4 text-slate-400;
+    @apply w-4 h-4 text-slate-400 shrink-0;
   }
   .hostel-description {
-    @apply text-slate-600 text-sm mb-4 line-clamp-3;
+    @apply mb-4 line-clamp-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400;
   }
   .hostel-amenities {
     @apply flex flex-wrap gap-1.5 mb-4;
   }
   .hostel-amenity-tag {
-    @apply text-xs font-medium text-primary-700 bg-primary-100 px-2 py-1 rounded;
+    @apply rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300;
   }
   .hostel-meta {
     @apply text-slate-500 text-xs;
   }
   .section-cta-wrap {
-    @apply mt-10 text-center;
+    @apply mt-12 text-center;
   }
   .btn-primary-with-icon {
-    @apply inline-flex items-center gap-2 bg-primary-600 text-white font-semibold px-6 py-3 rounded-xl hover:bg-primary-700 shadow-md shadow-primary-600/20 transition-colors;
+    @apply inline-flex items-center gap-2 bg-primary-600 text-white font-semibold px-8 py-3.5 rounded-full hover:bg-primary-700 shadow-lg shadow-primary-600/25 transition-all duration-200;
   }
   .btn-icon-right {
-    @apply w-4 h-4;
+    @apply w-5 h-5;
   }
 
-  /* Footer */
+  /* Footer — blue band */
   .site-footer {
-    @apply bg-slate-800 text-slate-300 py-8 mt-16;
+    @apply mt-0 bg-primary-600 py-14 text-white dark:bg-primary-900;
   }
   .site-footer-inner {
-    @apply text-center text-sm;
+    @apply mx-auto max-w-2xl text-center text-sm text-blue-100 dark:text-blue-200;
+  }
+  .site-footer-title {
+    @apply text-2xl sm:text-3xl font-extrabold text-white mb-3 tracking-tight;
   }
 
-  /* Auth pages (login / signup) */
+  /* Auth */
   .auth-page {
-    @apply min-h-screen bg-gray-50 flex items-center justify-center px-4;
+    @apply flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 px-4 py-12 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900;
   }
   .auth-card {
-    @apply w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-200 p-8;
+    @apply w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-card sm:p-10 dark:border-slate-700 dark:bg-slate-900;
   }
   .auth-title {
-    @apply text-2xl font-bold text-gray-900 mb-1;
+    @apply mb-1 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50;
   }
   .auth-subtitle {
-    @apply text-gray-600 text-sm mb-6;
+    @apply mb-8 text-sm text-slate-600 dark:text-slate-400;
   }
   .auth-error {
-    @apply mb-4 text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg;
+    @apply mb-4 text-sm text-red-700 bg-red-50 px-4 py-3 rounded-xl border border-red-100;
   }
   .auth-form {
-    @apply space-y-4;
+    @apply space-y-5;
   }
   .auth-label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300;
   }
   .auth-input {
-    @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500;
+    @apply w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 transition-all focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-primary-400 dark:focus:bg-slate-900;
   }
   .btn-submit {
-    @apply w-full bg-primary-600 text-white py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors disabled:opacity-50;
+    @apply w-full bg-primary-600 text-white py-3 rounded-full font-semibold hover:bg-primary-700 shadow-lg shadow-primary-600/20 transition-all disabled:opacity-50;
   }
   .auth-footer {
-    @apply mt-4 text-center text-sm text-gray-600;
+    @apply mt-6 text-center text-sm text-slate-600 dark:text-slate-400;
   }
   .auth-link {
-    @apply text-primary-600 hover:underline font-medium;
+    @apply font-semibold text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300;
   }
   .auth-footer-secondary {
-    @apply mt-2 text-center text-sm text-gray-600;
+    @apply mt-3 text-center text-sm text-slate-600 dark:text-slate-400;
   }
   .auth-tabs {
-    @apply flex border-b border-gray-200 mb-6;
+    @apply mb-8 flex gap-1 overflow-hidden rounded-t-xl border-b border-slate-200 bg-slate-50/80 p-1 dark:border-slate-700 dark:bg-slate-800/50;
   }
   .auth-tab {
-    @apply flex-1 py-3 text-center text-sm font-medium transition-colors;
+    @apply flex-1 py-3 text-center text-sm font-semibold transition-all rounded-lg;
   }
   .auth-tab-inactive {
-    @apply text-gray-500 hover:text-gray-700 hover:bg-gray-50;
+    @apply text-slate-500 hover:bg-white/80 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700/80 dark:hover:text-slate-100;
   }
   .auth-tab-active {
-    @apply text-primary-600 border-b-2 border-primary-600 bg-primary-50/50;
+    @apply border border-slate-100 bg-white text-primary-700 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-primary-300;
   }
 
-  /* Dashboard layout */
+  /* Dashboard */
   .dashboard-wrap {
-    @apply min-h-screen bg-gray-50;
+    @apply min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/20 dark:from-slate-950 dark:to-slate-900;
   }
   .content-main {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8;
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10;
   }
   .content-card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply rounded-2xl border border-slate-100/90 bg-white p-6 shadow-soft sm:p-8 dark:border-slate-700 dark:bg-slate-900;
   }
   .page-title {
-    @apply text-2xl font-bold text-gray-900 mb-2;
+    @apply mb-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50;
   }
   .page-description {
-    @apply text-gray-600 mb-6;
+    @apply mb-6 text-base text-slate-600 dark:text-slate-400;
   }
   .btn-primary-action {
-    @apply inline-block bg-primary-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-primary-700 transition-colors;
+    @apply inline-flex items-center justify-center bg-primary-600 text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-primary-700 shadow-md shadow-primary-600/20 transition-all;
   }
 
-  /* Student header nav */
+  /* Student nav */
   .student-header {
-    @apply bg-white shadow-sm border-b border-gray-200;
+    @apply border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95;
   }
   .student-nav-inner {
     @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
   }
   .student-nav-bar {
-    @apply flex justify-between h-14 items-center;
+    @apply flex justify-between min-h-14 py-2 items-center gap-4;
   }
   .student-nav-links {
-    @apply flex items-center gap-2 flex-wrap justify-end;
+    @apply flex items-center gap-1.5 flex-wrap justify-end;
   }
   .student-nav-link {
-    @apply px-3 py-2 rounded-md text-sm font-medium transition-colors;
+    @apply px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200;
   }
   .student-nav-link-active {
-    @apply text-primary-600 bg-primary-50;
+    @apply bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/50 dark:text-primary-300;
   }
   .student-nav-link-inactive {
-    @apply text-gray-600 hover:text-primary-600;
+    @apply text-slate-600 hover:bg-slate-50 hover:text-primary-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-primary-400;
   }
   .btn-logout {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-md text-sm font-medium hover:bg-primary-700 transition-colors;
+    @apply rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white;
   }
 
   /* Admin sidebar */
   .admin-sidebar {
-    @apply w-64 min-h-screen bg-white border-r border-gray-200 flex flex-col;
+    @apply flex min-h-screen w-64 flex-col border-r border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950;
   }
   .admin-sidebar-header {
-    @apply p-4 border-b border-gray-200;
+    @apply border-b border-slate-100 p-5 dark:border-slate-800;
   }
   .admin-sidebar-nav {
     @apply flex-1 p-4 space-y-1;
   }
   .admin-sidebar-link {
-    @apply block px-4 py-2 rounded-md text-sm font-medium transition-colors;
+    @apply block px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200;
   }
   .admin-sidebar-link-active {
-    @apply bg-primary-100 text-primary-700;
+    @apply border border-primary-100/80 bg-primary-50 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-900/30 dark:text-primary-300;
   }
   .admin-sidebar-link-inactive {
-    @apply text-gray-600 hover:bg-primary-50 hover:text-primary-700;
+    @apply text-slate-600 hover:bg-slate-50 hover:text-primary-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-primary-400;
   }
   .admin-sidebar-footer {
-    @apply p-4 border-t border-gray-200;
+    @apply border-t border-slate-100 p-4 dark:border-slate-800;
   }
   .admin-main {
-    @apply flex-1 overflow-auto p-8;
+    @apply flex-1 overflow-auto p-6 lg:p-10 bg-transparent;
   }
   .admin-layout {
-    @apply min-h-screen bg-gray-50 flex;
+    @apply flex min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/20 dark:from-slate-950 dark:to-slate-900;
   }
 
-  /* Tables (admin) */
+  /* Tables */
   .table-wrap {
-    @apply overflow-x-auto;
+    @apply overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700;
   }
   .table-admin {
-    @apply min-w-full divide-y divide-gray-200;
+    @apply min-w-full divide-y divide-slate-100 dark:divide-slate-700;
   }
   .table-admin th {
-    @apply px-4 py-2 text-left text-sm font-medium text-gray-700;
+    @apply bg-slate-50/80 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-400;
   }
   .table-admin tbody tr {
-    @apply divide-y divide-gray-200;
+    @apply divide-y divide-slate-100 transition-colors hover:bg-slate-50/50 dark:divide-slate-800 dark:hover:bg-slate-800/40;
   }
   .table-admin td {
-    @apply px-4 py-3 text-gray-600;
+    @apply px-4 py-3 text-sm text-slate-600 dark:text-slate-300;
   }
   .table-action-link {
-    @apply text-primary-600 text-sm font-medium;
+    @apply text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300;
   }
   .actions-row {
-    @apply mt-4 flex gap-2;
+    @apply mt-4 flex gap-3 flex-wrap;
   }
   .btn-table-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary-700;
+    @apply bg-primary-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-primary-700 shadow-md shadow-primary-600/15 transition-all;
   }
   .btn-table-secondary {
-    @apply bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-gray-300;
+    @apply rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+}
+
+/* Data tables inside dashboard panels (inline Tailwind tables) */
+@layer components {
+  .table-dashboard {
+    @apply min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-700;
+  }
+  .table-dashboard thead tr {
+    @apply border-b border-slate-200 dark:border-slate-700;
+  }
+  .table-dashboard th {
+    @apply whitespace-nowrap bg-slate-50/80 px-3 py-3 font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200;
+  }
+  .table-dashboard tbody {
+    @apply divide-y divide-slate-100 dark:divide-slate-800;
+  }
+  .table-dashboard tbody tr {
+    @apply text-slate-600 transition-colors dark:text-slate-300 dark:hover:bg-slate-800/30;
+  }
+  .table-dashboard td {
+    @apply px-3 py-3;
+  }
+
+  .panel-surface {
+    @apply border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-900;
+  }
+
+  .table-admin-compact {
+    @apply min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-700;
+  }
+  .table-admin-compact thead tr {
+    @apply border-b border-slate-200 dark:border-slate-700;
+  }
+  .table-admin-compact th {
+    @apply bg-slate-50/80 px-2 py-2 text-xs font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200;
+  }
+  .table-admin-compact tbody {
+    @apply divide-y divide-slate-100 dark:divide-slate-800;
+  }
+  .table-admin-compact tbody tr {
+    @apply text-slate-600 transition-colors dark:text-slate-300 dark:hover:bg-slate-800/30;
+  }
+  .table-admin-compact td {
+    @apply px-2 py-2 align-top text-xs dark:text-slate-300;
   }
 }
