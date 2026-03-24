@@ -3,7 +3,7 @@ import { hostelApi } from '../../shared/api/client'
 
 function formatPrice(n) {
   if (typeof n !== 'number') return '—'
-  return `₹${n.toLocaleString('en-IN')}`
+  return `LKR ${n.toLocaleString('en-LK', { maximumFractionDigits: 0 })}`
 }
 
 function amenitiesFromText(text) {

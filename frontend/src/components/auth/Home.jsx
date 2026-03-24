@@ -4,7 +4,7 @@ const featuredHostels = [
   {
     name: 'Emerald Grove Residences',
     location: 'Malabe – Near SLIIT & Horizon Campus',
-    price: '₹18,000',
+    price: 'LKR 18,000',
     period: ' / bed / month',
     description: 'Quiet, greenery-filled environment perfect for focused students.',
     beds: '180',
@@ -13,7 +13,7 @@ const featuredHostels = [
   {
     name: 'Urban Nest Living',
     location: 'Malabe South – Kothalawala Area',
-    price: '₹15,000',
+    price: 'LKR 15,000',
     period: ' / bed / month',
     description: 'Lively and social atmosphere close to food spots and transport.',
     beds: '150',
@@ -22,7 +22,7 @@ const featuredHostels = [
   {
     name: 'Skyline Elite Hostel',
     location: 'Malabe Town – Premium',
-    price: '₹25,000',
+    price: 'LKR 25,000',
     period: ' / bed / month',
     description: 'Modern premium hostel with hotel-like facilities and 24/7 security.',
     beds: '120',
@@ -31,7 +31,7 @@ const featuredHostels = [
   {
     name: 'Lakeview Budget Stay',
     location: 'Rajagiriya Area',
-    price: '₹12,000',
+    price: 'LKR 12,000',
     period: ' / bed / month',
     description: 'Affordable and peaceful stay with easy access to Colombo city.',
     beds: '200',

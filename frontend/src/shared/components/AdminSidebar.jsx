@@ -24,6 +24,9 @@ export default function AdminSidebar() {
   return (
     <aside className="admin-sidebar">
       <div className="admin-sidebar-header">
+        <div className="mb-3 flex justify-end">
+          <ThemeToggle />
+        </div>
         <Link to="/admin" className="site-logo">
           UniHostel Admin
         </Link>
@@ -41,10 +44,7 @@ export default function AdminSidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="admin-sidebar-footer flex flex-col gap-2">
-        <div className="flex justify-center pb-1">
-          <ThemeToggle />
-        </div>
+      <div className="admin-sidebar-footer">
         <button type="button" onClick={handleLogout} className="btn-logout w-full">
           Logout
         </button>

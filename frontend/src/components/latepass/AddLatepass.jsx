@@ -13,6 +13,7 @@ const fileInputClass =
   'late-pass-form__input--file block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 dark:text-slate-400 dark:file:bg-primary-900/40 dark:file:text-primary-300'
 
 const PHONE_RE = /^[0-9+\s\-()]{8,22}$/
+const STUDENT_ID_RE = /^[A-Za-z]{2}\d{8}$/
 
 function startOfToday() {
   const d = new Date()
@@ -98,6 +99,9 @@ export default function AddLatepass() {
     students.forEach((row, i) => {
       if (!row.studentName.trim()) err[`student_${i}_studentName`] = 'Required'
       if (!row.studentId.trim()) err[`student_${i}_studentId`] = 'Required'
+      else if (!STUDENT_ID_RE.test(row.studentId.trim())) {
+        err[`student_${i}_studentId`] = 'Use 2 letters + 8 numbers (e.g. IT23603318).'
+      }
       if (!row.roomNo.trim()) err[`student_${i}_roomNo`] = 'Required'
     })
 
@@ -146,7 +150,7 @@ export default function AddLatepass() {
   }
 
   return (
-    <div className="late-pass-form late-pass-form--page max-w-3xl">
+    <div className="late-pass-form late-pass-form--page mx-auto w-full max-w-3xl">
       <div className="late-pass-form__page-header mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="late-pass-form__intro">
           <h1 id="late-pass-form-title" className="late-pass-form__title text-2xl font-bold text-slate-900 dark:text-slate-50">
