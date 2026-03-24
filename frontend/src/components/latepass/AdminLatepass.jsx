@@ -115,7 +115,10 @@ export default function AdminLatepass() {
 
       <div className="admin-latepass__panel panel-surface overflow-hidden rounded-2xl shadow-card">
         {error && (
-          <div className="border-b border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          <div
+            className="border-b border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-200"
+            role="alert"
+          >
             {error}
           </div>
         )}
@@ -162,7 +165,7 @@ export default function AdminLatepass() {
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-medium text-primary-600 hover:underline"
+                            className="font-medium text-primary-600 hover:underline dark:text-primary-400"
                           >
                             Open
                           </a>

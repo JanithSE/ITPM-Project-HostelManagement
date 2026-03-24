@@ -349,22 +349,22 @@
 /* Data tables inside dashboard panels (inline Tailwind tables) */
 @layer components {
   .table-dashboard {
-    @apply min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-700;
+    @apply min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-600/80;
   }
   .table-dashboard thead tr {
-    @apply border-b border-slate-200 dark:border-slate-700;
+    @apply border-b border-slate-200 dark:border-slate-600;
   }
   .table-dashboard th {
-    @apply whitespace-nowrap bg-slate-50/80 px-3 py-3 font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200;
+    @apply whitespace-nowrap bg-slate-50/90 px-3 py-3 font-semibold text-slate-800 dark:bg-slate-800 dark:text-slate-100;
   }
   .table-dashboard tbody {
-    @apply divide-y divide-slate-100 dark:divide-slate-800;
+    @apply divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-900;
   }
   .table-dashboard tbody tr {
-    @apply text-slate-600 transition-colors dark:text-slate-300 dark:hover:bg-slate-800/30;
+    @apply bg-white text-slate-700 transition-colors hover:bg-slate-50/80 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/90;
   }
   .table-dashboard td {
-    @apply px-3 py-3;
+    @apply px-3 py-3 text-slate-700 dark:text-slate-200;
   }
 
   .panel-surface {
@@ -378,15 +378,15 @@
     @apply border-b border-slate-200 dark:border-slate-700;
   }
   .table-admin-compact th {
-    @apply bg-slate-50/80 px-2 py-2 text-xs font-semibold text-slate-700 dark:bg-slate-800/60 dark:text-slate-200;
+    @apply bg-slate-50/90 px-2 py-2 text-xs font-semibold text-slate-800 dark:bg-slate-800 dark:text-slate-100;
   }
   .table-admin-compact tbody {
-    @apply divide-y divide-slate-100 dark:divide-slate-800;
+    @apply divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-900;
   }
   .table-admin-compact tbody tr {
-    @apply text-slate-600 transition-colors dark:text-slate-300 dark:hover:bg-slate-800/30;
+    @apply bg-white text-slate-700 transition-colors hover:bg-slate-50/80 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/90;
   }
   .table-admin-compact td {
-    @apply px-2 py-2 align-top text-xs dark:text-slate-300;
+    @apply px-2 py-2 align-top text-xs text-slate-700 dark:text-slate-200;
   }
 }

@@ -61,7 +61,10 @@ export default function StudentLatepass() {
 
       <div className="panel-surface overflow-hidden rounded-2xl shadow-card">
         {error && (
-          <div className="border-b border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert">
+          <div
+            className="border-b border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/50 dark:text-red-200"
+            role="alert"
+          >
             {error}
           </div>
         )}
@@ -71,7 +74,10 @@ export default function StudentLatepass() {
           ) : list.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">
               No requests yet.{' '}
-              <Link to="/student/latepass/new" className="font-medium text-primary-600 hover:underline">
+              <Link
+                to="/student/latepass/new"
+                className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+              >
                 Add late pass
               </Link>
             </p>
@@ -109,7 +115,7 @@ export default function StudentLatepass() {
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-medium text-primary-600 hover:underline"
+                            className="font-medium text-primary-600 hover:underline dark:text-primary-400"
                           >
                             View
                           </a>
