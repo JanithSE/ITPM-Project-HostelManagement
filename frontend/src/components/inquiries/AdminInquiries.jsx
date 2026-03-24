@@ -22,6 +22,7 @@ export default function AdminInquiries() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [drafts, setDrafts] = useState({})
+  const [replyErrors, setReplyErrors] = useState({})
   const [pending, setPending] = useState({})
 
   const load = useCallback(async () => {
@@ -43,14 +44,20 @@ export default function AdminInquiries() {
 
   function setDraft(id, text) {
     setDrafts((d) => ({ ...d, [id]: text }))
+    setReplyErrors((e) => ({ ...e, [id]: '' }))
   }
 
   async function submitReply(id) {
     const reply = (drafts[id] || '').trim()
     if (!reply) {
-      setMsg('Enter a reply before submitting.')
+      setReplyErrors((e) => ({ ...e, [id]: 'Reply is required.' }))
       return
     }
+    if (reply.length < 10) {
+      setReplyErrors((e) => ({ ...e, [id]: 'Reply must be at least 10 characters.' }))
+      return
+    }
+    setReplyErrors((e) => ({ ...e, [id]: '' }))
     setMsg('')
     setPending((p) => ({ ...p, [id]: true }))
     try {
@@ -195,7 +202,12 @@ export default function AdminInquiries() {
                     value={drafts[row._id] ?? ''}
                     onChange={(e) => setDraft(row._id, e.target.value)}
                     disabled={pending[row._id]}
+                    maxLength={1000}
                   />
+                  <div className="mt-1 flex items-center justify-between">
+                    <p className="text-xs text-red-600">{replyErrors[row._id] || ''}</p>
+                    <p className="text-xs text-gray-500">{(drafts[row._id] || '').length}/1000</p>
+                  </div>
                   <div className="mt-3 flex justify-end">
                     <button
                       type="button"
