@@ -9,7 +9,6 @@ function nextStatusAllowed(current, next) {
   if (current === 'in_progress' && next === 'resolved') return true
   return false
 }
-
 export const listMaintenance = async (req, res) => {
   try {
     const list = await MaintenanceRequest.find()

@@ -25,7 +25,22 @@ VITE_API_URL=http://localhost:5001/api
 
 ## Setup & run
 
-### 1. Backend
+The frontend proxies `/api` to **`http://localhost:5001`**. If only the frontend is running, you may see **`http proxy error`** / **`ECONNREFUSED`** until the backend is up.
+
+### Option A – Backend + frontend together (recommended)
+
+From the **project root** (`ITPM-Project-HostelManagement`):
+
+```bash
+npm install
+npm run dev
+```
+
+Starts the API on **5001** and Vite on **3000**.
+
+### Option B – Two terminals
+
+**1. Backend**
 
 ```bash
 cd backend
@@ -34,9 +49,9 @@ npm run seed    # creates admin@unihostel.com / admin123 and student@unihostel.c
 npm run dev     # or npm start
 ```
 
-Server runs at `http://localhost:5001`.
+Server: `http://localhost:5001`.
 
-### 2. Frontend
+**2. Frontend**
 
 ```bash
 cd frontend
@@ -44,7 +59,7 @@ npm install
 npm run dev     # or npm start
 ```
 
-App runs at `http://localhost:5173`.
+App: `http://localhost:3000` (see `frontend/vite.config.js`).
 
 ## Test logins (after seed)
 
@@ -55,6 +70,8 @@ App runs at `http://localhost:5173`.
 
 Students can also **sign up** at `/signup`; no seed needed for new accounts.
 
+**Wardens** use **`/warden/login`** (Sign in / Register tabs) and land on **`/warden`** after success.
+
 ## API overview
 
 | Path | Auth | Description |
@@ -62,6 +79,8 @@ Students can also **sign up** at `/signup`; no seed needed for new accounts.
 | POST /api/auth/student-signup | No | Student registration |
 | POST /api/auth/student-login | No | Student login |
 | POST /api/auth/admin-login | No | Admin login |
+| POST /api/auth/warden-signup | No | Warden registration |
+| POST /api/auth/warden-login | No | Warden login |
 | /api/users | Admin | CRUD users |
 | /api/hostels | Yes | List/create hostels |
 | /api/bookings | Yes | Bookings |

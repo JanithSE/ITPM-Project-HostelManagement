@@ -1,4 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
+import ThemeToggle from './ThemeToggle'
 
 export default function AdminSidebar() {
   const navigate = useNavigate()
@@ -13,7 +14,8 @@ export default function AdminSidebar() {
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/booking', label: 'Booking' },
     { to: '/admin/payments', label: 'Payments' },
-    { to: '/admin/latepass', label: 'Latepass' },
+    { to: '/admin/latepass', label: 'Late pass' },
+    { to: '/admin/hostels', label: 'Hostels' },
     { to: '/admin/inventory', label: 'Inventory' },
     { to: '/admin/inquiries', label: 'Inquiries' },
     { to: '/admin/maintenance', label: 'Maintenance' },
@@ -39,7 +41,10 @@ export default function AdminSidebar() {
           </NavLink>
         ))}
       </nav>
-      <div className="admin-sidebar-footer">
+      <div className="admin-sidebar-footer flex flex-col gap-2">
+        <div className="flex justify-center pb-1">
+          <ThemeToggle />
+        </div>
         <button type="button" onClick={handleLogout} className="btn-logout w-full">
           Logout
         </button>

@@ -35,14 +35,56 @@ async function seed() {
     console.log('Student already exists')
   }
 
-  const hostelCount = await Hostel.countDocuments()
-  if (hostelCount === 0) {
-    await Hostel.create([
-      { name: 'North Hall', location: 'Campus North', totalRooms: 50, availableRooms: 45, pricePerBed: 1200 },
-      { name: 'South Hall', location: 'Campus South', totalRooms: 40, availableRooms: 38, pricePerBed: 1100 },
-    ])
-    console.log('Created sample hostels')
+  const presetHostels = [
+    {
+      name: 'Emerald Grove Residences',
+      location: 'Malabe – Near SLIIT & Horizon Campus',
+      description: 'Quiet, greenery-filled environment perfect for focused students.',
+      totalRooms: 180,
+      availableRooms: 180,
+      pricePerBed: 18000,
+      amenities: ['Wi-Fi', 'Study rooms', 'Laundry'],
+    },
+    {
+      name: 'Urban Nest Living',
+      location: 'Malabe South – Kothalawala Area',
+      description: 'Lively and social atmosphere close to food spots and transport.',
+      totalRooms: 150,
+      availableRooms: 150,
+      pricePerBed: 15000,
+      amenities: ['Wi-Fi', 'Common room', 'Parking'],
+    },
+    {
+      name: 'Skyline Elite Hostel',
+      location: 'Malabe Town – Premium',
+      description: 'Modern premium hostel with hotel-like facilities and 24/7 security.',
+      totalRooms: 120,
+      availableRooms: 120,
+      pricePerBed: 25000,
+      amenities: ['Wi-Fi', 'Attached bath', '24/7 Security'],
+    },
+    {
+      name: 'Lakeview Budget Stay',
+      location: 'Rajagiriya Area',
+      description: 'Affordable and peaceful stay with easy access to Colombo city.',
+      totalRooms: 200,
+      availableRooms: 200,
+      pricePerBed: 12000,
+      amenities: ['Wi-Fi', 'Garden', 'Shared kitchen'],
+    },
+  ]
+
+  // Ensure your 4 required hostels exist (create missing only).
+  const created = []
+  for (const hostelPreset of presetHostels) {
+    const exists = await Hostel.findOne({ name: hostelPreset.name })
+    if (exists) continue
+    await Hostel.create(hostelPreset)
+    created.push(hostelPreset.name)
   }
+
+  if (created.length > 0) console.log(`Created hostels: ${created.join(', ')}`)
+  else console.log('Preset hostels already exist')
 
   await mongoose.disconnect()
   console.log('Seed done.')
