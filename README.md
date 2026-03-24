@@ -84,17 +84,9 @@ Students can also **sign up** at `/signup`; no seed needed for new accounts.
 | /api/users | Admin | CRUD users |
 | /api/hostels | Yes | List/create hostels |
 | /api/bookings | Yes | Bookings |
-| POST /api/payments | Student | Create payment (multipart `proof`) |
-| GET /api/payments/my | Student | Own payments |
-| GET /api/payments/admin | Admin | All payments |
-| GET /api/payments/:id | Student/Admin | One payment (own or admin) |
-| PATCH /api/payments/:id/status | Admin | Update status |
-| POST /api/latepass | Student | Create late pass (multipart `document`) |
-| GET /api/latepass/my | Student | Own / included late passes |
-| GET /api/latepass/admin | Admin | All late passes |
-| GET /api/latepass/:id | Student/Admin | One late pass |
-| PATCH /api/latepass/:id/status | Admin | Update status |
-| /api/inquiries | Yes | Inquiries |
+| /api/payments | Yes | Payments |
+| /api/inquiry | Yes | Inquiries (POST /, GET /my student; GET /, PUT /:id/reply admin) |
+| /api/latepass | Yes | Late passes |
 | /api/complains | Yes | Complaints |
 | /api/inventory | Admin | Inventory |
 | /api/maintenance | Yes | Maintenance |

@@ -1,8 +1,9 @@
 import express from 'express'
 import {
   listMaintenance,
+  listMyMaintenance,
   createMaintenance,
-  updateMaintenance,
+  updateMaintenanceStatus,
 } from '../controllers/maintenanceController.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
 
@@ -10,13 +11,16 @@ const router = express.Router()
 
 router.use(authMiddleware)
 
-// GET /api/maintenance – admin: all
-router.get('/', listMaintenance)
+// POST /api/maintenance — student: create (status open, description + priority required)
+router.post('/', requireRole('student'), createMaintenance)
 
-// POST /api/maintenance – anyone logged in
-router.post('/', createMaintenance)
+// GET /api/maintenance/my — student: own requests
+router.get('/my', requireRole('student'), listMyMaintenance)
 
-// PATCH /api/maintenance/:id – admin
-router.patch('/:id', requireRole('admin'), updateMaintenance)
+// GET /api/maintenance — admin: all requests
+router.get('/', requireRole('admin'), listMaintenance)
+
+// PUT /api/maintenance/:id — admin: update status (open → in_progress → resolved)
+router.put('/:id', requireRole('admin'), updateMaintenanceStatus)
 
 export default router

@@ -22,7 +22,8 @@ import AddLatepass from './components/latepass/AddLatepass'
 import AdminLatepass from './components/latepass/AdminLatepass'
 import Complains from './components/complains/Complains'
 import Inventory from './components/inventory/Inventory'
-import Maintenance from './components/maintenance/Maintenance'
+import AdminMaintenance from './components/maintenance/AdminMaintenance'
+import StudentMaintenance from './components/maintenance/StudentMaintenance'
 import Users from './components/users/Users'
 import Booking from './components/bookings/Booking'
 
@@ -85,7 +86,7 @@ export default function App() {
         <Route path="latepass" element={<AdminLatepass />} />
         <Route path="inventory" element={<Inventory />} />
         <Route path="inquiries" element={<AdminInquiries />} />
-        <Route path="maintenance" element={<Maintenance />} />
+        <Route path="maintenance" element={<AdminMaintenance />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
