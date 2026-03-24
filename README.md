@@ -66,7 +66,7 @@ Students can also **sign up** at `/signup`; no seed needed for new accounts.
 | /api/hostels | Yes | List/create hostels |
 | /api/bookings | Yes | Bookings |
 | /api/payments | Yes | Payments |
-| /api/inquiries | Yes | Inquiries |
+| /api/inquiry | Yes | Inquiries (POST /, GET /my student; GET /, PUT /:id/reply admin) |
 | /api/latepass | Yes | Late passes |
 | /api/complains | Yes | Complaints |
 | /api/inventory | Admin | Inventory |

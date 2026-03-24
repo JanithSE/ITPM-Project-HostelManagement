@@ -12,6 +12,7 @@ export default function StudentNavbar() {
   const navLinks = [
     { to: '/student/hostels', label: 'Our Hostels' },
     { to: '/student/payments', label: 'Payments' },
+    { to: '/student/maintenance', label: 'Maintenance' },
     { to: '/student/inquiries', label: 'Inquiries' },
     { to: '/student/latepass', label: 'Latepass' },
     { to: '/student/complains', label: 'Complains' },

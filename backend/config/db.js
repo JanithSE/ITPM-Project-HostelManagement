@@ -1,7 +1,7 @@
 import mongoose from 'mongoose'
 
 export async function connectDB() {
-  const uri = process.env.MONGODB_URI || 'mongodb+srv://hosteladmin:1234@cluster0.ykd60i8.mongodb.net/unihostel?retryWrites=true&w=majority'
+  const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/unihostel'
   
   try {
     if (!uri) {

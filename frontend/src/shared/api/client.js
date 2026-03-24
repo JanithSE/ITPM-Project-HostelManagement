@@ -28,3 +28,20 @@ export const authApi = {
   adminLogin: (email, password) =>
     apiFetch('/auth/admin-login', { method: 'POST', body: JSON.stringify({ email, password }) }),
 }
+
+export const maintenanceApi = {
+  create: (payload) =>
+    apiFetch('/maintenance', { method: 'POST', body: JSON.stringify(payload) }),
+  myList: () => apiFetch('/maintenance/my'),
+  listAll: () => apiFetch('/maintenance'),
+  updateStatus: (id, status) =>
+    apiFetch(`/maintenance/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
+}
+
+export const inquiryApi = {
+  create: (payload) => apiFetch('/inquiry', { method: 'POST', body: JSON.stringify(payload) }),
+  myList: () => apiFetch('/inquiry/my'),
+  listAll: () => apiFetch('/inquiry'),
+  reply: (id, replyText) =>
+    apiFetch(`/inquiry/${id}/reply`, { method: 'PUT', body: JSON.stringify({ reply: replyText }) }),
+}
