@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import hostelImage from '../../assets/hostel.jpg'
 
 const featuredHostels = [
   {
@@ -69,7 +70,15 @@ export default function Home() {
         </div>
       </header>
 
-      <section className="hero">
+      <section
+        className="hero"
+        style={{
+          backgroundImage: `linear-gradient(rgba(2, 6, 23, 0.72), rgba(2, 6, 23, 0.72)), url(${hostelImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }}
+      >
         <div className="hero-pattern" aria-hidden />
         <div className="hero-content">
           <div className="hero-inner">
