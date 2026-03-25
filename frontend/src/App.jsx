@@ -8,9 +8,6 @@ import StudentAuth from './components/auth/StudentAuth'
 import RoleSelectLogin from './components/auth/RoleSelectLogin'
 import AdminLogin from './components/auth/AdminLogin'
 import WardenAuth from './components/auth/WardenAuth'
-import OtpVerification from './components/auth/OtpVerification'
-import ForgotPassword from './components/auth/ForgotPassword'
-import ResetPassword from './components/auth/ResetPassword'
 import StudentDashboard from './components/dashboard/StudentDashboard'
 import AdminDashboard from './components/dashboard/AdminDashboard'
 import WardenDashboard from './components/dashboard/WardenDashboard'
@@ -29,15 +26,13 @@ import Inventory from './components/inventory/Inventory'
 import AdminMaintenance from './components/maintenance/AdminMaintenance'
 import StudentMaintenance from './components/maintenance/StudentMaintenance'
 import Users from './components/users/Users'
-import CreateUser from './components/users/CreateUser'
 import Booking from './components/bookings/Booking'
 <<<<<<< HEAD
 import StudentBookings from './components/bookings/StudentBookings'
 =======
 import StudentBooking from './components/bookings/StudentBooking'
-import AdminRooms from './components/rooms/AdminRooms'
 import ThemeToggle from './shared/components/ThemeToggle'
->>>>>>> recovery-work
+>>>>>>> 7199967 (push to the login page)
 
 export default function App() {
   return (
@@ -48,11 +43,7 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<RoleSelectLogin />} />
         <Route path="/signup" element={<StudentAuth />} />
-        <Route path="/register" element={<StudentAuth />} />
         <Route path="/student/login" element={<StudentAuth />} />
-        <Route path="/verify-otp" element={<OtpVerification />} />
-        <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/warden/login" element={<WardenAuth />} />
         <Route path="/warden/register" element={<WardenAuth />} />
@@ -98,17 +89,18 @@ export default function App() {
           <Route path="complains" element={<Complains />} />
           <Route path="booking" element={<StudentBooking />} />
         </Route>
->>>>>>> recovery-work
+>>>>>>> 7199967 (push to the login page)
 
+        {/* Warden (protected) */}
         <Route
-          path="/student-dashboard"
+          path="/warden"
           element={
-            <ProtectedRoute allowedRole="student">
-              <StudentLayout />
+            <ProtectedRoute allowedRole="warden">
+              <WardenLayout />
             </ProtectedRoute>
           }
         >
-          <Route index element={<StudentDashboard />} />
+          <Route index element={<WardenDashboard />} />
         </Route>
 
 <<<<<<< HEAD
@@ -132,19 +124,6 @@ export default function App() {
         <Route path="maintenance" element={<AdminMaintenance />} />
       </Route>
 =======
-        {/* Warden (protected) */}
-        <Route
-          path="/warden"
-          element={
-            <ProtectedRoute allowedRole="warden">
-              <WardenLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<WardenDashboard />} />
-        </Route>
->>>>>>> recovery-work
-
         {/* Admin (protected) */}
         <Route
           path="/admin"
@@ -156,9 +135,7 @@ export default function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<Users />} />
-          <Route path="users/create" element={<CreateUser />} />
           <Route path="booking" element={<Booking />} />
-          <Route path="rooms" element={<AdminRooms />} />
           <Route path="hostels" element={<AdminHostels />} />
           <Route path="payments" element={<AdminPayments />} />
           <Route path="latepass" element={<AdminLatepass />} />
@@ -166,6 +143,7 @@ export default function App() {
           <Route path="inquiries" element={<AdminInquiries />} />
           <Route path="maintenance" element={<Maintenance />} />
         </Route>
+>>>>>>> 7199967 (push to the login page)
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

@@ -11,55 +11,50 @@ export default function AdminSidebar() {
   }
 
   const navLinks = [
-    { to: '/admin', label: 'Overview', icon: '📊' },
-    { to: '/admin/users', label: 'Users', icon: '👤' },
-    { to: '/admin/booking', label: 'Booking', icon: '📅' },
-    { to: '/admin/rooms', label: 'Rooms', icon: '🏠' },
-    { to: '/admin/payments', label: 'Payments', icon: '💳' },
-    { to: '/admin/latepass', label: 'Late pass', icon: '🕒' },
-    { to: '/admin/hostels', label: 'Hostels', icon: '🏢' },
-    { to: '/admin/inventory', label: 'Inventory', icon: '📦' },
-    { to: '/admin/inquiries', label: 'Inquiries', icon: '💬' },
-    { to: '/admin/maintenance', label: 'Maintenance', icon: '🛠️' },
+    { to: '/admin/users', label: 'Users' },
+    { to: '/admin/booking', label: 'Booking' },
+    { to: '/admin/payments', label: 'Payments' },
+    { to: '/admin/latepass', label: 'Late pass' },
+    { to: '/admin/hostels', label: 'Hostels' },
+    { to: '/admin/inventory', label: 'Inventory' },
+    { to: '/admin/inquiries', label: 'Inquiries' },
+    { to: '/admin/maintenance', label: 'Maintenance' },
   ]
 
   return (
-    <aside className="flex min-h-screen w-72 flex-col border-r border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-950">
-      
-      {/* Header */}
-      <div className="p-8 flex justify-between items-center">
+    <aside className="admin-sidebar">
+      <div className="admin-sidebar-header">
+        <div className="mb-3 flex justify-end">
+          <ThemeToggle />
+        </div>
         <Link to="/admin" className="site-logo">
-          <span className="site-logo-mark">UH</span>
-          <span className="text-xl font-black tracking-tighter">ADMIN</span>
+          UniHostel Admin
         </Link>
-        <ThemeToggle />
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-1">
-        {navLinks.map(({ to, label, icon }) => (
+      <nav className="admin-sidebar-nav">
+        {navLinks.map(({ to, label }) => (
           <NavLink
             key={to}
             to={to}
-            end={to === '/admin'}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
-                isActive ? 'nav-item-active' : 'nav-item-inactive'
+              `admin-sidebar-link ${
+                isActive
+                  ? 'admin-sidebar-link-active'
+                  : 'admin-sidebar-link-inactive'
               }`
             }
           >
-            <span className="text-lg opacity-80">{icon}</span>
             {label}
           </NavLink>
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="p-6 border-t border-slate-100 dark:border-slate-800">
+      <div className="admin-sidebar-footer flex flex-col gap-2">
         <button
           type="button"
           onClick={handleLogout}
-          className="flex items-center justify-center w-full px-4 py-3 text-sm font-bold text-slate-600 bg-slate-50 rounded-xl hover:bg-slate-100 transition-colors dark:bg-slate-900 dark:text-slate-400"
+          className="btn-logout w-full"
         >
           Logout
         </button>

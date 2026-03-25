@@ -29,10 +29,6 @@ export default function RoleSelectLogin() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [studentName, setStudentName] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [rememberMe, setRememberMe] = useState(true)
-  const [acceptTerms, setAcceptTerms] = useState(false)
 
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -57,86 +53,63 @@ export default function RoleSelectLogin() {
   }
 
   function roleTabClass(roleName) {
-    const base = 'auth-pro-role-btn inline-flex items-center gap-1.5'
-    return `${base} ${role === roleName ? 'auth-pro-role-btn-active' : 'auth-pro-role-btn-inactive'} ${
-      spinningRole === roleName ? 'animate-none' : ''
+    const base =
+      'auth-tab flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl border text-sm font-semibold transition-all duration-300 transform backdrop-blur-md'
+    const inactive = 'bg-white/10 border-white/20 text-slate-700 dark:text-slate-100 hover:-translate-y-[2px] hover:bg-white/15'
+
+    if (roleName === 'student') {
+      return `${base} ${
+        role === roleName
+          ? 'bg-blue-500/15 border-blue-300/60 text-blue-900 shadow-[0_0_0_4px_rgba(59,130,246,0.10)] dark:text-blue-100 hover:bg-blue-500/20'
+          : inactive
+      } ${spinningRole === roleName ? 'animate-none' : ''}`
+    }
+    if (roleName === 'admin') {
+      return `${base} ${
+        role === roleName
+          ? 'bg-red-500/15 border-red-300/60 text-red-900 shadow-[0_0_0_4px_rgba(239,68,68,0.10)] dark:text-red-100 hover:bg-red-500/20'
+          : inactive
+      }`
+    }
+
+    return `${base} ${
+      role === roleName
+        ? 'bg-emerald-500/15 border-emerald-300/60 text-emerald-900 shadow-[0_0_0_4px_rgba(16,185,129,0.10)] dark:text-emerald-100 hover:bg-emerald-500/20'
+        : inactive
     }`
   }
 
   function modeTabClass(modeName) {
-    const base = 'auth-pro-mode-btn'
-    return `${base} ${authMode === modeName ? 'auth-pro-mode-btn-active' : 'auth-pro-mode-btn-inactive'}`
+    const base =
+      'auth-tab flex-1 px-3 py-2 rounded-2xl border text-sm font-semibold transition-all duration-300 transform backdrop-blur-md'
+    const inactive = 'bg-white/10 border-white/20 text-slate-700 dark:text-slate-100 hover:-translate-y-[2px] hover:bg-white/15'
+    return `${base} ${
+      authMode === modeName
+        ? 'bg-slate-900/10 border-slate-200/30 text-slate-900 shadow-[0_0_0_4px_rgba(15,23,42,0.08)] dark:text-slate-100'
+        : inactive
+    }`
   }
 
   function submitBtnClass() {
-    return 'auth-pro-submit'
+    const base =
+      'w-full rounded-full px-5 py-3.5 text-sm font-semibold transition-all duration-300 transform border backdrop-blur-md disabled:opacity-60 disabled:cursor-not-allowed'
+    if (role === 'student') {
+      return `${base} bg-blue-500/15 border-blue-300/60 text-blue-900 hover:bg-blue-500/20 hover:-translate-y-[1px] hover:shadow-lg shadow-blue-500/10 dark:text-blue-100`
+    }
+    if (role === 'admin') {
+      return `${base} bg-red-500/15 border-red-300/60 text-red-900 hover:bg-red-500/20 hover:-translate-y-[1px] hover:shadow-lg shadow-red-500/10 dark:text-red-100`
+    }
+    return `${base} bg-emerald-500/15 border-emerald-300/60 text-emerald-900 hover:bg-emerald-500/20 hover:-translate-y-[1px] hover:shadow-lg shadow-emerald-500/10 dark:text-emerald-100`
   }
 
-  const panelSub =
-    role === 'student' && authMode === 'signup'
-      ? 'Create your account in a minute — then book your room.'
-      : role === 'student'
-        ? 'Sign in with your student email to open your portal.'
-        : role === 'warden'
-          ? 'Use your warden credentials to manage hostel operations.'
-          : 'Administrator access — sign in with your username.'
-
   return (
-    <div className="auth-pro-wrap">
-      <div className="auth-pro-card">
-        <div className="auth-pro-grid">
-          <aside className="auth-pro-brand">
-            <div className="auth-pro-brand-inner">
-              <div className="auth-pro-brand-badge">
-                <span className="auth-pro-brand-mark" aria-hidden>
-                  UH
-                </span>
-                <span>UniHostel</span>
-              </div>
-              <h2 className="auth-pro-brand-title">UniHostel Access</h2>
-              <p className="auth-pro-brand-subtitle">
-                Secure sign in for students, wardens and administrators — one tidy place for bookings and updates.
-              </p>
-              <ul className="auth-pro-brand-list">
-                <li className="auth-pro-brand-item">
-                  <span className="auth-pro-brand-check" aria-hidden>
-                    ✓
-                  </span>
-                  <span>Track bookings and hostel updates in one dashboard.</span>
-                </li>
-                <li className="auth-pro-brand-item">
-                  <span className="auth-pro-brand-check" aria-hidden>
-                    ✓
-                  </span>
-                  <span>Role-based access for safer operations.</span>
-                </li>
-                <li className="auth-pro-brand-item">
-                  <span className="auth-pro-brand-check" aria-hidden>
-                    ✓
-                  </span>
-                  <span>Fast, clear sign-in — pick your role and go.</span>
-                </li>
-              </ul>
-            </div>
-          </aside>
+    <div className="auth-page">
+      <div className="w-full max-w-md">
+        <div className="auth-card backdrop-blur-xl bg-white/70 dark:bg-slate-900/70 border border-white/60 dark:border-slate-800/60">
+          <h1 className="auth-title">Login</h1>
+          <p className="auth-subtitle">Login to access the system</p>
 
-          <section className="auth-pro-panel">
-            <div className="auth-pro-panel-header">
-              <span className="auth-pro-panel-mark" aria-hidden>
-                UH
-              </span>
-              <div>
-                <h1 className="auth-pro-heading">
-                  {role === 'student' && authMode === 'signup' ? 'Join UniHostel' : 'Welcome back'}
-                </h1>
-                <p className="auth-pro-subheading !mt-0">{panelSub}</p>
-              </div>
-            </div>
-            <p className="auth-pro-subheading mt-3 border-b border-slate-200/90 pb-4 text-xs font-medium uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:text-slate-500">
-              Step 1 — Choose your role {role === 'student' ? '• Step 2 — Sign in or register' : ''}
-            </p>
-
-            <div className="auth-pro-role-row">
+          <div className="mt-4 flex gap-3">
             <button
               type="button"
               onClick={() => handleRoleClick('admin')}
@@ -161,10 +134,10 @@ export default function RoleSelectLogin() {
               <RoleIcon roleName="warden" spinning={spinningRole === 'warden'} />
               Warden
             </button>
-            </div>
+          </div>
 
-            {role === 'student' && (
-              <div className="auth-pro-mode-row">
+          {role === 'student' && (
+            <div className="mt-4 flex gap-2">
               <button
                 type="button"
                 onClick={() => setAuthMode('signin')}
@@ -179,12 +152,12 @@ export default function RoleSelectLogin() {
               >
                 Sign up
               </button>
-              </div>
-            )}
+            </div>
+          )}
 
-            {error && <p className="auth-pro-error" role="alert">{error}</p>}
+          {error && <p className="auth-error" role="alert">{error}</p>}
 
-            <form
+          <form
             onSubmit={async (e) => {
               e.preventDefault()
               setError('')
@@ -201,20 +174,18 @@ export default function RoleSelectLogin() {
                       setError('Passwords do not match')
                       return
                     }
-                    if (!acceptTerms) {
-                      setError('Please accept Terms & Privacy Policy')
-                      return
-                    }
-                    await authApi.register(studentName, email, password)
-                    navigate('/verify-otp', { state: { email, purpose: 'registration' } })
+                    const data = await authApi.studentSignup(studentName, email, password)
+                    localStorage.setItem('token', data.token)
+                    localStorage.setItem('role', data.role)
+                    if (data?.user?.name) localStorage.setItem('studentName', data.user.name)
+                    navigate('/student/hostels')
                     return
                   }
 
-                  const data = await authApi.login(email, password)
+                  const data = await authApi.studentLogin(email, password)
                   localStorage.setItem('token', data.token)
                   localStorage.setItem('role', data.role)
                   if (data?.user?.name) localStorage.setItem('studentName', data.user.name)
-                  localStorage.setItem('studentEmail', data?.user?.email || email)
                   navigate('/student/hostels')
                   return
                 }
@@ -239,17 +210,17 @@ export default function RoleSelectLogin() {
                 setLoading(false)
               }
             }}
-            className="auth-pro-form"
+            className="auth-form"
           >
             {role === 'student' && authMode === 'signup' && (
               <div>
-                <label htmlFor="student-name" className="auth-pro-label">Full name</label>
+                <label htmlFor="student-name" className="auth-label">Full name</label>
                 <input
                   id="student-name"
                   type="text"
                   value={studentName}
                   onChange={(e) => setStudentName(e.target.value)}
-                  className="auth-pro-input"
+                  className="auth-input"
                   placeholder="Your name"
                   required
                   minLength={3}
@@ -261,26 +232,26 @@ export default function RoleSelectLogin() {
 
             {role === 'admin' ? (
               <div>
-                <label htmlFor="admin-username" className="auth-pro-label">Username</label>
+                <label htmlFor="admin-username" className="auth-label">Username</label>
                 <input
                   id="admin-username"
                   type="text"
                   value={adminUsername}
                   onChange={(e) => setAdminUsername(e.target.value)}
-                  className="auth-pro-input"
+                  className="auth-input"
                   placeholder="admin"
                   required
                 />
               </div>
             ) : (
               <div>
-                <label htmlFor="role-email" className="auth-pro-label">Email</label>
+                <label htmlFor="role-email" className="auth-label">Email</label>
                 <input
                   id="role-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="auth-pro-input"
+                  className="auth-input"
                   placeholder="m@example.com"
                   required
                 />
@@ -288,83 +259,31 @@ export default function RoleSelectLogin() {
             )}
 
             <div>
-              <label htmlFor="role-password" className="auth-pro-label">Password</label>
-              <div className="auth-pro-input-wrap">
-                <input
-                  id="role-password"
-                  type={showPassword ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="auth-pro-input pr-[4.25rem]"
-                  placeholder="Enter your password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((v) => !v)}
-                  className="auth-pro-toggle"
-                >
-                  {showPassword ? 'Hide' : 'Show'}
-                </button>
-              </div>
+              <label htmlFor="role-password" className="auth-label">Password</label>
+              <input
+                id="role-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="auth-input"
+                placeholder="Enter your password"
+                required
+              />
             </div>
 
             {role === 'student' && authMode === 'signup' && (
               <div>
-                <label htmlFor="confirm-password" className="auth-pro-label">Confirm password</label>
-                <div className="auth-pro-input-wrap">
-                  <input
-                    id="confirm-password"
-                    type={showConfirmPassword ? 'text' : 'password'}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="auth-pro-input pr-[4.25rem]"
-                    placeholder="Repeat password"
-                    required
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword((v) => !v)}
-                    className="auth-pro-toggle"
-                  >
-                    {showConfirmPassword ? 'Hide' : 'Show'}
-                  </button>
-                </div>
+                <label htmlFor="confirm-password" className="auth-label">Confirm password</label>
+                <input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="auth-input"
+                  placeholder="Repeat password"
+                  required
+                />
               </div>
-            )}
-
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-              <label className="inline-flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
-                />
-                Remember me
-              </label>
-              <button
-                type="button"
-                className="font-semibold text-indigo-600 hover:underline dark:text-indigo-400"
-                onClick={() => navigate('/forgot-password')}
-              >
-                Forgot password?
-              </button>
-            </div>
-
-            {role === 'student' && authMode === 'signup' && (
-              <label className="mt-1 inline-flex cursor-pointer items-start gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-500"
-                  checked={acceptTerms}
-                  onChange={(e) => setAcceptTerms(e.target.checked)}
-                />
-                <span>
-                  I agree to the <span className="font-semibold text-primary-600 dark:text-primary-400">Terms</span> and{' '}
-                  <span className="font-semibold text-primary-600 dark:text-primary-400">Privacy Policy</span>.
-                </span>
-              </label>
             )}
 
             <button type="submit" disabled={loading} className={submitBtnClass()}>
@@ -374,21 +293,13 @@ export default function RoleSelectLogin() {
                   ? 'Create account'
                   : `Login as ${role[0].toUpperCase() + role.slice(1)}`}
             </button>
-            </form>
+          </form>
 
-            <p className="auth-pro-trust">
-              <span aria-hidden className="text-emerald-600 dark:text-emerald-400">
-                ●
-              </span>
-              Secure session · your data is encrypted in transit
-            </p>
-
-            <p className="auth-pro-footer">
-              <button type="button" className="auth-pro-link" onClick={() => navigate('/')}>
+          <p className="auth-footer-secondary mt-6">
+            <button type="button" className="auth-link" onClick={() => navigate('/')}>
               Back to home
             </button>
-            </p>
-          </section>
+          </p>
         </div>
       </div>
     </div>
