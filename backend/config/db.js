@@ -1,3 +1,4 @@
+import dns from 'dns'
 import mongoose from 'mongoose'
 
 export async function connectDB() {
@@ -6,6 +7,17 @@ export async function connectDB() {
   try {
     if (!uri) {
       throw new Error('MongoDB URI is not defined. Please set MONGODB_URI in .env file')
+    }
+
+    // On some networks, Node's SRV/DNS lookups can fail even when Windows PowerShell works.
+    // If `MONGODB_DNS_SERVERS` is provided, force Node's DNS resolver to those servers.
+    // Example: `MONGODB_DNS_SERVERS=8.8.8.8,8.8.4.4`
+    if (uri.startsWith('mongodb+srv://') && process.env.MONGODB_DNS_SERVERS) {
+      const servers = process.env.MONGODB_DNS_SERVERS
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean)
+      if (servers.length) dns.setServers(servers)
     }
 
     const options = {
