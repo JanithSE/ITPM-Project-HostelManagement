@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { hostelApi } from '../../shared/api/client'
+import HostelCardMedia from '../../shared/components/HostelCardMedia'
 
 function formatPrice(n) {
   if (typeof n !== 'number') return '—'
@@ -54,16 +55,7 @@ export default function Hostels() {
         <div className="hostel-grid">
           {hostels.map((hostel) => (
             <article key={hostel._id} className="hostel-card">
-              <div className="hostel-card-image">
-                <svg className="hostel-card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
-                  />
-                </svg>
-              </div>
+              <HostelCardMedia imageUrl={hostel.imageUrl} title={hostel.name} />
 
               <div className="hostel-card-body">
                 <div className="hostel-card-header">

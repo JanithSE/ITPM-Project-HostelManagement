@@ -30,8 +30,54 @@ export async function apiFetch(path, options = {}) {
   } catch (err) {
     throw mapNetworkError(err)
   }
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || res.statusText)
+  const text = await res.text()
+  let data = {}
+  if (text) {
+    try {
+      data = JSON.parse(text)
+    } catch {
+      /* non-JSON body (e.g. proxy HTML error) */
+    }
+  }
+  if (!res.ok) {
+    const fromBody =
+      typeof data.error === 'string' && data.error.trim()
+        ? data.error.trim()
+        : typeof data.message === 'string' && data.message.trim()
+          ? data.message.trim()
+          : ''
+    if (fromBody) throw new Error(fromBody)
+    if (res.status === 500) {
+      throw new Error(
+        'Server error. Check that MongoDB is connected and see the backend terminal for details.'
+      )
+    }
+    const hint =
+      (text && !text.startsWith('{') ? text.slice(0, 160).trim() : '') ||
+      res.statusText ||
+      `Request failed (${res.status})`
+    throw new Error(hint)
+  }
+  return data
+}
+
+function parseFormResponse(res, text) {
+  let data = {}
+  try {
+    data = text ? JSON.parse(text) : {}
+  } catch {
+    data = {}
+  }
+  if (!res.ok) {
+    const apiErr = typeof data.error === 'string' && data.error.trim() ? data.error.trim() : null
+    if (apiErr) throw new Error(apiErr)
+    if (res.status === 500) {
+      throw new Error(
+        'Server error. Check that MongoDB is connected and see the backend terminal for details.'
+      )
+    }
+    throw new Error(res.statusText || 'Request failed')
+  }
   return data
 }
 
@@ -48,9 +94,25 @@ export async function apiPostForm(path, formData) {
   } catch (err) {
     throw mapNetworkError(err)
   }
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error(data.error || res.statusText)
-  return data
+  const text = await res.text()
+  return parseFormResponse(res, text)
+}
+
+/** Multipart with configurable method (e.g. PATCH for hostel update with image). */
+export async function apiFormWithMethod(path, formData, method = 'POST') {
+  const url = `${API_BASE}${path}`
+  const headers = {}
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  let res
+  try {
+    res = await fetch(url, { method, headers, body: formData })
+  } catch (err) {
+    throw mapNetworkError(err)
+  }
+  const text = await res.text()
+  return parseFormResponse(res, text)
 }
 
 export const paymentApi = {
@@ -80,10 +142,9 @@ export const authApi = {
 
 export const hostelApi = {
   listHostels: () => apiFetch('/hostels'),
-  createHostel: (payload) =>
-    apiFetch('/hostels', { method: 'POST', body: JSON.stringify(payload) }),
-  updateHostel: (id, payload) =>
-    apiFetch(`/hostels/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  /** FormData: name, location, description, totalRooms, availableRooms, pricePerBed, amenities (JSON array string), optional image */
+  createHostel: (formData) => apiPostForm('/hostels', formData),
+  updateHostel: (id, formData) => apiFormWithMethod(`/hostels/${id}`, formData, 'PATCH'),
   deleteHostel: (id) =>
     apiFetch(`/hostels/${id}`, { method: 'DELETE' }),
 }

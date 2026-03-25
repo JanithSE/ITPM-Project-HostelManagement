@@ -34,3 +34,5 @@ backend/uploads/payments/*
 !backend/uploads/payments/.gitkeep
 backend/uploads/latepass/*
 !backend/uploads/latepass/.gitkeep
+backend/uploads/hostels/*
+!backend/uploads/hostels/.gitkeep

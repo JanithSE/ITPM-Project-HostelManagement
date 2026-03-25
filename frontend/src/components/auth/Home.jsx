@@ -1,4 +1,10 @@
 import { Link } from 'react-router-dom'
+import HostelCardMedia from '../../shared/components/HostelCardMedia'
+/** Bundled building photo — blurred hero background + sharp column image (always loads, no API). */
+import heroBuildingUrl from '../../assets/hostel.jpg'
+
+const HERO_IMAGE_SRC = heroBuildingUrl
+const HERO_IMAGE_ALT = 'Modern student hostel accommodation'
 
 const featuredHostels = [
   {
@@ -9,6 +15,7 @@ const featuredHostels = [
     description: 'Quiet, greenery-filled environment perfect for focused students.',
     beds: '180',
     amenities: ['Wi-Fi', 'Study rooms', 'Laundry'],
+    imageUrl: '/uploads/hostels/hostel1.JPG',
   },
   {
     name: 'Urban Nest Living',
@@ -18,6 +25,7 @@ const featuredHostels = [
     description: 'Lively and social atmosphere close to food spots and transport.',
     beds: '150',
     amenities: ['Wi-Fi', 'Common room', 'Parking'],
+    imageUrl: '/uploads/hostels/hostel2.jpg',
   },
   {
     name: 'Skyline Elite Hostel',
@@ -27,6 +35,7 @@ const featuredHostels = [
     description: 'Modern premium hostel with hotel-like facilities and 24/7 security.',
     beds: '120',
     amenities: ['Wi-Fi', 'Attached bath', '24/7 Security'],
+    imageUrl: '/uploads/hostels/hostel3.jpg',
   },
   {
     name: 'Lakeview Budget Stay',
@@ -36,6 +45,7 @@ const featuredHostels = [
     description: 'Affordable and peaceful stay with easy access to Colombo city.',
     beds: '200',
     amenities: ['Wi-Fi', 'Garden', 'Shared kitchen'],
+    imageUrl: '/uploads/hostels/hostel1.JPG',
   },
 ]
 
@@ -70,26 +80,45 @@ export default function Home() {
       </header>
 
       <section className="hero">
+        <div
+          className="hero-bg-blur"
+          style={{ backgroundImage: `url(${HERO_IMAGE_SRC})` }}
+          aria-hidden
+        />
+        <div className="hero-bg-scrim" aria-hidden />
         <div className="hero-pattern" aria-hidden />
         <div className="hero-content">
-          <div className="hero-inner">
-            <h1 className="hero-title">Campus living, simplified — one place for rooms, fees &amp; late passes</h1>
-            <p className="hero-tagline">
-              UniHostel helps you find a bed, pay on time, and stay compliant with hostel rules — all with a clean student dashboard and admin tools staff actually enjoy using.
-            </p>
-            <div className="hero-cta-row">
-              <Link to="/signup" className="hero-cta">
-                Get started free
-                <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </Link>
-              <a href="#hostels" className="hero-cta-secondary">
-                Browse hostels
-                <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </a>
+          <div className="hero-layout">
+            <div className="hero-inner">
+              <h1 className="hero-title">Campus living, simplified — one place for rooms, fees &amp; late passes</h1>
+              <p className="hero-tagline">
+                UniHostel helps you find a bed, pay on time, and stay compliant with hostel rules — all with a clean student dashboard and admin tools staff actually enjoy using.
+              </p>
+              <div className="hero-cta-row">
+                <Link to="/signup" className="hero-cta">
+                  Get started free
+                  <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                  </svg>
+                </Link>
+                <a href="#hostels" className="hero-cta-secondary">
+                  Browse hostels
+                  <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </a>
+              </div>
+            </div>
+            <div className="hero-visual">
+              <img
+                src={HERO_IMAGE_SRC}
+                alt={HERO_IMAGE_ALT}
+                className="hero-visual-img"
+                width={800}
+                height={600}
+                loading="eager"
+                decoding="async"
+              />
             </div>
           </div>
         </div>
@@ -130,11 +159,7 @@ export default function Home() {
         <div className="hostel-grid">
           {featuredHostels.map((hostel) => (
             <article key={hostel.name} className="hostel-card">
-              <div className="hostel-card-image">
-                <svg className="hostel-card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                </svg>
-              </div>
+              <HostelCardMedia imageUrl={hostel.imageUrl} title={hostel.name} />
               <div className="hostel-card-body">
                 <div className="hostel-card-header">
                   <h3 className="hostel-card-title">{hostel.name}</h3>

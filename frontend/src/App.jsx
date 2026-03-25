@@ -26,6 +26,7 @@ import AdminMaintenance from './components/maintenance/AdminMaintenance'
 import StudentMaintenance from './components/maintenance/StudentMaintenance'
 import Users from './components/users/Users'
 import Booking from './components/bookings/Booking'
+import StudentBookings from './components/bookings/StudentBookings'
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
         <Route path="hostels" element={<Hostels />} />
         <Route path="payments" element={<StudentPayments />} />
         <Route path="payments/new" element={<AddPayment />} />
+        <Route path="bookings" element={<StudentBookings />} />
         <Route path="maintenance" element={<StudentMaintenance />} />
         <Route path="inquiries" element={<StudentInquiries />} />
         <Route path="latepass" element={<StudentLatepass />} />
