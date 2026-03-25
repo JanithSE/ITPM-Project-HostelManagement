@@ -15,6 +15,16 @@ function mapNetworkError(err) {
   return err
 }
 
+function isLikelyProxyConnectionRefused(text = '') {
+  const body = String(text || '').toLowerCase()
+  return (
+    body.includes('econnrefused') ||
+    body.includes('http proxy error') ||
+    body.includes('cannot connect') ||
+    body.includes('connect econnrefused')
+  )
+}
+
 export async function apiFetch(path, options = {}) {
   const url = `${API_BASE}${path}`
   const headers = {
@@ -47,6 +57,11 @@ export async function apiFetch(path, options = {}) {
           ? data.message.trim()
           : ''
     if (fromBody) throw new Error(fromBody)
+    if (res.status === 500 && isLikelyProxyConnectionRefused(text)) {
+      throw new Error(
+        'Cannot reach the backend server on port 5001. Start backend with: cd backend && npm run dev'
+      )
+    }
     if (res.status === 500) {
       throw new Error(
         'Server error. Check that MongoDB is connected and see the backend terminal for details.'
@@ -71,6 +86,11 @@ function parseFormResponse(res, text) {
   if (!res.ok) {
     const apiErr = typeof data.error === 'string' && data.error.trim() ? data.error.trim() : null
     if (apiErr) throw new Error(apiErr)
+    if (res.status === 500 && isLikelyProxyConnectionRefused(text)) {
+      throw new Error(
+        'Cannot reach the backend server on port 5001. Start backend with: cd backend && npm run dev'
+      )
+    }
     if (res.status === 500) {
       throw new Error(
         'Server error. Check that MongoDB is connected and see the backend terminal for details.'
