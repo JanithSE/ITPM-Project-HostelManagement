@@ -9,6 +9,8 @@ const hostelSchema = new mongoose.Schema(
     totalRooms: { type: Number, default: 0 },
     availableRooms: { type: Number, default: 0 },
     pricePerBed: { type: Number, default: 0 },
+    /** Public URL path served from /uploads, e.g. /uploads/hostels/abc.jpg */
+    imageUrl: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 )

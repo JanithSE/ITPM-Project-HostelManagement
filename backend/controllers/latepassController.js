@@ -16,6 +16,7 @@ function documentPathFromFile(file) {
 }
 
 const PHONE_RE = /^[0-9+\s\-()]{8,22}$/
+const STUDENT_ID_RE = /^[A-Za-z]{2}\d{8}$/
 
 function parseStudentsJson(raw) {
   if (raw == null) return null
@@ -131,6 +132,9 @@ export const createLatepass = async (req, res) => {
     students.forEach((row, i) => {
       if (!row.studentName) errors.push(`Student ${i + 1}: name is required`)
       if (!row.studentId) errors.push(`Student ${i + 1}: student ID is required`)
+      else if (!STUDENT_ID_RE.test(row.studentId)) {
+        errors.push(`Student ${i + 1}: student ID must be 2 letters followed by 8 numbers`)
+      }
       if (!row.roomNo) errors.push(`Student ${i + 1}: room number is required`)
     })
 

@@ -35,6 +35,7 @@ async function seed() {
     console.log('Student already exists')
   }
 
+  /** Files in backend/uploads/hostels — served at /uploads/hostels/<filename> */
   const presetHostels = [
     {
       name: 'Emerald Grove Residences',
@@ -44,6 +45,7 @@ async function seed() {
       availableRooms: 180,
       pricePerBed: 18000,
       amenities: ['Wi-Fi', 'Study rooms', 'Laundry'],
+      imageUrl: '/uploads/hostels/hostel1.JPG',
     },
     {
       name: 'Urban Nest Living',
@@ -53,6 +55,7 @@ async function seed() {
       availableRooms: 150,
       pricePerBed: 15000,
       amenities: ['Wi-Fi', 'Common room', 'Parking'],
+      imageUrl: '/uploads/hostels/hostel2.jpg',
     },
     {
       name: 'Skyline Elite Hostel',
@@ -62,6 +65,7 @@ async function seed() {
       availableRooms: 120,
       pricePerBed: 25000,
       amenities: ['Wi-Fi', 'Attached bath', '24/7 Security'],
+      imageUrl: '/uploads/hostels/hostel3.jpg',
     },
     {
       name: 'Lakeview Budget Stay',
@@ -71,20 +75,28 @@ async function seed() {
       availableRooms: 200,
       pricePerBed: 12000,
       amenities: ['Wi-Fi', 'Garden', 'Shared kitchen'],
+      imageUrl: '/uploads/hostels/hostel1.JPG',
     },
   ]
 
-  // Ensure your 4 required hostels exist (create missing only).
   const created = []
+  const imageUpdates = []
   for (const hostelPreset of presetHostels) {
     const exists = await Hostel.findOne({ name: hostelPreset.name })
-    if (exists) continue
-    await Hostel.create(hostelPreset)
-    created.push(hostelPreset.name)
+    if (!exists) {
+      await Hostel.create(hostelPreset)
+      created.push(hostelPreset.name)
+      continue
+    }
+    if (hostelPreset.imageUrl && exists.imageUrl !== hostelPreset.imageUrl) {
+      await Hostel.updateOne({ _id: exists._id }, { $set: { imageUrl: hostelPreset.imageUrl } })
+      imageUpdates.push(hostelPreset.name)
+    }
   }
 
   if (created.length > 0) console.log(`Created hostels: ${created.join(', ')}`)
   else console.log('Preset hostels already exist')
+  if (imageUpdates.length > 0) console.log(`Updated hostel images: ${imageUpdates.join(', ')}`)
 
   await mongoose.disconnect()
   console.log('Seed done.')
