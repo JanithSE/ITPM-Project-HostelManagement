@@ -5,6 +5,7 @@ import AdminLayout from './shared/layouts/AdminLayout'
 import WardenLayout from './shared/layouts/WardenLayout'
 import Home from './components/auth/Home'
 import StudentAuth from './components/auth/StudentAuth'
+import RoleSelectLogin from './components/auth/RoleSelectLogin'
 import AdminLogin from './components/auth/AdminLogin'
 import WardenAuth from './components/auth/WardenAuth'
 import StudentDashboard from './components/dashboard/StudentDashboard'
@@ -25,70 +26,77 @@ import Inventory from './components/inventory/Inventory'
 import Maintenance from './components/maintenance/Maintenance'
 import Users from './components/users/Users'
 import Booking from './components/bookings/Booking'
+import StudentBooking from './components/bookings/StudentBooking'
+import ThemeToggle from './shared/components/ThemeToggle'
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public */}
-      <Route path="/" element={<Home />} />
-      <Route path="/login" element={<StudentAuth />} />
-      <Route path="/signup" element={<StudentAuth />} />
-      <Route path="/admin/login" element={<AdminLogin />} />
-      <Route path="/warden/login" element={<WardenAuth />} />
-      <Route path="/warden/register" element={<WardenAuth />} />
+    <>
+      <ThemeToggle className="fixed right-4 top-4 z-[70]" />
+      <Routes>
+        {/* Public */}
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<RoleSelectLogin />} />
+        <Route path="/signup" element={<StudentAuth />} />
+        <Route path="/student/login" element={<StudentAuth />} />
+        <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/warden/login" element={<WardenAuth />} />
+        <Route path="/warden/register" element={<WardenAuth />} />
 
-      {/* Student (protected) */}
-      <Route
-        path="/student"
-        element={
-          <ProtectedRoute allowedRole="student">
-            <StudentLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<StudentDashboard />} />
-        <Route path="hostels" element={<Hostels />} />
-        <Route path="payments" element={<StudentPayments />} />
-        <Route path="payments/new" element={<AddPayment />} />
-        <Route path="inquiries" element={<StudentInquiries />} />
-        <Route path="latepass" element={<StudentLatepass />} />
-        <Route path="latepass/new" element={<AddLatepass />} />
-        <Route path="complains" element={<Complains />} />
-      </Route>
+        {/* Student (protected) */}
+        <Route
+          path="/student"
+          element={
+            <ProtectedRoute allowedRole="student">
+              <StudentLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<StudentDashboard />} />
+          <Route path="hostels" element={<Hostels />} />
+          <Route path="payments" element={<StudentPayments />} />
+          <Route path="payments/new" element={<AddPayment />} />
+          <Route path="inquiries" element={<StudentInquiries />} />
+          <Route path="latepass" element={<StudentLatepass />} />
+          <Route path="latepass/new" element={<AddLatepass />} />
+          <Route path="complains" element={<Complains />} />
+          <Route path="booking" element={<StudentBooking />} />
+        </Route>
 
-      {/* Warden (protected) */}
-      <Route
-        path="/warden"
-        element={
-          <ProtectedRoute allowedRole="warden">
-            <WardenLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<WardenDashboard />} />
-      </Route>
+        {/* Warden (protected) */}
+        <Route
+          path="/warden"
+          element={
+            <ProtectedRoute allowedRole="warden">
+              <WardenLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<WardenDashboard />} />
+        </Route>
 
-      {/* Admin (protected) */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute allowedRole="admin">
-            <AdminLayout />
-          </ProtectedRoute>
-        }
-      >
-        <Route index element={<AdminDashboard />} />
-        <Route path="users" element={<Users />} />
-        <Route path="booking" element={<Booking />} />
-        <Route path="hostels" element={<AdminHostels />} />
-        <Route path="payments" element={<AdminPayments />} />
-        <Route path="latepass" element={<AdminLatepass />} />
-        <Route path="inventory" element={<Inventory />} />
-        <Route path="inquiries" element={<AdminInquiries />} />
-        <Route path="maintenance" element={<Maintenance />} />
-      </Route>
+        {/* Admin (protected) */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<Users />} />
+          <Route path="booking" element={<Booking />} />
+          <Route path="hostels" element={<AdminHostels />} />
+          <Route path="payments" element={<AdminPayments />} />
+          <Route path="latepass" element={<AdminLatepass />} />
+          <Route path="inventory" element={<Inventory />} />
+          <Route path="inquiries" element={<AdminInquiries />} />
+          <Route path="maintenance" element={<Maintenance />} />
+        </Route>
 
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </>
   )
 }

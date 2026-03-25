@@ -1,5 +1,4 @@
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
-import ThemeToggle from '../components/ThemeToggle'
 
 export default function WardenLayout() {
   const navigate = useNavigate()
@@ -28,7 +27,6 @@ export default function WardenLayout() {
               >
                 Dashboard
               </Link>
-              <ThemeToggle />
               <button type="button" onClick={handleLogout} className="btn-logout">
                 Log out
               </button>

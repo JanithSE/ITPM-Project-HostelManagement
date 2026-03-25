@@ -6,14 +6,14 @@ const router = express.Router()
 
 router.use(authMiddleware)
 
-// Warden/Admin can manage room definitions
+// Warden can manage room definitions
 router.get('/', requireRole('warden'), listRooms)
 router.post('/', requireRole('warden'), createRoom)
 router.patch('/:id', requireRole('warden'), updateRoom)
 router.delete('/:id', requireRole('warden'), deleteRoom)
 
-// Warden can fetch computed occupancy details
-router.get('/details', requireRole('warden'), listRoomDetails)
+// Student/Admin/Warden can fetch computed occupancy details
+router.get('/details', requireRole('student', 'admin', 'warden'), listRoomDetails)
 
 export default router
 

@@ -56,6 +56,18 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: err.message || 'Internal server error' })
 })
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
+})
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(
+      `\nPort ${PORT} is already in use.\n` +
+        `Another backend is probably still running (e.g. another terminal or root "npm run dev").\n` +
+        `Fix: stop that process, or run: netstat -ano | findstr ":${PORT}" then taskkill /PID <pid> /F\n`
+    )
+    process.exit(1)
+  }
+  throw err
 })

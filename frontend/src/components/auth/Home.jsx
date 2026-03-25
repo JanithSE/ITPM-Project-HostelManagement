@@ -52,17 +52,8 @@ export default function Home() {
               UniHostel
             </Link>
             <nav className="nav-links">
-              <Link to="/login" className="nav-link-text">
-                Sign in
-              </Link>
-              <Link to="/signup" className="nav-link-outline">
-                Sign up
-              </Link>
-              <Link to="/warden/login" className="nav-link-outline">
-                Warden
-              </Link>
-              <Link to="/admin/login" className="btn-primary-solid">
-                Admin Login
+              <Link to="/login" className="btn-primary-solid">
+                Login
               </Link>
             </nav>
           </div>

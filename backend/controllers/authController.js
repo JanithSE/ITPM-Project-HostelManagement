@@ -173,12 +173,12 @@ const ADMIN_PASSWORD = 'admin123'
 
 export const adminLogin = async (req, res) => {
   try {
-    const { email, password } = req.body || {}
-    const username = (email || '').trim().toLowerCase()
+    const { username, password } = req.body || {}
+    const usernameNorm = (username || '').trim().toLowerCase()
     if (!username || !password) {
       return res.status(400).json({ error: 'Username and password required' })
     }
-    if (username !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
+    if (usernameNorm !== ADMIN_USERNAME || password !== ADMIN_PASSWORD) {
       return res.status(401).json({ error: 'Invalid username or password' })
     }
     let user = await User.findOne({ role: 'admin' })
@@ -191,7 +191,7 @@ export const adminLogin = async (req, res) => {
       })
     }
     const token = signToken(user)
-    res.json({ token, role: 'admin', user: { id: user._id, name: 'Admin', email: username } })
+    res.json({ token, role: 'admin', user: { id: user._id, name: 'Admin', email: usernameNorm } })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

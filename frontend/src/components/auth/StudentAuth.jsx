@@ -17,7 +17,7 @@ export default function StudentAuth() {
 
   const switchTab = (newTab) => {
     setTab(newTab)
-    navigate(newTab === TAB_SIGNUP ? '/signup' : '/login', { replace: true })
+    navigate(newTab === TAB_SIGNUP ? '/signup' : '/student/login', { replace: true })
   }
 
   return (
@@ -75,6 +75,7 @@ function SignInForm({ onSuccess }) {
       const data = await authApi.studentLogin(email, password)
       localStorage.setItem('token', data.token)
       localStorage.setItem('role', data.role)
+      if (data?.user?.name) localStorage.setItem('studentName', data.user.name)
       onSuccess()
     } catch (err) {
       const msg = err.message || 'Sign in failed'
@@ -148,6 +149,7 @@ function SignUpForm({ onSuccess }) {
       const data = await authApi.studentSignup(name, email, password)
       localStorage.setItem('token', data.token)
       localStorage.setItem('role', data.role)
+      if (data?.user?.name) localStorage.setItem('studentName', data.user.name)
       onSuccess()
     } catch (err) {
       const msg = err.message || 'Sign up failed'

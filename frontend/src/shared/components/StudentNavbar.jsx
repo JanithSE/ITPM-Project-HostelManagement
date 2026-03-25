@@ -1,5 +1,4 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import ThemeToggle from './ThemeToggle'
 
 export default function StudentNavbar() {
   const navigate = useNavigate()
@@ -7,11 +6,13 @@ export default function StudentNavbar() {
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('role')
+    localStorage.removeItem('studentName')
     navigate('/login')
   }
 
   const navLinks = [
     { to: '/student/hostels', label: 'Our Hostels' },
+    { to: '/student/booking', label: 'Room Booking' },
     { to: '/student/payments', label: 'Payments' },
     { to: '/student/inquiries', label: 'Inquiries' },
     { to: '/student/latepass', label: 'Late pass' },
@@ -37,7 +38,6 @@ export default function StudentNavbar() {
                 {label}
               </NavLink>
             ))}
-            <ThemeToggle />
             <button type="button" onClick={handleLogout} className="btn-logout">
               Logout
             </button>
