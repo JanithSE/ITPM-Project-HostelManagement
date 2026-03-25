@@ -2,12 +2,21 @@ import mongoose from 'mongoose'
 
 const inventoryItemSchema = new mongoose.Schema(
   {
+    /** Display label for this stock line (e.g. "Beds — all types"). */
     name: { type: String, required: true, trim: true },
     quantity: { type: Number, default: 0 },
     location: { type: String, trim: true },
-    category: { type: String, trim: true },
+    /**
+     * One category per document only; duplicated categories are not allowed across records.
+     */
+    category: {
+      type: String,
+      required: true,
+      trim: true,
+      unique: true,
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 )
 
 export default mongoose.model('InventoryItem', inventoryItemSchema)

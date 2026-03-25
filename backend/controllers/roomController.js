@@ -15,6 +15,16 @@ function normalizeRoomNumber(roomNumber) {
   return m ? m[1] : s
 }
 
+function normalizeRoomType(v) {
+  const s = String(v ?? '').toLowerCase().trim()
+  return s === 'single' ? 'single' : 'double'
+}
+
+function normalizeAcType(v) {
+  const s = String(v ?? '').toLowerCase().trim()
+  return s === 'ac' ? 'ac' : 'non-ac'
+}
+
 function normalizeBedNumber(bedNumber) {
   if (bedNumber === undefined || bedNumber === null) return null
   const s = String(bedNumber).toLowerCase().trim()
@@ -24,21 +34,30 @@ function normalizeBedNumber(bedNumber) {
   return n === '1' || n === '2' ? n : null
 }
 
-function buildDefaultBeds() {
-  return [
-    { bedNumber: '1', status: 'Available', student: null, studentName: null },
-    { bedNumber: '2', status: 'Available', student: null, studentName: null },
-  ]
+function getBedCountFromRoomType(roomType) {
+  return roomType === 'single' ? 1 : 2
 }
 
-function normalizeBedsInput(bedsInput) {
-  // If beds are not provided, always default to 2 beds.
-  if (!Array.isArray(bedsInput) || bedsInput.length === 0) return buildDefaultBeds()
+function buildDefaultBeds(bedCount) {
+  return Array.from({ length: bedCount }, (_, i) => ({
+    bedNumber: String(i + 1),
+    status: 'Available',
+    student: null,
+    studentName: null,
+  }))
+}
+
+function normalizeBedsInput(bedsInput, bedCount) {
+  const allowedBedNumbers = Array.from({ length: bedCount }, (_, i) => String(i + 1))
+
+  // If beds are not provided, default based on bedCount.
+  if (!Array.isArray(bedsInput) || bedsInput.length === 0) return buildDefaultBeds(bedCount)
 
   const bedMap = new Map()
   for (const b of bedsInput) {
     const bedNumber = normalizeBedNumber(b?.bedNumber)
     if (!bedNumber) continue
+    if (!allowedBedNumbers.includes(bedNumber)) continue
 
     bedMap.set(bedNumber, {
       bedNumber,
@@ -48,18 +67,19 @@ function normalizeBedsInput(bedsInput) {
     })
   }
 
-  // Ensure exactly 2 beds (1 and 2).
-  const result = ['1', '2'].map((bn) => bedMap.get(bn) ?? { bedNumber: bn, status: 'Available', student: null, studentName: null })
-  return result
+  return allowedBedNumbers.map(
+    (bn) => bedMap.get(bn) ?? { bedNumber: bn, status: 'Available', student: null, studentName: null },
+  )
 }
 
 async function refreshHostelCounts(hostelId) {
-  const roomsCount = await Room.countDocuments({ hostel: hostelId })
-  const totalBeds = roomsCount * 2
-  const occupiedBeds = await Booking.countDocuments({
-    hostel: hostelId,
-    status: { $in: ['confirmed'] },
-  })
+  const rooms = await Room.find({ hostel: hostelId }).select('beds.bedNumber beds.status')
+  const roomsCount = rooms.length
+  const totalBeds = rooms.reduce((sum, r) => sum + (Array.isArray(r.beds) ? r.beds.length : 0), 0)
+  const occupiedBeds = rooms.reduce(
+    (sum, r) => sum + (Array.isArray(r.beds) ? r.beds.filter((b) => b?.status === 'Occupied').length : 0),
+    0,
+  )
 
   await Hostel.findByIdAndUpdate(hostelId, {
     totalRooms: roomsCount,
@@ -90,10 +110,18 @@ export const createRoom = async (req, res) => {
     const existing = await Room.findOne({ hostel: hostelId, roomNumber })
     if (existing) return res.status(409).json({ error: 'Room already exists in this hostel' })
 
+    const details = String(req.body?.details ?? '').trim().slice(0, 2000)
+    const roomType = normalizeRoomType(req.body?.roomType)
+    const acType = normalizeAcType(req.body?.acType)
+    const bedCount = getBedCountFromRoomType(roomType)
+
     const room = await Room.create({
       hostel: hostelId,
       roomNumber,
-      beds: normalizeBedsInput(req.body?.beds),
+      beds: normalizeBedsInput(req.body?.beds, bedCount),
+      roomType,
+      acType,
+      details,
     })
 
     await refreshHostelCounts(hostelId)
@@ -111,6 +139,7 @@ export const updateRoom = async (req, res) => {
 
     const oldHostelId = room.hostel
     const oldRoomNumber = room.roomNumber
+    const oldRoomType = room.roomType
 
     const nextRoomNumber = req.body?.roomNumber !== undefined ? normalizeRoomNumber(req.body.roomNumber) : room.roomNumber
     if (!nextRoomNumber) return res.status(400).json({ error: 'roomNumber is invalid' })
@@ -132,8 +161,34 @@ export const updateRoom = async (req, res) => {
     room.roomNumber = nextRoomNumber
     room.hostel = nextHostelId
 
+    const nextRoomType = req.body?.roomType !== undefined ? normalizeRoomType(req.body.roomType) : room.roomType
+    const nextBedCount = getBedCountFromRoomType(nextRoomType)
+
     // Allow optional bed structure update, but occupancy remains derived from `Booking`.
-    if (req.body?.beds !== undefined) room.beds = normalizeBedsInput(req.body.beds)
+    if (req.body?.beds !== undefined) room.beds = normalizeBedsInput(req.body.beds, nextBedCount)
+    if (req.body?.roomType !== undefined) {
+      room.roomType = nextRoomType
+
+      // If roomType changes and beds were not explicitly provided, rebuild beds to satisfy validation.
+      if (req.body?.beds === undefined) {
+        // If converting double -> single, cancel bookings that used bed 2.
+        const oldBedCount = getBedCountFromRoomType(oldRoomType)
+        if (oldBedCount === 2 && nextBedCount === 1) {
+          await Booking.updateMany(
+            {
+              hostel: nextHostelId,
+              roomNumber: nextRoomNumber,
+              bedNumber: '2',
+              status: { $in: ['pending', 'confirmed'] },
+            },
+            { $set: { status: 'cancelled' } },
+          )
+        }
+        room.beds = buildDefaultBeds(nextBedCount)
+      }
+    }
+    if (req.body?.acType !== undefined) room.acType = normalizeAcType(req.body.acType)
+    if (req.body?.details !== undefined) room.details = String(req.body.details ?? '').trim().slice(0, 2000)
 
     await room.save()
 

@@ -1,4 +1,69 @@
 import Booking from '../models/Booking.js'
+import Room from '../models/RoomSchema.js'
+import Hostel from '../models/Hostel.js'
+
+async function syncRoomBeds(hostelId, roomNumber) {
+  if (!hostelId || !roomNumber) return
+
+  const room = await Room.findOne({ hostel: hostelId, roomNumber: String(roomNumber) })
+  if (!room) return
+
+  const bookings = await Booking.find({
+    hostel: hostelId,
+    roomNumber: String(roomNumber),
+    status: 'confirmed',
+  }).populate('student', 'name')
+
+  const byBed = new Map()
+  for (const b of bookings) {
+    const bedNumber = String(b.bedNumber)
+    byBed.set(bedNumber, {
+      student: b.student?._id ?? b.student ?? null,
+      studentName: b.student?.name ?? null,
+    })
+  }
+
+  let changed = false
+  for (const bed of room.beds) {
+    const bedNumber = String(bed.bedNumber)
+    const occ = byBed.get(bedNumber)
+    if (occ) {
+      if (bed.status !== 'Occupied' || (bed.studentName ?? null) !== (occ.studentName ?? null) || String(bed.student ?? '') !== String(occ.student ?? '')) {
+        bed.status = 'Occupied'
+        bed.student = occ.student
+        bed.studentName = occ.studentName
+        changed = true
+      }
+    } else {
+      if (bed.status !== 'Available' || bed.student != null || bed.studentName != null) {
+        bed.status = 'Available'
+        bed.student = null
+        bed.studentName = null
+        changed = true
+      }
+    }
+  }
+
+  if (changed) {
+    await room.save()
+  }
+}
+
+async function refreshHostelCounts(hostelId) {
+  if (!hostelId) return
+  const rooms = await Room.find({ hostel: hostelId }).select('beds.status')
+  const totalRooms = rooms.length
+  const totalBeds = rooms.reduce((sum, r) => sum + (Array.isArray(r.beds) ? r.beds.length : 0), 0)
+  const occupiedBeds = rooms.reduce(
+    (sum, r) => sum + (Array.isArray(r.beds) ? r.beds.filter((b) => b?.status === 'Occupied').length : 0),
+    0,
+  )
+
+  await Hostel.findByIdAndUpdate(hostelId, {
+    totalRooms,
+    availableRooms: totalBeds - occupiedBeds,
+  })
+}
 
 export const listBookings = async (req, res) => {
   try {
@@ -20,6 +85,10 @@ export const createBooking = async (req, res) => {
       ...req.body,
       student: studentId,
     })
+
+    await syncRoomBeds(booking.hostel, booking.roomNumber)
+    await refreshHostelCounts(booking.hostel)
+
     const populated = await Booking.findById(booking._id)
       .populate('student', 'name email')
       .populate('hostel', 'name location')
@@ -55,6 +124,10 @@ export const updateBooking = async (req, res) => {
     }
     Object.assign(booking, req.body)
     await booking.save()
+
+    await syncRoomBeds(booking.hostel, booking.roomNumber)
+    await refreshHostelCounts(booking.hostel)
+
     const populated = await Booking.findById(booking._id)
       .populate('student', 'name email')
       .populate('hostel', 'name location')
@@ -73,6 +146,10 @@ export const deleteBooking = async (req, res) => {
       return res.status(403).json({ error: 'Forbidden' })
     }
     await Booking.findByIdAndDelete(req.params.id)
+
+    await syncRoomBeds(booking.hostel, booking.roomNumber)
+    await refreshHostelCounts(booking.hostel)
+
     res.json({ message: 'Booking deleted' })
   } catch (err) {
     res.status(500).json({ error: err.message })
