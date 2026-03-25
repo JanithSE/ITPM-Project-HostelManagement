@@ -18,14 +18,33 @@ const bedSchema = new mongoose.Schema(
   { _id: false },
 )
 
+const ROOM_TYPES = ['single', 'double']
+const AC_TYPES = ['ac', 'non-ac']
+
 const roomSchema = new mongoose.Schema(
   {
     hostel: { type: mongoose.Schema.Types.ObjectId, ref: 'Hostel', required: true },
-    roomNumber: { type: String, required: true, trim: true },
-    beds: { type: [bedSchema], required: true, validate: (v) => v.length === 2 },
+    roomNumber: { type: String, required: true, trim: true,unique: true },
+    beds: {
+      type: [bedSchema],
+      required: true,
+      validate: {
+        validator: function (v) {
+          const expected = this.roomType === 'single' ? 1 : 2
+          return Array.isArray(v) && v.length === expected
+        },
+        message: 'Beds count must match roomType (single=1, double=2)',
+      },
+    },
+    status: { type: String, enum: ['available', 'occupied'], default: 'available', required: true },
+    /** Metadata used to define the number of bed slots for occupancy. */
+    roomType: { type: String, enum: ROOM_TYPES, default: 'double' },
+    details: { type: String, trim: true, default: '' },
   },
   { timestamps: true },
 )
+
+export { ROOM_TYPES, AC_TYPES }
 
 const RoomModel = mongoose.models.Room ?? mongoose.model('Room', roomSchema)
 
@@ -45,8 +64,7 @@ function normalizeRoomNumber(roomNumber) {
   return m ? m[1] : s
 }
 
-function buildRoomDetailsForHostel(hostel, bookings, { bedCount = 2, roomNumbers = null } = {}) {
-  const bedsPerRoom = Array.from({ length: bedCount }, (_, i) => String(i + 1))
+function buildRoomDetailsForHostel(hostel, bookings, { bedCount = 2, bedCountByRoomNumber = null, roomNumbers = null } = {}) {
 
   // Map: roomNumber -> bedNumber -> { student, studentName }
   const bedOccupancy = new Map()
@@ -80,10 +98,13 @@ function buildRoomDetailsForHostel(hostel, bookings, { bedCount = 2, roomNumbers
 
   const sortedRoomNumbers = Array.from(roomNumberSet).sort((a, b) => Number(a) - Number(b))
 
-  // Final response shape expected by the UI: each room has 2 beds with
-  // Occupied/Available status + studentName (if occupied).
+  // Final response shape expected by the UI:
+  // Each room has beds count based on roomType, with Occupied/Available status + studentName.
   const rooms = sortedRoomNumbers.map((roomNumber) => {
     const roomBedMap = bedOccupancy.get(roomNumber) ?? new Map()
+
+    const bedCountForRoom = bedCountByRoomNumber?.get(roomNumber) ?? bedCount
+    const bedsPerRoom = Array.from({ length: bedCountForRoom }, (_, i) => String(i + 1))
 
     const beds = bedsPerRoom.map((bedNumber) => {
       const occ = roomBedMap.get(bedNumber)
@@ -120,15 +141,21 @@ export async function getRoomsDetailsForHostel(hostelId, { statusesToCount = ['c
   const hostel = await Hostel.findById(hostelId)
   if (!hostel) return []
 
-  const rooms = await RoomModel.find({ hostel: hostelId }).select('roomNumber')
+  const rooms = await RoomModel.find({ hostel: hostelId }).select('roomNumber roomType')
   const persistedRoomNumbers = rooms.map((r) => r.roomNumber)
+  const bedCountByRoomNumber = new Map()
+  for (const r of rooms) {
+    const rn = normalizeRoomNumber(r.roomNumber)
+    if (!rn) continue
+    bedCountByRoomNumber.set(String(rn), r.roomType === 'single' ? 1 : 2)
+  }
 
   const bookings = await Booking.find({
     hostel: hostelId,
     status: { $in: statusesToCount },
   }).populate('student', 'name')
 
-  return buildRoomDetailsForHostel(hostel, bookings, { roomNumbers: persistedRoomNumbers })
+  return buildRoomDetailsForHostel(hostel, bookings, { roomNumbers: persistedRoomNumbers, bedCountByRoomNumber })
 }
 
 /**

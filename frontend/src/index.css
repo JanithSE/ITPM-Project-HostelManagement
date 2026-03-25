@@ -3,12 +3,16 @@
 @tailwind utilities;
 
 @layer base {
+  html {
+    /* Slightly larger default text across the app (Tailwind rem scale + readability) */
+    font-size: 106.25%;
+  }
   html.dark {
     color-scheme: dark;
   }
   body {
     margin: 0;
-    @apply font-sans antialiased text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100;
+    @apply font-sans antialiased text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 text-base;
   }
 }
 
@@ -38,10 +42,10 @@
     @apply flex items-center gap-2 sm:gap-3 flex-wrap justify-end;
   }
   .nav-link-text {
-    @apply rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-primary-50 hover:text-primary-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400;
+    @apply rounded-full px-4 py-2 text-base font-medium text-slate-600 transition-all duration-200 hover:bg-primary-50 hover:text-primary-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400;
   }
   .nav-link-outline {
-    @apply rounded-full border border-primary-200 px-4 py-2 text-sm font-medium text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-800 dark:text-primary-400 dark:hover:bg-slate-800;
+    @apply rounded-full border border-primary-200 px-4 py-2 text-base font-medium text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-800 dark:text-primary-400 dark:hover:bg-slate-800;
   }
   .btn-primary-solid {
     @apply bg-zinc-900 text-white font-semibold px-5 py-2.5 rounded-full hover:bg-zinc-800 shadow-lg shadow-zinc-900/15 transition-all duration-200 text-sm;
@@ -247,10 +251,10 @@
     @apply space-y-5;
   }
   .auth-label {
-    @apply mb-1.5 block text-sm font-semibold text-slate-700 dark:text-slate-300;
+    @apply mb-1.5 block text-base font-semibold text-slate-700 dark:text-slate-300;
   }
   .auth-input {
-    @apply w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 transition-all focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-primary-400 dark:focus:bg-slate-900;
+    @apply w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-base transition-all focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-primary-400 dark:focus:bg-slate-900;
   }
   .btn-submit {
     @apply w-full bg-primary-600 text-white py-3 rounded-full font-semibold hover:bg-primary-700 shadow-lg shadow-primary-600/20 transition-all disabled:opacity-50;
@@ -294,7 +298,7 @@
     @apply mb-6 text-base text-slate-600 dark:text-slate-400;
   }
   .btn-primary-action {
-    @apply inline-flex items-center justify-center bg-primary-600 text-white px-5 py-2.5 rounded-full font-semibold text-sm hover:bg-primary-700 shadow-md shadow-primary-600/20 transition-all;
+    @apply inline-flex items-center justify-center bg-primary-600 text-white px-5 py-2.5 rounded-full font-semibold text-base hover:bg-primary-700 shadow-md shadow-primary-600/20 transition-all;
   }
 
   /* Student nav */
@@ -311,7 +315,7 @@
     @apply flex items-center gap-1.5 flex-wrap justify-end;
   }
   .student-nav-link {
-    @apply px-3.5 py-2 rounded-full text-sm font-medium transition-all duration-200;
+    @apply px-3.5 py-2 rounded-full text-base font-medium transition-all duration-200;
   }
   .student-nav-link-active {
     @apply bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/50 dark:text-primary-300;
@@ -334,7 +338,7 @@
     @apply flex-1 p-4 space-y-1;
   }
   .admin-sidebar-link {
-    @apply block px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200;
+    @apply block px-4 py-2.5 rounded-xl text-base font-medium transition-all duration-200;
   }
   .admin-sidebar-link-active {
     @apply border border-primary-100/80 bg-primary-50 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-900/30 dark:text-primary-300;
@@ -360,32 +364,32 @@
     @apply min-w-full divide-y divide-slate-100 dark:divide-slate-700;
   }
   .table-admin th {
-    @apply bg-slate-50/80 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-400;
+    @apply bg-slate-50/80 px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-400;
   }
   .table-admin tbody tr {
     @apply divide-y divide-slate-100 transition-colors hover:bg-slate-50/50 dark:divide-slate-800 dark:hover:bg-slate-800/40;
   }
   .table-admin td {
-    @apply px-4 py-3 text-sm text-slate-600 dark:text-slate-300;
+    @apply px-4 py-3 text-base text-slate-600 dark:text-slate-300;
   }
   .table-action-link {
-    @apply text-sm font-semibold text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300;
+    @apply text-base font-semibold text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300;
   }
   .actions-row {
     @apply mt-4 flex gap-3 flex-wrap;
   }
   .btn-table-primary {
-    @apply bg-primary-600 text-white px-5 py-2 rounded-full text-sm font-semibold hover:bg-primary-700 shadow-md shadow-primary-600/15 transition-all;
+    @apply bg-primary-600 text-white px-5 py-2 rounded-full text-base font-semibold hover:bg-primary-700 shadow-md shadow-primary-600/15 transition-all;
   }
   .btn-table-secondary {
-    @apply rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+    @apply rounded-full border border-slate-200 bg-white px-5 py-2 text-base font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 }
 
 /* Data tables inside dashboard panels (inline Tailwind tables) */
 @layer components {
   .table-dashboard {
-    @apply min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-600/80;
+    @apply min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-700;
   }
   .table-dashboard thead tr {
     @apply border-b border-slate-200 dark:border-slate-600;
@@ -408,7 +412,7 @@
   }
 
   .table-admin-compact {
-    @apply min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-700;
+    @apply min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-700;
   }
   .table-admin-compact thead tr {
     @apply border-b border-slate-200 dark:border-slate-700;
@@ -423,6 +427,6 @@
     @apply bg-white text-slate-700 transition-colors hover:bg-slate-50/80 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/90;
   }
   .table-admin-compact td {
-    @apply px-2 py-2 align-top text-xs text-slate-700 dark:text-slate-200;
+    @apply px-2 py-2 align-top text-sm dark:text-slate-300;
   }
 }

@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "seed:greenview": "node scripts/seedGreenViewRooms.js",
+    "seed:inventory": "node scripts/seedInventoryItems.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
