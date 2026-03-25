@@ -9,9 +9,11 @@ const __dirname = path.dirname(__filename)
 const backendRoot = path.join(__dirname, '..')
 const paymentsDir = path.join(backendRoot, 'uploads', 'payments')
 const latepassDir = path.join(backendRoot, 'uploads', 'latepass')
+const hostelsDir = path.join(backendRoot, 'uploads', 'hostels')
 
 fs.mkdirSync(paymentsDir, { recursive: true })
 fs.mkdirSync(latepassDir, { recursive: true })
+fs.mkdirSync(hostelsDir, { recursive: true })
 
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf'])
 const ALLOWED_MIME = new Set([
@@ -31,6 +33,19 @@ function imageOrPdfFilter(req, file, cb) {
     if (ALLOWED_EXT.has(ext)) return cb(null, true)
   }
   cb(new Error('Only JPEG, PNG, WebP, and PDF files are allowed'))
+}
+
+const HOSTEL_IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp'])
+const HOSTEL_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+function hostelImageFilter(req, file, cb) {
+  const ext = path.extname(file.originalname || '').toLowerCase()
+  const mime = String(file.mimetype || '').toLowerCase()
+  if (HOSTEL_IMAGE_MIME.has(mime)) return cb(null, true)
+  if (!mime || mime === 'application/octet-stream') {
+    if (HOSTEL_IMAGE_EXT.has(ext)) return cb(null, true)
+  }
+  cb(new Error('Only JPEG, PNG, and WebP images are allowed for hostel photos'))
 }
 
 function makeStorage(destDir) {
@@ -56,6 +71,12 @@ const latepassMulter = multer({
   fileFilter: imageOrPdfFilter,
 })
 
+const hostelImageMulter = multer({
+  storage: makeStorage(hostelsDir),
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: hostelImageFilter,
+})
+
 export function paymentProofUploadMiddleware(req, res, next) {
   paymentMulter.single('proof')(req, res, (err) => {
     if (err) {
@@ -78,6 +99,27 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
     }
     next()
   })
+}
+
+export function hostelImageUploadMiddleware(req, res, next) {
+  hostelImageMulter.single('image')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Hostel image must be 8 MB or smaller' })
+      }
+      return res.status(400).json({ error: err.message || 'Image upload failed' })
+    }
+    next()
+  })
+}
+
+/** Use multipart parsing only when the client sends multipart/form-data (optional image). */
+export function conditionalHostelImageUpload(req, res, next) {
+  const ct = String(req.headers['content-type'] || '')
+  if (ct.includes('multipart/form-data')) {
+    return hostelImageUploadMiddleware(req, res, next)
+  }
+  next()
 }
 
 /** @deprecated use paymentProofUploadMiddleware */

@@ -142,7 +142,12 @@ export const wardenLogin = async (req, res) => {
       },
     })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[wardenLogin]', err)
+    const msg =
+      err?.name === 'MongoServerSelectionError' || err?.name === 'MongooseError'
+        ? 'Database unavailable. Try again in a moment.'
+        : err?.message || 'Sign in failed'
+    res.status(500).json({ error: msg })
   }
 }
 
@@ -164,7 +169,12 @@ export const studentLogin = async (req, res) => {
     const token = signToken(user)
     res.json({ token, role: 'student', user: { id: user._id, name: user.name, email: user.email } })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[studentLogin]', err)
+    const msg =
+      err?.name === 'MongoServerSelectionError' || err?.name === 'MongooseError'
+        ? 'Database unavailable. Try again in a moment.'
+        : err?.message || 'Sign in failed'
+    res.status(500).json({ error: msg })
   }
 }
 
@@ -193,7 +203,12 @@ export const adminLogin = async (req, res) => {
     const token = signToken(user)
     res.json({ token, role: 'admin', user: { id: user._id, name: 'Admin', email: username } })
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    console.error('[adminLogin]', err)
+    const msg =
+      err?.name === 'MongoServerSelectionError' || err?.name === 'MongooseError'
+        ? 'Database unavailable. Try again in a moment.'
+        : err?.message || 'Sign in failed'
+    res.status(500).json({ error: msg })
   }
 }
 
