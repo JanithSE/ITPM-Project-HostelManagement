@@ -22,11 +22,49 @@ function arrivingLabel(row) {
   return row.arrivingTime || row.returnTime || '—'
 }
 
-function studentsSummary(students) {
-  if (!students?.length) return '—'
-  return students
-    .map((s) => `${s.studentName} · ${s.studentId} · ${s.roomNo}`)
-    .join(' | ')
+/** One clear block per student so names/IDs don’t break across lines mid-record. */
+function AdminStudentsList({ students }) {
+  if (!students?.length) {
+    return <span className="text-slate-400 dark:text-slate-500">—</span>
+  }
+  return (
+    <ul className="m-0 max-w-full list-none space-y-2 p-0">
+      {students.map((s, i) => (
+        <li
+          key={`${String(s.studentId ?? '')}-${i}`}
+          className="rounded-md border border-slate-200/90 bg-white/50 px-2 py-1.5 dark:border-slate-600 dark:bg-slate-800/60"
+        >
+          <span className="block text-xs font-semibold leading-snug text-slate-900 dark:text-slate-50">
+            {String(s.studentName || '').trim() || '—'}
+          </span>
+          <span className="mt-0.5 block break-all font-mono text-[11px] leading-snug text-slate-600 dark:text-slate-400">
+            {s.studentId || '—'}
+          </span>
+          {s.roomNo != null && String(s.roomNo).trim() !== '' && (
+            <span className="mt-0.5 block text-[11px] text-slate-500 dark:text-slate-500">
+              Room {s.roomNo}
+            </span>
+          )}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** Long strings (e.g. no spaces) must wrap instead of overflowing into the next column. */
+function WrappableCell({ children, empty = '—' }) {
+  const text = children == null || children === '' ? null : String(children)
+  if (!text) {
+    return <span className="text-slate-400 dark:text-slate-500">{empty}</span>
+  }
+  return (
+    <span
+      className="block min-w-0 max-w-full break-words [overflow-wrap:anywhere] text-left text-xs leading-relaxed text-slate-700 dark:text-slate-200"
+      title={text.length > 100 ? text : undefined}
+    >
+      {text}
+    </span>
+  )
 }
 
 export default function AdminLatepass() {
@@ -128,19 +166,19 @@ export default function AdminLatepass() {
           ) : list.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">No late pass requests.</p>
           ) : (
-            <table className="admin-latepass__table table-admin-compact">
+            <table className="admin-latepass__table table-admin-compact w-full min-w-[56rem] table-fixed">
               <thead>
                 <tr>
-                  <th className="whitespace-nowrap">Date</th>
-                  <th className="whitespace-nowrap">Arriving time</th>
-                  <th className="whitespace-nowrap">Guardian contact</th>
-                  <th className="whitespace-nowrap">Document</th>
-                  <th className="min-w-[10rem]">Reason</th>
-                  <th className="min-w-[14rem]">Students</th>
-                  <th className="whitespace-nowrap">Status</th>
-                  <th className="min-w-[8rem]">Admin remarks</th>
-                  <th className="whitespace-nowrap">Submitted</th>
-                  <th className="min-w-[13rem]">Update</th>
+                  <th className="w-[9%] whitespace-nowrap">Date</th>
+                  <th className="w-[8%] whitespace-nowrap">Arriving</th>
+                  <th className="w-[10%] whitespace-nowrap">Guardian</th>
+                  <th className="w-[7%] whitespace-nowrap">Document</th>
+                  <th className="min-w-0 w-[22%]">Reason</th>
+                  <th className="min-w-0 w-[18%]">Students</th>
+                  <th className="w-[9%] whitespace-nowrap">Status</th>
+                  <th className="min-w-0 w-[14%]">Admin remarks</th>
+                  <th className="w-[12%] whitespace-nowrap">Submitted</th>
+                  <th className="w-[13%] min-w-[11rem] whitespace-nowrap">Update</th>
                 </tr>
               </thead>
               <tbody>
@@ -151,15 +189,16 @@ export default function AdminLatepass() {
                   }
                   const href = row.documentFile || ''
                   const students = row.students?.length ? row.students : []
-                  const summary = studentsSummary(students)
                   return (
                     <tr key={row._id}>
-                      <td className="whitespace-nowrap px-2 py-3">
+                      <td className="align-top whitespace-nowrap px-2 py-3 text-xs">
                         {row.date ? new Date(row.date).toLocaleDateString() : '—'}
                       </td>
-                      <td className="whitespace-nowrap px-2 py-3">{arrivingLabel(row)}</td>
-                      <td className="max-w-[8rem] px-2 py-3 text-xs">{row.guardianContactNo || '—'}</td>
-                      <td className="whitespace-nowrap px-2 py-3">
+                      <td className="align-top whitespace-nowrap px-2 py-3 text-xs">{arrivingLabel(row)}</td>
+                      <td className="align-top break-all px-2 py-3 text-xs">
+                        {row.guardianContactNo || '—'}
+                      </td>
+                      <td className="align-top whitespace-nowrap px-2 py-3">
                         {href ? (
                           <a
                             href={href}
@@ -173,20 +212,22 @@ export default function AdminLatepass() {
                           '—'
                         )}
                       </td>
-                      <td className="max-w-[12rem] px-2 py-3 text-xs" title={row.reason || ''}>
-                        {row.reason || '—'}
+                      <td className="min-w-0 align-top px-2 py-3">
+                        <WrappableCell>{row.reason}</WrappableCell>
                       </td>
-                      <td className="max-w-[16rem] px-2 py-3 text-xs" title={summary !== '—' ? summary : ''}>
-                        {summary}
+                      <td className="min-w-0 align-top px-2 py-3">
+                        <AdminStudentsList students={students} />
                       </td>
-                      <td className="whitespace-nowrap px-2 py-3">
+                      <td className="align-top whitespace-nowrap px-2 py-3">
                         <StatusBadge status={row.status} />
                       </td>
-                      <td className="max-w-[10rem] px-2 py-3 text-xs text-slate-500">{row.adminRemarks || '—'}</td>
-                      <td className="whitespace-nowrap px-2 py-3 text-xs">
+                      <td className="min-w-0 align-top px-2 py-3 text-slate-500 dark:text-slate-400">
+                        <WrappableCell>{row.adminRemarks}</WrappableCell>
+                      </td>
+                      <td className="align-top whitespace-nowrap px-2 py-3 text-xs leading-snug">
                         {row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}
                       </td>
-                      <td className="px-2 py-3">
+                      <td className="align-top px-2 py-3">
                         <div className="flex min-w-[12rem] flex-col gap-2">
                           <select
                             value={rs.status}
