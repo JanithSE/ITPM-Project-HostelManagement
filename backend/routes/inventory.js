@@ -18,7 +18,7 @@ router.get('/', requireRole('admin', 'warden'), listInventory)
 router.post('/', requireRole('admin', 'warden'), createInventoryItem)
 
 // PATCH /api/inventory/:id
-router.patch('/:id', requireRole('admin'), updateInventoryItem)
+router.patch('/:id', requireRole('admin', 'warden'), updateInventoryItem)
 
 // DELETE /api/inventory/:id
 router.delete('/:id', requireRole('admin'), deleteInventoryItem)

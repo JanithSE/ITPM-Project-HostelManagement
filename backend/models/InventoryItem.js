@@ -1,5 +1,7 @@
 import mongoose from 'mongoose'
 
+const INVENTORY_CONDITIONS = ['good', 'used', 'time_to_reallocate']
+
 const inventoryItemSchema = new mongoose.Schema(
   {
     /** Display label for this stock line (e.g. "Beds — all types"). */
@@ -14,6 +16,11 @@ const inventoryItemSchema = new mongoose.Schema(
       required: true,
       trim: true,
       unique: true,
+    },
+    condition: {
+      type: String,
+      enum: INVENTORY_CONDITIONS,
+      default: 'good',
     },
   },
   { timestamps: true },
