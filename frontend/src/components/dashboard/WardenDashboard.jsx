@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 function formatRoomTypeLabel(v) {
   if (v === "single") return "Single";
@@ -595,38 +597,88 @@ function InventoryPanel({
   const [invQty, setInvQty] = useState("");
   const [invLocation, setInvLocation] = useState("");
   const [invCategory, setInvCategory] = useState("");
-  const [invDirty, setInvDirty] = useState({ name: false, qty: false, location: false, category: false });
+  const [invCondition, setInvCondition] = useState("good");
+  const [invDirty, setInvDirty] = useState({ name: false, qty: false, location: false, category: false, condition: false });
   const [invSaving, setInvSaving] = useState(false);
+  const [invEditId, setInvEditId] = useState("");
+  const [invEditName, setInvEditName] = useState("");
+  const [invEditQty, setInvEditQty] = useState("");
+  const [invEditLocation, setInvEditLocation] = useState("");
+  const [invEditCategory, setInvEditCategory] = useState("");
+  const [invEditCondition, setInvEditCondition] = useState("good");
+  const [invEditDirty, setInvEditDirty] = useState({ name: false, qty: false, location: false, condition: false });
+  const [invEditSaving, setInvEditSaving] = useState(false);
 
   const resetInvForm = () => {
     setInvName("");
     setInvQty("");
     setInvLocation("");
     setInvCategory("");
-    setInvDirty({ name: false, qty: false, location: false, category: false });
+    setInvCondition("good");
+    setInvDirty({ name: false, qty: false, location: false, category: false, condition: false });
   };
 
   const qtyParsed = invQty === "" ? NaN : Number.parseInt(invQty, 10);
   const invErrors = (() => {
     const err = {};
     if (!String(invName).trim()) err.name = "Item name is required.";
-    if (invQty === "" || !Number.isFinite(qtyParsed) || !Number.isInteger(qtyParsed) || qtyParsed < 0) {
-      err.qty = "Enter a whole number (0 or greater).";
+    if (invQty === "" || !Number.isFinite(qtyParsed) || !Number.isInteger(qtyParsed) || qtyParsed < 10) {
+      err.qty = "Enter a whole number (minimum 10).";
     }
     if (!String(invLocation).trim()) err.location = "Location is required.";
     const catTrim = String(invCategory).trim();
     if (!catTrim) err.category = "Category is required.";
     else if (inventoryCategoryTaken(catTrim, inventoryList)) err.category = "This category already exists. Each item uses a unique category.";
+    const c = String(invCondition || "").trim().toLowerCase();
+    if (!["good", "used", "time_to_reallocate"].includes(c)) err.condition = "Select a valid condition.";
     return err;
   })();
   const invFormValid = Object.keys(invErrors).length === 0;
 
   const invErrStyle = { fontSize: "12px", color: "#f87171", marginTop: "4px", fontWeight: 600 };
   const invInputErr = (hasErr) => (hasErr ? { ...s.input, borderColor: "rgba(248,113,113,0.55)", boxShadow: "0 0 0 1px rgba(248,113,113,0.2)" } : s.input);
+  const invSelectStyle = (hasErr) => ({
+    ...invInputErr(hasErr),
+    color: T.textPrimary,
+    backgroundColor: "#1f2937",
+  });
+  const invOptionStyle = { color: "#111827", backgroundColor: "#ffffff" };
+  const editQtyParsed = invEditQty === "" ? NaN : Number.parseInt(invEditQty, 10);
+  const invEditErrors = (() => {
+    if (!invEditId) return {};
+    const err = {};
+    if (!String(invEditName).trim()) err.name = "Item name is required.";
+    if (invEditQty === "" || !Number.isFinite(editQtyParsed) || !Number.isInteger(editQtyParsed) || editQtyParsed < 10) err.qty = "Enter a whole number (minimum 10).";
+    if (!String(invEditLocation).trim()) err.location = "Location is required.";
+    const c = String(invEditCondition || "").trim().toLowerCase();
+    if (!["good", "used", "time_to_reallocate"].includes(c)) err.condition = "Select a valid condition.";
+    return err;
+  })();
+  const invEditValid = Object.keys(invEditErrors).length === 0;
+
+  const startEditInventory = (item) => {
+    setInvEditId(String(item?._id || item?.id || ""));
+    setInvEditName(String(item?.name || ""));
+    setInvEditQty(String(item?.quantity ?? ""));
+    setInvEditLocation(String(item?.location || ""));
+    setInvEditCategory(String(item?.category || ""));
+    setInvEditCondition(String(item?.condition || "good"));
+    setInvEditDirty({ name: false, qty: false, location: false, condition: false });
+  };
+
+  const stopEditInventory = () => {
+    setInvEditId("");
+    setInvEditName("");
+    setInvEditQty("");
+    setInvEditLocation("");
+    setInvEditCategory("");
+    setInvEditCondition("good");
+    setInvEditDirty({ name: false, qty: false, location: false, condition: false });
+  };
 
   const handleAddInventory = async () => {
     if (!invFormValid) {
-      setInvDirty({ name: true, qty: true, location: true, category: true });
+      setInvDirty({ name: true, qty: true, location: true, category: true, condition: true });
       return;
     }
     setInvSaving(true);
@@ -638,6 +690,7 @@ function InventoryPanel({
           quantity: qtyParsed,
           location: String(invLocation).trim(),
           category: String(invCategory).trim(),
+          condition: String(invCondition).trim().toLowerCase(),
         }),
       });
       resetInvForm();
@@ -647,6 +700,33 @@ function InventoryPanel({
       alert(err?.message ? String(err.message) : "Failed to add inventory item");
     } finally {
       setInvSaving(false);
+    }
+  };
+
+  const handleUpdateInventory = async () => {
+    if (!invEditId) return;
+    if (!invEditValid) {
+      setInvEditDirty({ name: true, qty: true, location: true, condition: true });
+      return;
+    }
+    setInvEditSaving(true);
+    try {
+      await apiFetch(`/inventory/${invEditId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          name: String(invEditName).trim(),
+          quantity: editQtyParsed,
+          location: String(invEditLocation).trim(),
+          category: String(invEditCategory).trim(),
+          condition: String(invEditCondition).trim().toLowerCase(),
+        }),
+      });
+      stopEditInventory();
+      setInventoryRefreshKey((k) => k + 1);
+    } catch (err) {
+      alert(err?.message ? String(err.message) : "Failed to update inventory item");
+    } finally {
+      setInvEditSaving(false);
     }
   };
 
@@ -698,7 +778,7 @@ function InventoryPanel({
         <div style={{ marginBottom: "16px", padding: "16px", background: "rgba(129,140,248,0.06)", border: `1px solid ${T.accentBorder}`, borderRadius: "12px", display: "flex", flexDirection: "column", gap: "12px" }}>
           <div>
             <div style={{ fontSize: "14px", fontWeight: 800, color: T.textPrimary }}>Add inventory item</div>
-            <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "4px" }}>All fields are required. Category must be unique. Quantity: digits only (0+).</div>
+              <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "4px" }}>All fields are required. Category must be unique. Quantity: digits only (minimum 10). Condition default: good.</div>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: "12px" }}>
             <div>
@@ -735,7 +815,11 @@ function InventoryPanel({
                   if (/^\d$/.test(e.key)) return;
                   e.preventDefault();
                 }}
-                onBlur={() => setInvDirty((d) => ({ ...d, qty: true }))}
+                onBlur={() => {
+                  setInvDirty((d) => ({ ...d, qty: true }));
+                  const n = Number.parseInt(invQty, 10);
+                  if (Number.isFinite(n) && n < 10) setInvQty("10");
+                }}
                 placeholder="e.g. 24"
                 style={{ ...invInputErr(invDirty.qty && invErrors.qty) }}
               />
@@ -772,6 +856,23 @@ function InventoryPanel({
                 style={{ ...invInputErr(invDirty.category && invErrors.category) }}
               />
               {invDirty.category && invErrors.category ? <div style={invErrStyle}>{invErrors.category}</div> : null}
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: "12px", fontWeight: 700, color: T.textMuted, marginBottom: "4px", letterSpacing: "0.06em" }}>CONDITION</label>
+              <select
+                value={invCondition}
+                onChange={(e) => {
+                  setInvCondition(String(e.target.value || "good"));
+                  setInvDirty((d) => ({ ...d, condition: true }));
+                }}
+                onBlur={() => setInvDirty((d) => ({ ...d, condition: true }))}
+                style={invSelectStyle(invDirty.condition && invErrors.condition)}
+              >
+                <option style={invOptionStyle} value="good">good</option>
+                <option style={invOptionStyle} value="used">used</option>
+                <option style={invOptionStyle} value="time_to_reallocate">time to reallocate</option>
+              </select>
+              {invDirty.condition && invErrors.condition ? <div style={invErrStyle}>{invErrors.condition}</div> : null}
             </div>
           </div>
           <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
@@ -812,13 +913,13 @@ function InventoryPanel({
       <div style={{ overflowY: "auto", maxHeight: "calc(100% - 60px)" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={s.trBorder}>{["Name", "Quantity", "Location", "Category", "Updated"].map((h) => <th key={h} style={s.thStyle}>{h}</th>)}</tr>
+            <tr style={s.trBorder}>{["Name", "Quantity", "Location", "Category", "Condition", "Updated", "Actions"].map((h) => <th key={h} style={s.thStyle}>{h}</th>)}</tr>
           </thead>
           <tbody>
             {inventoryLoading ? (
               Array.from({ length: 6 }).map((_, idx) => (
                 <tr key={`inv-${idx}`} style={s.trBorder}>
-                  {[160, 80, 140, 120, 130].map((w, ci) => (
+                  {[160, 80, 140, 120, 120, 130, 120].map((w, ci) => (
                     <td key={ci} style={{ padding: "11px 0" }}>
                       <div style={{ height: 9, width: w, background: T.skelBg, borderRadius: 8 }} />
                     </td>
@@ -827,22 +928,77 @@ function InventoryPanel({
               ))
             ) : inventoryError ? (
               <tr>
-                <td colSpan={5} style={{ padding: "14px 0", color: "#f87171", fontSize: "14px" }}>{inventoryError}</td>
+                <td colSpan={7} style={{ padding: "14px 0", color: "#f87171", fontSize: "14px" }}>{inventoryError}</td>
               </tr>
             ) : !filteredInventory.length ? (
               <tr>
-                <td colSpan={5} style={{ padding: "14px 0", color: T.textMuted, fontSize: "14px" }}>No inventory items found.</td>
+                <td colSpan={7} style={{ padding: "14px 0", color: T.textMuted, fontSize: "14px" }}>No inventory items found.</td>
               </tr>
             ) : (
               filteredInventory.map((it) => (
                 <tr key={it?._id || it?.id || it?.name} style={s.trBorder}>
-                  <td style={{ padding: "11px 0", fontSize: "14px", fontWeight: 700, color: T.textPrimary }}>{it?.name || "—"}</td>
-                  <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{typeof it?.quantity === "number" ? it.quantity : it?.quantity ?? "—"}</td>
-                  <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{it?.location || "—"}</td>
-                  <td style={{ padding: "11px 0" }}>
-                    <span style={{ ...pillBaseStatic, background: "rgba(129,140,248,0.12)", border: "1px solid rgba(129,140,248,0.25)", color: "#818cf8" }}>{it?.category || "—"}</span>
-                  </td>
-                  <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{it?.updatedAt ? new Date(it.updatedAt).toLocaleDateString() : it?.createdAt ? new Date(it.createdAt).toLocaleDateString() : "—"}</td>
+                  {invEditId && invEditId === String(it?._id || it?.id || "") ? (
+                    <>
+                      <td style={{ padding: "10px 0", width: "22%" }}>
+                        <input type="text" autoComplete="off" value={invEditName} onChange={(e) => { setInvEditName(sanitizeDashboardSearchInput(e.target.value)); setInvEditDirty((d) => ({ ...d, name: true })); }} onBlur={() => setInvEditDirty((d) => ({ ...d, name: true }))} style={{ ...invInputErr(invEditDirty.name && invEditErrors.name) }} />
+                        {invEditDirty.name && invEditErrors.name ? <div style={invErrStyle}>{invEditErrors.name}</div> : null}
+                      </td>
+                      <td style={{ padding: "10px 0", width: "14%" }}>
+                        <input type="text" inputMode="numeric" autoComplete="off" value={invEditQty} onChange={(e) => { setInvEditQty(e.target.value.replace(/\D/g, "")); setInvEditDirty((d) => ({ ...d, qty: true })); }} onBlur={() => { setInvEditDirty((d) => ({ ...d, qty: true })); const n = Number.parseInt(invEditQty, 10); if (Number.isFinite(n) && n < 10) setInvEditQty("10"); }} style={{ ...invInputErr(invEditDirty.qty && invEditErrors.qty) }} />
+                        {invEditDirty.qty && invEditErrors.qty ? <div style={invErrStyle}>{invEditErrors.qty}</div> : null}
+                      </td>
+                      <td style={{ padding: "10px 0", width: "20%" }}>
+                        <input type="text" autoComplete="off" value={invEditLocation} onChange={(e) => { setInvEditLocation(sanitizeDashboardSearchInput(e.target.value)); setInvEditDirty((d) => ({ ...d, location: true })); }} onBlur={() => setInvEditDirty((d) => ({ ...d, location: true }))} style={{ ...invInputErr(invEditDirty.location && invEditErrors.location) }} />
+                        {invEditDirty.location && invEditErrors.location ? <div style={invErrStyle}>{invEditErrors.location}</div> : null}
+                      </td>
+                      <td style={{ padding: "11px 0", width: "12%" }}>
+                        <span style={{ ...pillBaseStatic, background: "rgba(129,140,248,0.12)", border: "1px solid rgba(129,140,248,0.25)", color: "#818cf8" }}>{invEditCategory || "—"}</span>
+                      </td>
+                      <td style={{ padding: "10px 0", width: "14%" }}>
+                        <select
+                          value={invEditCondition}
+                          onChange={(e) => {
+                            setInvEditCondition(String(e.target.value || "good"));
+                            setInvEditDirty((d) => ({ ...d, condition: true }));
+                          }}
+                          onBlur={() => setInvEditDirty((d) => ({ ...d, condition: true }))}
+                          style={invSelectStyle(invEditDirty.condition && invEditErrors.condition)}
+                        >
+                          <option style={invOptionStyle} value="good">good</option>
+                          <option style={invOptionStyle} value="used">used</option>
+                          <option style={invOptionStyle} value="time_to_reallocate">time to reallocate</option>
+                        </select>
+                        {invEditDirty.condition && invEditErrors.condition ? <div style={invErrStyle}>{invEditErrors.condition}</div> : null}
+                      </td>
+                      <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary, width: "12%" }}>{it?.updatedAt ? new Date(it.updatedAt).toLocaleDateString() : it?.createdAt ? new Date(it.createdAt).toLocaleDateString() : "—"}</td>
+                      <td style={{ padding: "10px 0", width: "12%" }}>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          <button type="button" disabled={invEditSaving} onClick={handleUpdateInventory} style={{ background: "linear-gradient(135deg, #818cf8, #c084fc)", border: "none", borderRadius: "8px", padding: "6px 10px", fontSize: "12px", fontWeight: 800, color: "#fff", cursor: invEditSaving ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: invEditSaving ? 0.6 : 1 }}>{invEditSaving ? "Saving…" : "Save"}</button>
+                          <button type="button" disabled={invEditSaving} onClick={stopEditInventory} style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: "8px", padding: "6px 10px", fontSize: "12px", fontWeight: 700, color: T.textSecondary, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                        </div>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td style={{ padding: "11px 0", fontSize: "14px", fontWeight: 700, color: T.textPrimary }}>{it?.name || "—"}</td>
+                      <td style={{ padding: "11px 0", fontSize: "13px", color: Number(it?.quantity) < 15 ? "#f87171" : T.textSecondary, fontWeight: Number(it?.quantity) < 15 ? 800 : 500 }}>
+                        {typeof it?.quantity === "number" ? it.quantity : it?.quantity ?? "—"}
+                      </td>
+                      <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{it?.location || "—"}</td>
+                      <td style={{ padding: "11px 0" }}>
+                        <span style={{ ...pillBaseStatic, background: "rgba(129,140,248,0.12)", border: "1px solid rgba(129,140,248,0.25)", color: "#818cf8" }}>{it?.category || "—"}</span>
+                      </td>
+                      <td style={{ padding: "11px 0" }}>
+                        <span style={{ ...pillBaseStatic, background: "rgba(52,211,153,0.12)", border: "1px solid rgba(52,211,153,0.35)", color: "#34d399" }}>{String(it?.condition || "good").replace(/_/g, " ")}</span>
+                      </td>
+                      <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{it?.updatedAt ? new Date(it.updatedAt).toLocaleDateString() : it?.createdAt ? new Date(it.createdAt).toLocaleDateString() : "—"}</td>
+                      <td style={{ padding: "11px 0" }}>
+                        <button type="button" onClick={() => startEditInventory(it)} style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: "8px", padding: "6px 10px", fontSize: "12px", fontWeight: 700, color: T.textSecondary, cursor: "pointer", fontFamily: "inherit" }}>
+                          Update
+                        </button>
+                      </td>
+                    </>
+                  )}
                 </tr>
               ))
             )}
@@ -854,6 +1010,7 @@ function InventoryPanel({
 }
 
 export default function App() {
+  const navigate = useNavigate();
   const [active, setActive] = useState("Dashboard");
   const [now, setNow] = useState(new Date());
   const [warden, setWarden] = useState(null);
@@ -862,6 +1019,7 @@ export default function App() {
   const [roomsOverview, setRoomsOverview] = useState({
     occupiedRooms: 0,
     totalRooms: 0,
+    availableRooms: 0,
     blockCounts: {
       A: { occupied: 0, total: 0 },
       B: { occupied: 0, total: 0 },
@@ -893,6 +1051,8 @@ export default function App() {
   const [inventoryList, setInventoryList] = useState([]);
   const [inventorySearch, setInventorySearch] = useState("");
   const [inventoryRefreshKey, setInventoryRefreshKey] = useState(0);
+  const [lowInventoryAlerts, setLowInventoryAlerts] = useState([]);
+  const lowAlertedIdsRef = useRef(new Set());
 
   useEffect(() => {
     try {
@@ -912,14 +1072,65 @@ export default function App() {
     async function loadStudents() {
       try {
         setStudentsLoading(true); setStudentsError("");
-        const users = await apiFetch("/users");
-        const list = Array.isArray(users) ? users.filter((u) => u?.role === "student") : [];
+        const raw = localStorage.getItem("wardenUser");
+        const wardenUser = raw ? JSON.parse(raw) : null;
+        const assignedHostelName = String(wardenUser?.assignedHostel ?? "").trim();
+        if (!assignedHostelName) {
+          if (!cancelled) setStudents([]);
+          return;
+        }
+
+        const hostels = await apiFetch("/hostels");
+        const hostel = Array.isArray(hostels)
+          ? hostels.find((h) => String(h?.name || "").trim().toLowerCase() === assignedHostelName.toLowerCase())
+          : null;
+        if (!hostel?._id) {
+          if (!cancelled) setStudents([]);
+          return;
+        }
+        const hostelId = String(hostel._id);
+
+        const [users, bookings] = await Promise.all([apiFetch("/users"), apiFetch("/bookings")]);
+        const usersById = new Map(
+          (Array.isArray(users) ? users : []).map((u) => [String(u?._id || u?.id || ""), u]),
+        );
+
+        const confirmedForHostel = (Array.isArray(bookings) ? bookings : []).filter((b) => {
+          const status = String(b?.status || "").toLowerCase();
+          const bookingHostelId = String(b?.hostel?._id || b?.hostel || "");
+          return status === "confirmed" && bookingHostelId === hostelId;
+        });
+
+        const bookingByStudent = new Map();
+        for (const b of confirmedForHostel) {
+          const sid = String(b?.student?._id || b?.student || "");
+          if (!sid) continue;
+          // Keep newest confirmed booking per student.
+          if (bookingByStudent.has(sid)) continue;
+          bookingByStudent.set(sid, b);
+        }
+
+        const list = Array.from(bookingByStudent.entries()).map(([sid, b]) => {
+          const u = usersById.get(sid) || b?.student || {};
+          return {
+            ...u,
+            _id: String(u?._id || u?.id || sid),
+            id: String(u?._id || u?.id || sid),
+            name: u?.name ?? b?.student?.name ?? "—",
+            email: u?.email ?? b?.student?.email ?? "—",
+            assignedHostel: u?.assignedHostel ?? assignedHostelName,
+            roomNumber: b?.roomNumber ?? null,
+            bedNumber: b?.bedNumber ?? null,
+            bookingStatus: b?.status ?? null,
+          };
+        });
+
         if (!cancelled) setStudents(list);
       } catch (err) {
         if (!cancelled) { setStudentsError(err?.message ? String(err.message) : "Unable to load students"); setStudents([]); }
       } finally { if (!cancelled) setStudentsLoading(false); }
     }
-    if (active !== "Students") return;
+    if (active !== "Students" && active !== "Dashboard") return;
     loadStudents();
     return () => { cancelled = true; };
   }, [active]);
@@ -984,7 +1195,7 @@ export default function App() {
         if (!cancelled) { setComplaintsError(err?.message ? String(err.message) : "Unable to load complaints."); setComplaintsList([]); }
       } finally { if (!cancelled) setComplaintsLoading(false); }
     }
-    if (active !== "Complaints") return;
+    if (active !== "Complaints" && active !== "Dashboard") return;
     loadComplaints();
     return () => { cancelled = true; };
   }, [active, complaintsRefreshKey]);
@@ -997,7 +1208,7 @@ export default function App() {
         const raw = localStorage.getItem("wardenUser");
         const wardenUser = raw ? JSON.parse(raw) : null;
         const assignedHostelName = wardenUser?.assignedHostel;
-        if (!assignedHostelName) { if (!cancelled) { setRoomsOverview((prev) => ({ ...prev })); setRoomDetails([]); } return; }
+    if (!assignedHostelName) { if (!cancelled) { setRoomsOverview((prev) => ({ ...prev, availableRooms: prev.totalRooms - prev.occupiedRooms })); setRoomDetails([]); } return; }
         const hostels = await apiFetch("/hostels");
         const hostel = Array.isArray(hostels) ? hostels.find((h) => String(h?.name || "").trim().toLowerCase() === String(assignedHostelName).trim().toLowerCase()) : null;
         if (!hostel) { if (!cancelled) { setRoomDetails([]); setRoomsOverview((prev) => ({ ...prev })); } return; }
@@ -1014,11 +1225,12 @@ export default function App() {
           blockCounts[letter].total += 1;
           if (isRoomOccupied(r)) blockCounts[letter].occupied += 1;
         }
-        if (!cancelled) { setRoomDetails(rooms); setRoomsOverview({ occupiedRooms, totalRooms, blockCounts }); }
+        const availableRooms = Math.max(0, totalRooms - occupiedRooms);
+        if (!cancelled) { setRoomDetails(rooms); setRoomsOverview({ occupiedRooms, totalRooms, availableRooms, blockCounts }); }
       } catch (err) {
         if (!cancelled) {
           setRoomDetails([]); setRoomsError(err?.message ? String(err.message) : "Unable to load rooms");
-          setRoomsOverview({ occupiedRooms: 0, totalRooms: 0, blockCounts: { A: { occupied: 0, total: 0 }, B: { occupied: 0, total: 0 }, C: { occupied: 0, total: 0 }, D: { occupied: 0, total: 0 } } });
+          setRoomsOverview({ occupiedRooms: 0, totalRooms: 0, availableRooms: 0, blockCounts: { A: { occupied: 0, total: 0 }, B: { occupied: 0, total: 0 }, C: { occupied: 0, total: 0 }, D: { occupied: 0, total: 0 } } });
         }
       } finally { if (!cancelled) setRoomsLoading(false); }
     }
@@ -1042,9 +1254,70 @@ export default function App() {
     return () => { cancelled = true; };
   }, [active, inventoryRefreshKey]);
 
-  const statsFinal = roomsOverview?.totalRooms !== undefined
-    ? stats.map((st) => st.label === "Rooms Occupied" ? { ...st, value: roomsOverview.occupiedRooms, sub: `of ${roomsOverview.totalRooms} rooms` } : st)
-    : stats;
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLowInventoryAlerts() {
+      try {
+        const items = await apiFetch("/inventory");
+        const all = Array.isArray(items) ? items : [];
+        const low = all.filter((it) => {
+          const qty = Number(it?.quantity);
+          return Number.isFinite(qty) && qty < 15;
+        });
+        if (!cancelled) setLowInventoryAlerts(low);
+      } catch {
+        if (!cancelled) setLowInventoryAlerts([]);
+      }
+    }
+    loadLowInventoryAlerts();
+    return () => { cancelled = true; };
+  }, [inventoryRefreshKey]);
+
+  useEffect(() => {
+    // Fire toast only for newly low-stock items to avoid repeating alerts every refresh.
+    const currentLowIds = new Set(
+      (Array.isArray(lowInventoryAlerts) ? lowInventoryAlerts : [])
+        .map((it) => String(it?._id || it?.id || it?.category || it?.name || ""))
+        .filter(Boolean),
+    );
+    for (const it of lowInventoryAlerts) {
+      const id = String(it?._id || it?.id || it?.category || it?.name || "");
+      if (!id || lowAlertedIdsRef.current.has(id)) continue;
+      const itemName = String(it?.name || it?.category || "Inventory item");
+      const qty = Number(it?.quantity);
+      toast.error(`${itemName} is low in stock (qty: ${Number.isFinite(qty) ? qty : "N/A"}). Reorder soon.`);
+      lowAlertedIdsRef.current.add(id);
+    }
+    // Remove recovered items so future drop-below-threshold can alert again.
+    for (const oldId of Array.from(lowAlertedIdsRef.current)) {
+      if (!currentLowIds.has(oldId)) lowAlertedIdsRef.current.delete(oldId);
+    }
+  }, [lowInventoryAlerts]);
+
+  const openComplaintsCount = (Array.isArray(complaintsList) ? complaintsList : []).filter(
+    (c) => String(c?.status || "").toLowerCase() === "open",
+  ).length;
+  const pendingLeavesCount = (Array.isArray(leaves) ? leaves : []).filter(
+    (l) => String(l?.status || "").toLowerCase() === "pending",
+  ).length;
+  const wardenName = warden?.name || "Warden";
+  const assignedHostelName = warden?.assignedHostel || "";
+
+  const statsFinal = stats.map((st) => {
+    if (st.label === "Total Students") {
+      return { ...st, value: students.length, sub: `confirmed bookings in ${assignedHostelName || "hostel"}` };
+    }
+    if (st.label === "Rooms Occupied") {
+      return { ...st, value: roomsOverview.occupiedRooms, sub: `of ${roomsOverview.totalRooms} rooms` };
+    }
+    if (st.label === "Complaints") {
+      return { ...st, value: complaintsList.length, sub: `${openComplaintsCount} open` };
+    }
+    if (st.label === "Leave Requests") {
+      return { ...st, value: leaves.length, sub: `${pendingLeavesCount} pending review` };
+    }
+    return st;
+  });
 
   const blocksFinal = blocks.map((b) => {
     const counts = roomsOverview?.blockCounts?.[b.name];
@@ -1065,7 +1338,7 @@ export default function App() {
   const filteredStudents = studentSearch.trim()
     ? students.filter((u) => {
         const q = studentSearch.trim().toLowerCase();
-        const fields = [u?.name, u?.email, u?.phoneNumber, u?.assignedHostel, u?.gender, u?.nic, u?.universityId, u?.address];
+        const fields = [u?.name, u?.email, u?.phoneNumber, u?.assignedHostel, u?.gender, u?.nic, u?.universityId, u?.address, u?.roomNumber, u?.bedNumber, u?.bookingStatus];
         return fields.filter(Boolean).map((x) => String(x).toLowerCase()).some((v) => v.includes(q));
       })
     : students;
@@ -1095,7 +1368,7 @@ export default function App() {
     ? inventoryList.filter((it) => {
         const q = inventorySearch.trim().toLowerCase();
         const qty = it?.quantity != null ? String(it.quantity) : "";
-        return [it?.name, it?.location, it?.category, qty].filter(Boolean).map((x) => String(x).toLowerCase()).some((v) => v.includes(q));
+        return [it?.name, it?.location, it?.category, it?.condition, qty].filter(Boolean).map((x) => String(x).toLowerCase()).some((v) => v.includes(q));
       })
     : inventoryList;
 
@@ -1106,8 +1379,12 @@ export default function App() {
     return ((parts[0]?.[0] || "W") + (parts[1]?.[0] || (parts[0]?.[1] ? parts[0][1] : ""))).toUpperCase();
   }
 
-  const wardenName = warden?.name || "Warden";
-  const assignedHostelName = warden?.assignedHostel || "";
+  function handleLogout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("wardenUser");
+    navigate("/warden/login", { replace: true });
+  }
 
   // ─── DESIGN TOKENS ───────────────────────────────────────────────
   const T = {
@@ -1286,14 +1563,27 @@ export default function App() {
             <div style={{ fontSize: "13px", color: T.textMuted, marginTop: "1px" }}>
               Hostel overview {assignedHostelName ? `· ${assignedHostelName}` : ""}
             </div>
+            <div style={{ fontSize: "13px", color: T.textSecondary, marginTop: "4px", fontWeight: 700 }}>
+              Rooms: {roomsOverview.availableRooms} available / {roomsOverview.totalRooms} total
+            </div>
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <button style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: "10px", padding: "8px 12px", color: T.textSecondary, cursor: "pointer", position: "relative", fontSize: "16px" }}>
               🔔
-              <span style={{ position: "absolute", top: "-3px", right: "-3px", width: "15px", height: "15px", borderRadius: "50%", background: "linear-gradient(135deg, #f97316, #ef4444)", fontSize: "10px", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>9</span>
+              {lowInventoryAlerts.length > 0 ? (
+                <span style={{ position: "absolute", top: "-3px", right: "-3px", minWidth: "15px", height: "15px", borderRadius: "50%", padding: "0 4px", background: "linear-gradient(135deg, #f97316, #ef4444)", fontSize: "10px", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
+                  {lowInventoryAlerts.length > 99 ? "99+" : lowInventoryAlerts.length}
+                </span>
+              ) : null}
             </button>
             <button style={{ background: "linear-gradient(135deg, #818cf8, #c084fc)", borderRadius: "10px", padding: "8px 18px", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(129,140,248,0.35)", color: "#fff", border: "none", fontFamily: "inherit" }}>
               + Post Notice
+            </button>
+            <button
+              onClick={handleLogout}
+              style={{ background: "rgba(248,113,113,0.16)", border: "1px solid rgba(248,113,113,0.35)", borderRadius: "10px", padding: "8px 14px", fontSize: "14px", fontWeight: 700, cursor: "pointer", color: "#fca5a5", fontFamily: "inherit" }}
+            >
+              Logout
             </button>
           </div>
         </header>
@@ -1333,17 +1623,24 @@ export default function App() {
                 <input type="search" name="warden-students-filter" autoComplete="off" value={studentSearch} onChange={(e) => setStudentSearch(sanitizeDashboardSearchInput(e.target.value))} placeholder="Search students…" style={{ ...s.input, width: "260px", minWidth: "160px" }} />
               </div>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead><tr style={s.trBorder}>{["Name", "Email", "Phone", "Hostel", "Gender"].map((h) => <th key={h} style={s.thStyle}>{h}</th>)}</tr></thead>
+                <thead><tr style={s.trBorder}>{["Name", "Email", "Phone", "Hostel", "Room", "Bed", "Booking", "Gender"].map((h) => <th key={h} style={s.thStyle}>{h}</th>)}</tr></thead>
                 <tbody>
-                  {studentsLoading ? Array.from({ length: 6 }).map((_, idx) => <tr key={`st-${idx}`} style={s.trBorder}>{[160, 210, 120, 170, 90].map((w, ci) => <td key={ci} style={{ padding: "11px 0" }}><div style={{ height: 9, width: w, background: T.skelBg, borderRadius: 8 }} /></td>)}</tr>)
-                    : studentsError ? <tr><td colSpan={5} style={{ padding: "14px 0", color: "#f87171", fontSize: "14px" }}>{studentsError}</td></tr>
-                    : !filteredStudents.length ? <tr><td colSpan={5} style={{ padding: "14px 0", color: T.textMuted, fontSize: "14px" }}>No students found</td></tr>
+                  {studentsLoading ? Array.from({ length: 6 }).map((_, idx) => <tr key={`st-${idx}`} style={s.trBorder}>{[160, 210, 120, 170, 80, 70, 110, 90].map((w, ci) => <td key={ci} style={{ padding: "11px 0" }}><div style={{ height: 9, width: w, background: T.skelBg, borderRadius: 8 }} /></td>)}</tr>)
+                    : studentsError ? <tr><td colSpan={8} style={{ padding: "14px 0", color: "#f87171", fontSize: "14px" }}>{studentsError}</td></tr>
+                    : !filteredStudents.length ? <tr><td colSpan={8} style={{ padding: "14px 0", color: T.textMuted, fontSize: "14px" }}>No students found</td></tr>
                     : filteredStudents.map((u) => (
                       <tr key={u._id || u.id} style={s.trBorder}>
                         <td style={{ padding: "11px 0", fontSize: "14px", fontWeight: 700, color: T.textPrimary }}>{u.name || "—"}</td>
                         <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{u.email || "—"}</td>
                         <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{u.phoneNumber || "—"}</td>
                         <td style={{ padding: "11px 0" }}><span style={{ ...pillBaseStatic, background: T.accentLight, border: `1px solid ${T.accentBorder}`, color: T.accent }}>{u.assignedHostel || "—"}</span></td>
+                        <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{u.roomNumber || "—"}</td>
+                        <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{u.bedNumber || "—"}</td>
+                        <td style={{ padding: "11px 0" }}>
+                          <span style={{ ...pillBaseStatic, background: String(u.bookingStatus || "").toLowerCase() === "confirmed" ? "rgba(52,211,153,0.12)" : "rgba(148,163,184,0.14)", border: String(u.bookingStatus || "").toLowerCase() === "confirmed" ? "1px solid rgba(52,211,153,0.35)" : `1px solid ${T.inputBorder}`, color: String(u.bookingStatus || "").toLowerCase() === "confirmed" ? "#34d399" : T.textSecondary }}>
+                            {u.bookingStatus || "not booked"}
+                          </span>
+                        </td>
                         <td style={{ padding: "11px 0", fontSize: "13px", color: T.textSecondary }}>{u.gender || "—"}</td>
                       </tr>
                     ))}
@@ -1380,8 +1677,13 @@ export default function App() {
                       <div style={{ fontWeight: 800, fontSize: "15px", color: T.textPrimary }}>Block Occupancy</div>
                       <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "2px" }}>{activeBlockCount || 4} blocks · {roomsOverview.totalRooms} rooms</div>
                     </div>
-                    <div style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.22)", borderRadius: "8px", padding: "4px 10px", fontSize: "13px", fontWeight: 700, color: "#34d399" }}>
-                      {roomsOverview.occupiedRooms} / {roomsOverview.totalRooms}
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "6px" }}>
+                      <div style={{ background: "rgba(129,140,248,0.12)", border: "1px solid rgba(129,140,248,0.22)", borderRadius: "8px", padding: "4px 10px", fontSize: "13px", fontWeight: 700, color: "#818cf8" }}>
+                        Occupied: {roomsOverview.occupiedRooms} / {roomsOverview.totalRooms}
+                      </div>
+                      <div style={{ background: "rgba(52,211,153,0.1)", border: "1px solid rgba(52,211,153,0.22)", borderRadius: "8px", padding: "4px 10px", fontSize: "13px", fontWeight: 700, color: "#34d399" }}>
+                        Available: {roomsOverview.availableRooms}
+                      </div>
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>

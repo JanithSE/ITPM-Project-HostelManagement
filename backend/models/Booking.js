@@ -9,8 +9,8 @@ const bookingSchema = new mongoose.Schema(
     roomType: { type: String, enum: ROOM_TYPES, default: 'double',required: true },
     bedNumber: { type: String, trim: true },
     status: { type: String, enum: ['pending', 'confirmed', 'cancelled'], default: 'pending' },
-    fromDate: { type: Date },
-    toDate: { type: Date },
+    fromDate: { type: Date,required:true },
+    toDate: { type: Date,required:true },
   },
   { timestamps: true }
 )

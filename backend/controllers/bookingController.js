@@ -67,7 +67,22 @@ async function refreshHostelCounts(hostelId) {
 
 export const listBookings = async (req, res) => {
   try {
-    const query = req.user.role === 'admin' ? {} : { student: req.user._id }
+    let query = {}
+
+    if (req.user.role === 'admin') {
+      query = {}
+    } else if (req.user.role === 'student') {
+      query = { student: req.user._id }
+    } else if (req.user.role === 'warden') {
+      const assignedHostelName = String(req.user?.assignedHostel ?? '').trim()
+      if (!assignedHostelName) return res.json([])
+      const hostel = await Hostel.findOne({ name: new RegExp(`^${assignedHostelName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') }).select('_id')
+      if (!hostel) return res.json([])
+      query = { hostel: hostel._id }
+    } else {
+      query = { student: req.user._id }
+    }
+
     const bookings = await Booking.find(query)
       .populate('student', 'name email')
       .populate('hostel', 'name location')
