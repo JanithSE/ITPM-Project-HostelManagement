@@ -10,6 +10,7 @@ export default function StudentInquiries() {
   const [msg, setMsg] = useState('')
   const [errors, setErrors] = useState({})
 
+  // Load only current student's inquiries.
   const load = useCallback(async () => {
     setLoading(true)
     setMsg('')
@@ -27,6 +28,7 @@ export default function StudentInquiries() {
     load()
   }, [load])
 
+  // Client-side validation keeps obvious invalid inputs out of the API.
   function validateForm() {
     const nextErrors = {}
     const subjectTrim = subject.trim()
@@ -49,6 +51,7 @@ export default function StudentInquiries() {
     setMsg('')
     if (!validateForm()) return
     try {
+      // Create inquiry then refresh list so the latest item appears immediately.
       await inquiryApi.create({ subject: subject.trim(), message: message.trim() })
       setSubject('')
       setMessage('')
@@ -152,6 +155,7 @@ export default function StudentInquiries() {
                 <td style={{ maxWidth: 200, wordBreak: 'break-word' }}>{row.message}</td>
                 <td>{row.status}</td>
                 <td style={{ maxWidth: 200, wordBreak: 'break-word' }}>{row.reply || '—'}</td>
+                {/* Inquiry createdAt is auto-set by backend timestamps; display in readable local format */}
                 <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
               </tr>
             ))}
