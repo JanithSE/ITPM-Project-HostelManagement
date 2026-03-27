@@ -82,6 +82,7 @@ export default function App() {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="overview" element={<AdminDashboard />} />
         <Route path="users" element={<Users />} />
         <Route path="booking" element={<Booking />} />
         <Route path="hostels" element={<AdminHostels />} />

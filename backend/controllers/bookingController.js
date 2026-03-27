@@ -12,7 +12,7 @@ async function syncRoomBeds(hostelId, roomNumber) {
     hostel: hostelId,
     roomNumber: String(roomNumber),
     status: 'confirmed',
-  }).populate('student', 'name')
+  }).populate('student', 'name email phoneNumber gender assignedHostel')
 
   const byBed = new Map()
   for (const b of bookings) {
@@ -84,7 +84,7 @@ export const listBookings = async (req, res) => {
     }
 
     const bookings = await Booking.find(query)
-      .populate('student', 'name email')
+      .populate('student', 'name email phoneNumber gender assignedHostel')
       .populate('hostel', 'name location')
       .sort({ createdAt: -1 })
     res.json(bookings)
@@ -105,7 +105,7 @@ export const createBooking = async (req, res) => {
     await refreshHostelCounts(booking.hostel)
 
     const populated = await Booking.findById(booking._id)
-      .populate('student', 'name email')
+      .populate('student', 'name email phoneNumber gender assignedHostel')
       .populate('hostel', 'name location')
     res.status(201).json(populated)
   } catch (err) {
@@ -116,7 +116,7 @@ export const createBooking = async (req, res) => {
 export const getBookingById = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id)
-      .populate('student', 'name email')
+      .populate('student', 'name email phoneNumber gender assignedHostel')
       .populate('hostel', 'name location')
     if (!booking) return res.status(404).json({ error: 'Booking not found' })
     const studentId = booking.student?._id || booking.student
@@ -144,7 +144,7 @@ export const updateBooking = async (req, res) => {
     await refreshHostelCounts(booking.hostel)
 
     const populated = await Booking.findById(booking._id)
-      .populate('student', 'name email')
+      .populate('student', 'name email phoneNumber gender assignedHostel')
       .populate('hostel', 'name location')
     res.json(populated)
   } catch (err) {
