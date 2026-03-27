@@ -25,6 +25,7 @@ export default function AdminInquiries() {
   const [replyErrors, setReplyErrors] = useState({})
   const [pending, setPending] = useState({})
 
+  // Load all inquiries for admin review.
   const load = useCallback(async () => {
     setLoading(true)
     setMsg('')
@@ -47,6 +48,7 @@ export default function AdminInquiries() {
     setReplyErrors((e) => ({ ...e, [id]: '' }))
   }
 
+  // Validate and submit a reply for a single inquiry row.
   async function submitReply(id) {
     const reply = (drafts[id] || '').trim()
     if (!reply) {
@@ -91,7 +93,7 @@ export default function AdminInquiries() {
         }}
       />
       <div className="content-card !p-0 overflow-hidden shadow-md border-gray-200/80" style={{ position: 'relative', zIndex: 1 }}>
-      {/* Page header */}
+      {/* Admin inquiries header and quick refresh */}
       <div className="px-6 pt-6 pb-5 border-b border-gray-100 bg-gradient-to-b from-white to-gray-50/80">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -139,6 +141,7 @@ export default function AdminInquiries() {
         )}
 
         <ul className="space-y-5 list-none m-0 p-0">
+          {/* List is already sorted by newest first from backend using createdAt descending */}
           {list.map((row) => (
             <li
               key={row._id}

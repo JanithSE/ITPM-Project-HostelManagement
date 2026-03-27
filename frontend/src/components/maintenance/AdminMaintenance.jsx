@@ -3,6 +3,7 @@ import { maintenanceApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 
 function statusOptions(current) {
+  // Enforce forward-only status transitions in the admin UI.
   if (current === 'open') return ['open', 'in_progress']
   if (current === 'in_progress') return ['in_progress', 'resolved']
   return ['resolved']
@@ -42,6 +43,7 @@ export default function AdminMaintenance() {
   const [msg, setMsg] = useState('')
   const [pending, setPending] = useState({})
 
+  // Load all maintenance requests for admin monitoring.
   const load = useCallback(async () => {
     setLoading(true)
     setMsg('')
@@ -59,6 +61,7 @@ export default function AdminMaintenance() {
     load()
   }, [load])
 
+  // Apply status update and refresh list to reflect backend truth.
   async function applyStatus(id, status) {
     setMsg('')
     setPending((p) => ({ ...p, [id]: true }))
@@ -175,6 +178,7 @@ export default function AdminMaintenance() {
                   <div>
                     <p className="text-xs font-medium text-gray-400 mb-0.5">Reported</p>
                     <p className="text-gray-500 text-xs">
+                      {/* createdAt is auto-generated when request is inserted - shown here in local date/time */}
                       {row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}
                     </p>
                   </div>
@@ -215,6 +219,7 @@ export default function AdminMaintenance() {
 }
 
 function StatusRow({ row, busy, onApply }) {
+  // Options depend on current status to prevent invalid jumps.
   const opts = statusOptions(row.status)
   const [sel, setSel] = useState(row.status)
 
@@ -223,6 +228,7 @@ function StatusRow({ row, busy, onApply }) {
   }, [row.status])
 
   const resolved = row.status === 'resolved'
+  // Button enabled only when there is a real change and request is not locked.
   const canApply = !busy && !resolved && sel !== row.status
 
   return (

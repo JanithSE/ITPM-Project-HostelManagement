@@ -184,4 +184,6 @@ export const inquiryApi = {
   listAll: () => apiFetch('/inquiry'),
   reply: (id, replyText) =>
     apiFetch(`/inquiry/${id}/reply`, { method: 'PUT', body: JSON.stringify({ reply: replyText }) }),
+  comment: (id, text) =>
+    apiFetch(`/inquiry/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
 }
