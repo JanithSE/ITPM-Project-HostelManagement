@@ -1,16 +1,29 @@
+import { useEffect, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import ThemeToggle from './ThemeToggle'
 
 export default function AdminSidebar() {
   const navigate = useNavigate()
+  const [adminName, setAdminName] = useState('Admin')
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('adminUser')
+      const parsed = raw ? JSON.parse(raw) : null
+      const name = String(parsed?.username || '').trim()
+      if (name) setAdminName(name)
+    } catch {}
+  }, [])
 
   const handleLogout = () => {
     localStorage.removeItem('token')
     localStorage.removeItem('role')
+    localStorage.removeItem('adminUser')
     navigate('/admin/login')
   }
 
   const navLinks = [
+    { to: '/admin/overview', label: 'Overview' },
     { to: '/admin/users', label: 'Users' },
     { to: '/admin/booking', label: 'Booking' },
     { to: '/admin/payments', label: 'Payments' },
@@ -28,8 +41,11 @@ export default function AdminSidebar() {
           <ThemeToggle />
         </div>
         <Link to="/admin" className="site-logo">
-          UniHostel Admin
+          <span>UniHostel Admin</span>
         </Link>
+        <div style={{ marginTop: 6, padding: '0 4px', fontSize: 12, color: 'rgba(148,163,184,1)', fontWeight: 600 }}>
+          Welcome, {adminName}
+        </div>
       </div>
       <nav className="admin-sidebar-nav">
         {navLinks.map(({ to, label }) => (

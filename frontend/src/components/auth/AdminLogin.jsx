@@ -17,6 +17,7 @@ export default function AdminLogin() {
       const data = await authApi.adminLogin(username, password)
       localStorage.setItem('token', data.token)
       localStorage.setItem('role', data.role)
+      localStorage.setItem('adminUser', JSON.stringify({ username: String(username || '').trim() }))
       navigate('/admin/users')
     } catch (err) {
       setError(err.message || 'Login failed')

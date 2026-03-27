@@ -14,13 +14,20 @@ function formatAcLabel(v) {
   return v ? String(v) : "—";
 }
 
-/** Blocks #, @, and other special symbols in search; keeps letters, digits, spaces, . - _ ' */
+function getTimeGreeting(d) {
+  const h = d.getHours();
+  if (h < 12) return "Good morning";
+  if (h < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+/** Search sanitizer: keeps letters, digits, spaces, . - _ ' and @ # */
 function sanitizeDashboardSearchInput(value) {
   const s = String(value ?? "");
   try {
-    return s.replace(/[^\p{L}\p{N}\s.\-'_]/gu, "");
+    return s.replace(/[^\p{L}\p{N}\s.\-'_@#]/gu, "");
   } catch {
-    return s.replace(/[^a-zA-Z0-9\s.\-'_]/g, "");
+    return s.replace(/[^a-zA-Z0-9\s.\-'_@#]/g, "");
   }
 }
 
@@ -105,6 +112,86 @@ const pillBaseStatic = {
 function bedPillStyle(status) {
   if (status === "Occupied") return { bg: "rgba(248,113,113,0.15)", color: "#f87171", border: "rgba(248,113,113,0.3)" };
   return { bg: "rgba(52,211,153,0.15)", color: "#34d399", border: "rgba(52,211,153,0.3)" };
+}
+
+function MiniBarChart({ title, data, color = "#818cf8", bg = "rgba(129,140,248,0.16)" }) {
+  const list = (Array.isArray(data) ? data : []).filter((d) => {
+    const v = Number(d?.value) || 0;
+    return v > 0 && String(d?.label ?? "").trim() !== "";
+  });
+  const max = Math.max(1, ...list.map((d) => Number(d?.value) || 0));
+  return (
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "12px",
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+      }}
+    >
+      <div style={{ fontSize: "13px", fontWeight: 800, color: "#e2e8f0", marginBottom: "10px" }}>{title}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+        {list.length ? list.map((d) => {
+          const v = Number(d?.value) || 0;
+          const pct = Math.max(0, Math.min(100, (v / max) * 100));
+          return (
+            <div key={String(d?.label)}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "#94a3b8", marginBottom: "3px" }}>
+                <span>{d?.label}</span><span style={{ color: "#e2e8f0", fontWeight: 700 }}>{v}</span>
+              </div>
+              <div style={{ height: "8px", borderRadius: "999px", background: bg, overflow: "hidden" }}>
+                <div style={{ width: `${pct}%`, height: "100%", borderRadius: "999px", background: `linear-gradient(90deg, ${color}, #c084fc)` }} />
+              </div>
+            </div>
+          );
+        }) : <div style={{ fontSize: "12px", color: "#64748b" }}>No data</div>}
+      </div>
+    </div>
+  );
+}
+
+function MiniPieChart({ title, data, colors = ["#34d399", "#818cf8", "#f59e0b", "#f87171"] }) {
+  const list = (Array.isArray(data) ? data : []).map((d, i) => ({ label: d?.label, value: Number(d?.value) || 0, color: colors[i % colors.length] }));
+  const total = list.reduce((s, x) => s + x.value, 0);
+  let acc = 0;
+  const gradientParts = list
+    .filter((x) => x.value > 0)
+    .map((x) => {
+      const start = (acc / Math.max(1, total)) * 100;
+      acc += x.value;
+      const end = (acc / Math.max(1, total)) * 100;
+      return `${x.color} ${start}% ${end}%`;
+    });
+  const pieBg = gradientParts.length ? `conic-gradient(${gradientParts.join(", ")})` : "conic-gradient(#334155 0% 100%)";
+  return (
+    <div
+      style={{
+        padding: "12px",
+        borderRadius: "12px",
+        background: "rgba(255,255,255,0.02)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+      }}
+    >
+      <div style={{ fontSize: "13px", fontWeight: 800, color: "#e2e8f0", marginBottom: "10px" }}>{title}</div>
+      <div style={{ display: "grid", gridTemplateColumns: "88px 1fr", gap: "12px", alignItems: "center" }}>
+        <div style={{ width: "88px", height: "88px", borderRadius: "50%", background: pieBg, border: "1px solid rgba(255,255,255,0.08)" }} />
+        <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+          {list.length ? list.map((x) => (
+            <div key={String(x.label)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px", color: "#94a3b8" }}>
+              <span style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                <span style={{ width: "8px", height: "8px", borderRadius: "50%", background: x.color }} />
+                {x.label}
+              </span>
+              <span style={{ color: "#e2e8f0", fontWeight: 700 }}>{x.value}</span>
+            </div>
+          )) : <div style={{ fontSize: "12px", color: "#64748b" }}>No data</div>}
+          <div style={{ fontSize: "11px", color: "#64748b", marginTop: "2px" }}>Total: {total}</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function RoomsPanel({
@@ -226,6 +313,21 @@ function RoomsPanel({
     }
   };
 
+  const roomTypeCounts = (Array.isArray(filteredRoomsManage) ? filteredRoomsManage : []).reduce(
+    (acc, r) => {
+      const t = String(r?.roomType || "").toLowerCase();
+      if (t === "single") acc.single += 1;
+      else if (t === "double") acc.double += 1;
+      return acc;
+    },
+    { single: 0, double: 0 },
+  );
+  const occupiedRoomsCount = (Array.isArray(filteredRoomsManage) ? filteredRoomsManage : []).filter(
+    (r) => (r?.beds || []).some((b) => b?.status === "Occupied"),
+  ).length;
+  const totalRoomsCount = (Array.isArray(filteredRoomsManage) ? filteredRoomsManage : []).length;
+  const availableRoomsCount = Math.max(0, totalRoomsCount - occupiedRoomsCount);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px", width: "100%", height: "100%" }}>
       <div style={{ ...s.card, padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
@@ -271,6 +373,26 @@ function RoomsPanel({
               {showAddRoomForm ? "Close form" : "+ Add Room"}
             </button>
           </div>
+        </div>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
+          <MiniBarChart
+            title="Room Types"
+            data={[
+              { label: "Single", value: roomTypeCounts.single },
+              { label: "Double", value: roomTypeCounts.double },
+            ]}
+            color="#60a5fa"
+            bg="rgba(96,165,250,0.16)"
+          />
+          <MiniPieChart
+            title="Room Occupancy"
+            data={[
+              { label: "Occupied", value: occupiedRoomsCount },
+              { label: "Available", value: availableRoomsCount },
+            ]}
+            colors={["#f87171", "#34d399"]}
+          />
         </div>
 
         {showAddRoomForm && (
@@ -608,6 +730,7 @@ function InventoryPanel({
   const [invEditCondition, setInvEditCondition] = useState("good");
   const [invEditDirty, setInvEditDirty] = useState({ name: false, qty: false, location: false, condition: false });
   const [invEditSaving, setInvEditSaving] = useState(false);
+  const [invEditQtyTouched, setInvEditQtyTouched] = useState(false);
 
   const resetInvForm = () => {
     setInvName("");
@@ -643,6 +766,15 @@ function InventoryPanel({
     backgroundColor: "#1f2937",
   });
   const invOptionStyle = { color: "#111827", backgroundColor: "#ffffff" };
+  /** Hide values &lt; 10 while typing; still show legacy loaded qty &lt; 10 until user changes the field. */
+  const inventoryEditQtyDisplay = (raw, touched) => {
+    if (raw === "") return "";
+    const n = Number.parseInt(raw, 10);
+    if (!Number.isFinite(n)) return "";
+    if (n >= 10) return String(n);
+    if (!touched) return String(n);
+    return "";
+  };
   const editQtyParsed = invEditQty === "" ? NaN : Number.parseInt(invEditQty, 10);
   const invEditErrors = (() => {
     if (!invEditId) return {};
@@ -660,6 +792,7 @@ function InventoryPanel({
     setInvEditId(String(item?._id || item?.id || ""));
     setInvEditName(String(item?.name || ""));
     setInvEditQty(String(item?.quantity ?? ""));
+    setInvEditQtyTouched(false);
     setInvEditLocation(String(item?.location || ""));
     setInvEditCategory(String(item?.category || ""));
     setInvEditCondition(String(item?.condition || "good"));
@@ -670,6 +803,7 @@ function InventoryPanel({
     setInvEditId("");
     setInvEditName("");
     setInvEditQty("");
+    setInvEditQtyTouched(false);
     setInvEditLocation("");
     setInvEditCategory("");
     setInvEditCondition("good");
@@ -730,8 +864,35 @@ function InventoryPanel({
     }
   };
 
+  const categoryTotals = (() => {
+    const map = new Map();
+    for (const it of Array.isArray(filteredInventory) ? filteredInventory : []) {
+      const key = String(it?.category || "Other");
+      const qty = Number(it?.quantity) || 0;
+      map.set(key, (map.get(key) || 0) + qty);
+    }
+    return Array.from(map.entries())
+      .map(([label, value]) => ({ label, value }))
+      .filter((x) => (Number(x.value) || 0) > 0)
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 6);
+  })();
+
+  const conditionCounts = (() => {
+    const c = { good: 0, used: 0, time_to_reallocate: 0 };
+    for (const it of Array.isArray(filteredInventory) ? filteredInventory : []) {
+      const k = String(it?.condition || "good").toLowerCase();
+      if (k in c) c[k] += 1;
+    }
+    return [
+      { label: "Good", value: c.good },
+      { label: "Used", value: c.used },
+      { label: "Reallocate", value: c.time_to_reallocate },
+    ];
+  })();
+
   return (
-    <div style={{ ...s.card, padding: "20px", height: "100%" }}>
+    <div style={{ ...s.card, padding: "20px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
         <div>
           <div style={{ fontWeight: 800, fontSize: "17px", color: T.textPrimary }}>Inventory Items</div>
@@ -772,6 +933,20 @@ function InventoryPanel({
             {showAddInventory ? "Close form" : "+ Add inventory item"}
           </button>
         </div>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "16px" }}>
+        <MiniBarChart
+          title="Category Quantities"
+          data={categoryTotals}
+          color="#34d399"
+          bg="rgba(52,211,153,0.16)"
+        />
+        <MiniPieChart
+          title="Condition Split"
+          data={conditionCounts}
+          colors={["#34d399", "#f59e0b", "#f87171"]}
+        />
       </div>
 
       {showAddInventory && (
@@ -910,7 +1085,7 @@ function InventoryPanel({
         </div>
       )}
 
-      <div style={{ overflowY: "auto", maxHeight: "calc(100% - 60px)" }}>
+      <div style={{ overflowX: "auto" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
             <tr style={s.trBorder}>{["Name", "Quantity", "Location", "Category", "Condition", "Updated", "Actions"].map((h) => <th key={h} style={s.thStyle}>{h}</th>)}</tr>
@@ -936,7 +1111,13 @@ function InventoryPanel({
               </tr>
             ) : (
               filteredInventory.map((it) => (
-                <tr key={it?._id || it?.id || it?.name} style={s.trBorder}>
+                <tr
+                  key={it?._id || it?.id || it?.name}
+                  style={{
+                    ...s.trBorder,
+                    background: Number(it?.quantity) < 15 ? "rgba(248,113,113,0.08)" : undefined,
+                  }}
+                >
                   {invEditId && invEditId === String(it?._id || it?.id || "") ? (
                     <>
                       <td style={{ padding: "10px 0", width: "22%" }}>
@@ -944,7 +1125,54 @@ function InventoryPanel({
                         {invEditDirty.name && invEditErrors.name ? <div style={invErrStyle}>{invEditErrors.name}</div> : null}
                       </td>
                       <td style={{ padding: "10px 0", width: "14%" }}>
-                        <input type="text" inputMode="numeric" autoComplete="off" value={invEditQty} onChange={(e) => { setInvEditQty(e.target.value.replace(/\D/g, "")); setInvEditDirty((d) => ({ ...d, qty: true })); }} onBlur={() => { setInvEditDirty((d) => ({ ...d, qty: true })); const n = Number.parseInt(invEditQty, 10); if (Number.isFinite(n) && n < 10) setInvEditQty("10"); }} style={{ ...invInputErr(invEditDirty.qty && invEditErrors.qty) }} />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          autoComplete="off"
+                          value={inventoryEditQtyDisplay(invEditQty, invEditQtyTouched)}
+                          onChange={(e) => {
+                            const it = e.nativeEvent?.inputType;
+                            if (it === "insertFromPaste" || it === "deleteByCut") {
+                              setInvEditQtyTouched(true);
+                              const t = e.target.value.replace(/\D/g, "");
+                              setInvEditQty(t);
+                              setInvEditDirty((d) => ({ ...d, qty: true }));
+                            }
+                          }}
+                          onPaste={(e) => {
+                            e.preventDefault();
+                            setInvEditQtyTouched(true);
+                            const t = (e.clipboardData.getData("text") || "").replace(/\D/g, "");
+                            setInvEditQty(t);
+                            setInvEditDirty((d) => ({ ...d, qty: true }));
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.ctrlKey || e.metaKey || e.altKey) return;
+                            const nav = ["Tab", "Escape", "Enter", "ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"];
+                            if (nav.includes(e.key)) return;
+                            if (e.key === "Backspace" || e.key === "Delete") {
+                              e.preventDefault();
+                              setInvEditQtyTouched(true);
+                              setInvEditQty((p) => p.slice(0, -1));
+                              setInvEditDirty((d) => ({ ...d, qty: true }));
+                              return;
+                            }
+                            if (/^\d$/.test(e.key)) {
+                              e.preventDefault();
+                              setInvEditQtyTouched(true);
+                              setInvEditQty((p) => `${p}${e.key}`.replace(/\D/g, ""));
+                              setInvEditDirty((d) => ({ ...d, qty: true }));
+                            } else {
+                              e.preventDefault();
+                            }
+                          }}
+                          onBlur={() => {
+                            setInvEditDirty((d) => ({ ...d, qty: true }));
+                            const n = Number.parseInt(invEditQty, 10);
+                            if (invEditQty !== "" && Number.isFinite(n) && n < 10) setInvEditQty("10");
+                          }}
+                          style={{ ...invInputErr(invEditDirty.qty && invEditErrors.qty) }}
+                        />
                         {invEditDirty.qty && invEditErrors.qty ? <div style={invErrStyle}>{invEditErrors.qty}</div> : null}
                       </td>
                       <td style={{ padding: "10px 0", width: "20%" }}>
@@ -980,7 +1208,9 @@ function InventoryPanel({
                     </>
                   ) : (
                     <>
-                      <td style={{ padding: "11px 0", fontSize: "14px", fontWeight: 700, color: T.textPrimary }}>{it?.name || "—"}</td>
+                      <td style={{ padding: "11px 0", fontSize: "14px", fontWeight: 700, color: Number(it?.quantity) < 15 ? "#fda4af" : T.textPrimary }}>
+                        {it?.name || "—"}
+                      </td>
                       <td style={{ padding: "11px 0", fontSize: "13px", color: Number(it?.quantity) < 15 ? "#f87171" : T.textSecondary, fontWeight: Number(it?.quantity) < 15 ? 800 : 500 }}>
                         {typeof it?.quantity === "number" ? it.quantity : it?.quantity ?? "—"}
                       </td>
@@ -1110,15 +1340,36 @@ export default function App() {
           bookingByStudent.set(sid, b);
         }
 
+        const firstNonEmpty = (...vals) => {
+          for (const v of vals) {
+            if (v == null) continue;
+            const s = String(v).trim();
+            if (s) return s;
+          }
+          return "";
+        };
+
         const list = Array.from(bookingByStudent.entries()).map(([sid, b]) => {
-          const u = usersById.get(sid) || b?.student || {};
+          const fromUsers = sid ? usersById.get(sid) : null;
+          const bookingStudent =
+            b?.student && typeof b.student === "object" && !Array.isArray(b.student) ? b.student : {};
+          const u = fromUsers && typeof fromUsers === "object" ? fromUsers : bookingStudent;
+          const hostelLabel = firstNonEmpty(
+            u?.assignedHostel,
+            b?.hostel?.name,
+            assignedHostelName,
+          );
+          const phoneLabel = firstNonEmpty(u?.phoneNumber, bookingStudent?.phoneNumber);
+          const genderLabel = firstNonEmpty(u?.gender, bookingStudent?.gender);
           return {
             ...u,
             _id: String(u?._id || u?.id || sid),
             id: String(u?._id || u?.id || sid),
-            name: u?.name ?? b?.student?.name ?? "—",
-            email: u?.email ?? b?.student?.email ?? "—",
-            assignedHostel: u?.assignedHostel ?? assignedHostelName,
+            name: u?.name ?? bookingStudent?.name ?? "—",
+            email: u?.email ?? bookingStudent?.email ?? "—",
+            phoneNumber: phoneLabel,
+            gender: genderLabel,
+            assignedHostel: hostelLabel,
             roomNumber: b?.roomNumber ?? null,
             bedNumber: b?.bedNumber ?? null,
             bookingStatus: b?.status ?? null,
@@ -1388,14 +1639,15 @@ export default function App() {
 
   // ─── DESIGN TOKENS ───────────────────────────────────────────────
   const T = {
-    pageBg: "#0c0f1a",
-    sidebarBg: "#0f1220",
-    sidebarBorder: "rgba(255,255,255,0.06)",
-    cardBg: "rgba(255,255,255,0.04)",
+    pageBg: "#0a0d18",
+    pageBgGradient: "linear-gradient(168deg, #0a0d18 0%, #121529 42%, #0c1022 55%, #080b14 100%)",
+    sidebarBg: "linear-gradient(180deg, rgba(16,19,36,0.98) 0%, rgba(12,15,28,0.99) 50%, rgba(10,13,24,1) 100%)",
+    sidebarBorder: "rgba(129,140,248,0.12)",
+    cardBg: "linear-gradient(155deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.03) 50%, rgba(255,255,255,0.025) 100%)",
     cardBgHover: "rgba(255,255,255,0.07)",
-    cardBorder: "rgba(255,255,255,0.08)",
-    cardRadius: "16px",
-    cardShadow: "0 4px 24px rgba(0,0,0,0.3)",
+    cardBorder: "rgba(129,140,248,0.14)",
+    cardRadius: "18px",
+    cardShadow: "0 8px 32px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04) inset",
     textPrimary: "#f0f4ff",
     textSecondary: "#94a3b8",
     textMuted: "#475569",
@@ -1413,7 +1665,7 @@ export default function App() {
       height: "100dvh",
       width: "100vw",
       display: "flex",
-      background: T.pageBg,
+      background: T.pageBgGradient,
       fontFamily: "'DM Sans', 'Manrope', 'Segoe UI', sans-serif",
       color: T.textPrimary,
       overflow: "hidden",
@@ -1421,10 +1673,11 @@ export default function App() {
       top: 0, left: 0,
     },
     aside: {
-      width: "220px",
+      width: "236px",
       flexShrink: 0,
       background: T.sidebarBg,
       borderRight: `1px solid ${T.sidebarBorder}`,
+      boxShadow: "4px 0 32px rgba(0,0,0,0.25)",
       display: "flex",
       flexDirection: "column",
       position: "relative",
@@ -1445,7 +1698,7 @@ export default function App() {
       border: `1px solid ${T.cardBorder}`,
       borderRadius: T.cardRadius,
       boxShadow: T.cardShadow,
-      backdropFilter: "blur(12px)",
+      backdropFilter: "blur(16px) saturate(140%)",
     },
     input: {
       width: "100%",
@@ -1476,29 +1729,31 @@ export default function App() {
   return (
     <div style={s.page}>
       {/* Ambient glows */}
-      <div style={{ position: "fixed", top: "-160px", left: "-80px", width: "480px", height: "480px", background: "radial-gradient(circle, rgba(129,140,248,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
-      <div style={{ position: "fixed", bottom: "-120px", right: "-80px", width: "520px", height: "520px", background: "radial-gradient(circle, rgba(52,211,153,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
+      <div style={{ position: "fixed", top: "-160px", left: "-80px", width: "520px", height: "520px", background: "radial-gradient(circle, rgba(129,140,248,0.14) 0%, transparent 68%)", pointerEvents: "none", zIndex: 0 }} />
+      <div style={{ position: "fixed", bottom: "-140px", right: "-100px", width: "560px", height: "560px", background: "radial-gradient(circle, rgba(52,211,153,0.1) 0%, transparent 68%)", pointerEvents: "none", zIndex: 0 }} />
+      <div style={{ position: "fixed", top: "35%", right: "8%", width: "320px", height: "320px", background: "radial-gradient(circle, rgba(192,132,252,0.08) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
 
       {/* ── Sidebar ─────────────────────────────── */}
       <aside style={s.aside}>
         {/* Brand */}
-        <div style={{ padding: "16px 14px", borderBottom: `1px solid ${T.sidebarBorder}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <div style={{ width: "38px", height: "38px", borderRadius: "12px", background: "linear-gradient(135deg, #818cf8, #c084fc)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "19px", color: "#fff", boxShadow: "0 4px 16px rgba(129,140,248,0.4)", flexShrink: 0 }}>H</div>
+        <div style={{ padding: "18px 16px", borderBottom: `1px solid ${T.sidebarBorder}` }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "44px", height: "44px", borderRadius: "14px", background: "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "20px", color: "#fff", boxShadow: "0 6px 24px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.15) inset", flexShrink: 0 }}>H</div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: "16px", letterSpacing: "-0.02em", color: T.textPrimary }}>HostelOS</div>
-              <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "1px" }}>Warden Command Center</div>
+              <div style={{ fontWeight: 800, fontSize: "17px", letterSpacing: "-0.03em", color: T.textPrimary }}>HostelOS</div>
+              <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#818cf8", marginTop: "3px" }}>Warden · Command</div>
             </div>
           </div>
         </div>
 
         {/* Clock */}
         <div style={{ padding: "10px 12px" }}>
-          <div style={{ background: "rgba(129,140,248,0.08)", border: "1px solid rgba(129,140,248,0.15)", borderRadius: "12px", padding: "10px 14px", textAlign: "center" }}>
-            <div style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "0.05em", color: "#818cf8", fontVariantNumeric: "tabular-nums" }}>
+          <div style={{ background: "linear-gradient(145deg, rgba(99,102,241,0.18) 0%, rgba(129,140,248,0.06) 100%)", border: "1px solid rgba(129,140,248,0.25)", borderRadius: "14px", padding: "12px 14px", textAlign: "center", boxShadow: "0 8px 24px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.08)" }}>
+            <div style={{ fontSize: "11px", fontWeight: 700, letterSpacing: "0.12em", color: "#a5b4fc", marginBottom: "6px" }}>LOCAL TIME</div>
+            <div style={{ fontSize: "24px", fontWeight: 800, letterSpacing: "0.04em", background: "linear-gradient(90deg, #c7d2fe, #e9d5ff)", WebkitBackgroundClip: "text", backgroundClip: "text", WebkitTextFillColor: "transparent", color: "transparent", fontVariantNumeric: "tabular-nums" }}>
               {now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
             </div>
-            <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "3px" }}>
+            <div style={{ fontSize: "12px", color: T.textSecondary, marginTop: "6px", fontWeight: 600 }}>
               {now.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}
             </div>
           </div>
@@ -1511,13 +1766,14 @@ export default function App() {
             const badge = item.label === "Complaints" ? 7 : item.label === "Leave" ? 5 : null;
             return (
               <button key={item.label} onClick={() => setActive(item.label)} style={{
-                display: "flex", alignItems: "center", gap: "9px", padding: "9px 11px", borderRadius: "10px",
+                display: "flex", alignItems: "center", gap: "9px", padding: "10px 12px", borderRadius: "12px",
                 fontSize: "14px", fontWeight: isActive ? 700 : 500, width: "100%", textAlign: "left", cursor: "pointer",
-                transition: "all 0.15s",
-                background: isActive ? T.accentLight : "transparent",
-                border: isActive ? `1px solid ${T.accentBorder}` : "1px solid transparent",
-                color: isActive ? T.accent : T.textSecondary,
+                transition: "all 0.18s ease",
+                background: isActive ? "linear-gradient(90deg, rgba(129,140,248,0.2) 0%, rgba(129,140,248,0.06) 100%)" : "transparent",
+                border: isActive ? `1px solid rgba(129,140,248,0.35)` : "1px solid transparent",
+                color: isActive ? "#c7d2fe" : T.textSecondary,
                 fontFamily: "inherit",
+                boxShadow: isActive ? "0 4px 18px rgba(99,102,241,0.2), inset 0 1px 0 rgba(255,255,255,0.06)" : "none",
               }}>
                 <span style={{ fontSize: "15px", opacity: isActive ? 1 : 0.5 }}>{item.icon}</span>
                 <span style={{ flex: 1 }}>{item.label}</span>
@@ -1530,9 +1786,9 @@ export default function App() {
         </nav>
 
         {/* Profile */}
-        <div style={{ padding: "10px 10px 12px", borderTop: `1px solid ${T.sidebarBorder}` }}>
-          <div style={{ background: "rgba(255,255,255,0.04)", border: `1px solid ${T.sidebarBorder}`, borderRadius: "12px", padding: "10px", display: "flex", alignItems: "center", gap: "9px" }}>
-            <div style={{ width: "34px", height: "34px", borderRadius: "9px", background: "linear-gradient(135deg, #818cf8, #c084fc)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+        <div style={{ padding: "12px 12px 14px", borderTop: `1px solid ${T.sidebarBorder}` }}>
+          <div style={{ background: "linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)", border: `1px solid rgba(129,140,248,0.18)`, borderRadius: "14px", padding: "12px", display: "flex", alignItems: "center", gap: "10px", boxShadow: "0 6px 20px rgba(0,0,0,0.15)" }}>
+            <div style={{ width: "36px", height: "36px", borderRadius: "11px", background: "linear-gradient(135deg, #6366f1, #c084fc)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 800, color: "#fff", flexShrink: 0, boxShadow: "0 4px 14px rgba(99,102,241,0.35)" }}>
               {getInitials(wardenName)}
             </div>
             <div style={{ minWidth: 0 }}>
@@ -1552,23 +1808,43 @@ export default function App() {
       <div style={s.main}>
         {/* Header */}
         <header style={{
-          padding: "12px 24px", background: "rgba(12,15,26,0.92)", borderBottom: `1px solid ${T.sidebarBorder}`,
-          backdropFilter: "blur(20px)", display: "flex", alignItems: "center", justifyContent: "space-between",
+          padding: "14px 24px",
+          background: "linear-gradient(180deg, rgba(15,18,32,0.95) 0%, rgba(10,13,24,0.88) 100%)",
+          borderBottom: `1px solid rgba(129,140,248,0.15)`,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.2)",
+          backdropFilter: "blur(20px) saturate(150%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
           flexShrink: 0,
+          flexWrap: "wrap",
+          gap: "12px",
         }}>
           <div>
-            <div style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.02em", color: T.textPrimary }}>
-              Good morning, {wardenName} 👋
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+              <span style={{ fontSize: "18px", fontWeight: 800, letterSpacing: "-0.02em", color: T.textPrimary }}>
+                {getTimeGreeting(now)}, {wardenName}
+              </span>
+              <span style={{ fontSize: "20px" }} aria-hidden>👋</span>
+              <span style={{ fontSize: "10px", fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", padding: "4px 10px", borderRadius: "999px", background: "rgba(52,211,153,0.15)", border: "1px solid rgba(52,211,153,0.35)", color: "#6ee7b7" }}>Live</span>
             </div>
-            <div style={{ fontSize: "13px", color: T.textMuted, marginTop: "1px" }}>
-              Hostel overview {assignedHostelName ? `· ${assignedHostelName}` : ""}
+            <div style={{ fontSize: "13px", color: T.textSecondary, marginTop: "6px", fontWeight: 500 }}>
+              {assignedHostelName ? assignedHostelName : "Hostel overview"} · {now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
             </div>
-            <div style={{ fontSize: "13px", color: T.textSecondary, marginTop: "4px", fontWeight: 700 }}>
-              Rooms: {roomsOverview.availableRooms} available / {roomsOverview.totalRooms} total
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "10px" }}>
+              <span style={{ fontSize: "12px", fontWeight: 700, padding: "6px 12px", borderRadius: "10px", background: "linear-gradient(135deg, rgba(52,211,153,0.2), rgba(16,185,129,0.1))", border: "1px solid rgba(52,211,153,0.3)", color: "#6ee7b7" }}>
+                {roomsOverview.availableRooms} rooms free
+              </span>
+              <span style={{ fontSize: "12px", fontWeight: 700, padding: "6px 12px", borderRadius: "10px", background: "linear-gradient(135deg, rgba(129,140,248,0.22), rgba(99,102,241,0.08))", border: "1px solid rgba(129,140,248,0.35)", color: "#c7d2fe" }}>
+                {roomsOverview.totalRooms} total rooms
+              </span>
+              <span style={{ fontSize: "12px", fontWeight: 700, padding: "6px 12px", borderRadius: "10px", background: "rgba(248,113,113,0.12)", border: "1px solid rgba(248,113,113,0.28)", color: "#fca5a5" }}>
+                {roomsOverview.occupiedRooms} occupied
+              </span>
             </div>
           </div>
-          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-            <button style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: "10px", padding: "8px 12px", color: T.textSecondary, cursor: "pointer", position: "relative", fontSize: "16px" }}>
+          <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <button type="button" style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: "12px", padding: "9px 14px", color: T.textSecondary, cursor: "pointer", position: "relative", fontSize: "16px", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
               🔔
               {lowInventoryAlerts.length > 0 ? (
                 <span style={{ position: "absolute", top: "-3px", right: "-3px", minWidth: "15px", height: "15px", borderRadius: "50%", padding: "0 4px", background: "linear-gradient(135deg, #f97316, #ef4444)", fontSize: "10px", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
@@ -1576,12 +1852,13 @@ export default function App() {
                 </span>
               ) : null}
             </button>
-            <button style={{ background: "linear-gradient(135deg, #818cf8, #c084fc)", borderRadius: "10px", padding: "8px 18px", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 14px rgba(129,140,248,0.35)", color: "#fff", border: "none", fontFamily: "inherit" }}>
+            <button type="button" style={{ background: "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #c084fc 100%)", borderRadius: "12px", padding: "9px 20px", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 22px rgba(99,102,241,0.4)", color: "#fff", border: "none", fontFamily: "inherit" }}>
               + Post Notice
             </button>
             <button
+              type="button"
               onClick={handleLogout}
-              style={{ background: "rgba(248,113,113,0.16)", border: "1px solid rgba(248,113,113,0.35)", borderRadius: "10px", padding: "8px 14px", fontSize: "14px", fontWeight: 700, cursor: "pointer", color: "#fca5a5", fontFamily: "inherit" }}
+              style={{ background: "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(248,113,113,0.08))", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "12px", padding: "9px 16px", fontSize: "14px", fontWeight: 700, cursor: "pointer", color: "#fecaca", fontFamily: "inherit" }}
             >
               Logout
             </button>
@@ -1589,7 +1866,7 @@ export default function App() {
         </header>
 
         {/* Scrollable body */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px", display: "flex", flexDirection: "column", gap: "14px", background: T.pageBg }}>
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "18px 22px", display: "flex", flexDirection: "column", gap: "16px", background: "transparent" }}>
 
           {active === "Inventory" ? (
             <InventoryPanel T={T} s={s} inventoryLoading={inventoryLoading} inventoryError={inventoryError} filteredInventory={filteredInventory} inventoryList={inventoryList} inventorySearch={inventorySearch} setInventorySearch={setInventorySearch} setInventoryRefreshKey={setInventoryRefreshKey} />
@@ -1650,12 +1927,12 @@ export default function App() {
           ) : (
             <>
               {/* ── Stats Row ── */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "14px" }}>
                 {statsFinal.map((st, i) => (
-                  <div key={i} style={{ ...s.card, padding: "18px 20px", position: "relative", overflow: "hidden", cursor: "default" }}>
-                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "2px", background: `linear-gradient(${st.grad})`, opacity: 0.9 }} />
-                    <div style={{ position: "absolute", bottom: "-30px", right: "-20px", width: "100px", height: "100px", background: `radial-gradient(circle, ${st.glow.replace("0.45", "0.1")} 0%, transparent 70%)`, pointerEvents: "none" }} />
-                    <div style={{ width: "42px", height: "42px", borderRadius: "12px", background: `linear-gradient(${st.grad})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px", marginBottom: "12px", boxShadow: `0 4px 14px ${st.glow.replace("0.45","0.3")}` }}>
+                  <div key={i} style={{ ...s.card, padding: "20px 22px", position: "relative", overflow: "hidden", cursor: "default" }}>
+                    <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: "3px", background: `linear-gradient(${st.grad})`, opacity: 1, boxShadow: `0 0 20px ${st.glow.replace("0.45","0.35")}` }} />
+                    <div style={{ position: "absolute", bottom: "-35px", right: "-25px", width: "120px", height: "120px", background: `radial-gradient(circle, ${st.glow.replace("0.45", "0.14")} 0%, transparent 70%)`, pointerEvents: "none" }} />
+                    <div style={{ width: "46px", height: "46px", borderRadius: "14px", background: `linear-gradient(${st.grad})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", marginBottom: "14px", boxShadow: `0 6px 20px ${st.glow.replace("0.45","0.35")}`, border: "1px solid rgba(255,255,255,0.15)" }}>
                       {st.icon}
                     </div>
                     <div style={{ fontSize: "32px", fontWeight: 900, letterSpacing: "-0.04em", lineHeight: 1, color: T.textPrimary }}>
@@ -1668,7 +1945,7 @@ export default function App() {
               </div>
 
               {/* ── Mid row ── */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 280px", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px" }}>
 
                 {/* Block Occupancy */}
                 <div style={{ ...s.card, padding: "18px 20px" }}>
@@ -1795,7 +2072,7 @@ export default function App() {
               </div>
 
               {/* ── Bottom row: Complaints + Leave ── */}
-              <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr", gap: "12px" }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "14px" }}>
 
                 {/* Complaints Tracker */}
                 <div style={{ ...s.card, padding: "18px 20px" }}>
