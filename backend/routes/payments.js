@@ -3,6 +3,7 @@ import {
   getMyPayments,
   getAdminPayments,
   getPaymentById,
+  getPaymentPricing,
   createPayment,
   patchPaymentStatus,
 } from '../controllers/paymentController.js'
@@ -15,6 +16,7 @@ router.use(authMiddleware)
 
 router.get('/my', requireRole('student'), getMyPayments)
 router.get('/admin', requireRole('admin'), getAdminPayments)
+router.get('/pricing', requireRole('student'), getPaymentPricing)
 router.get('/:id', getPaymentById)
 
 router.post('/', requireRole('student'), paymentProofUploadMiddleware, createPayment)

@@ -1,4 +1,7 @@
+import Booking from '../models/Booking.js'
 import LatePass from '../models/LatePass.js'
+import User from '../models/User.js'
+import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
 
 function normalizeLatepassStatus(input) {
   if (!input) return null
@@ -15,8 +18,90 @@ function documentPathFromFile(file) {
   return `/uploads/latepass/${file.filename}`
 }
 
-const PHONE_RE = /^[0-9+\s\-()]{8,22}$/
-const STUDENT_ID_RE = /^[A-Za-z]{2}\d{8}$/
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/** YYYY-MM-DD in server local timezone */
+function localYmd(d = new Date()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+function addDaysToYmd(ymdStr, days) {
+  const [y, mo, d] = ymdStr.split('-').map(Number)
+  const dt = new Date(y, mo - 1, d)
+  dt.setDate(dt.getDate() + days)
+  return localYmd(dt)
+}
+
+/** Accept YYYY-MM-DD or parseable ISO; returns { ok, ymd, message } */
+function parseLatepassDateInput(raw) {
+  const s = String(raw ?? '').trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+    const [y, m, d] = s.split('-').map(Number)
+    if (m < 1 || m > 12 || d < 1 || d > 31) return { ok: false, message: 'Select a valid date.' }
+    const test = new Date(y, m - 1, d)
+    if (test.getFullYear() !== y || test.getMonth() !== m - 1 || test.getDate() !== d) {
+      return { ok: false, message: 'Select a valid date.' }
+    }
+    return { ok: true, ymd: s }
+  }
+  const d = new Date(s)
+  if (Number.isNaN(d.getTime())) return { ok: false, message: 'Select a valid date.' }
+  return { ok: true, ymd: localYmd(d) }
+}
+
+function parseTimeToMinutes(s) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(s ?? '').trim())
+  if (!m) return null
+  const h = Number(m[1])
+  const min = Number(m[2])
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null
+  return h * 60 + min
+}
+
+const LATE_PASS_CUTOFF_MINUTES = 20 * 60 // 8:00 PM inclusive
+const MAX_STUDENTS_PER_REQUEST = 10
+const REASON_MIN = 10
+const REASON_MAX = 500
+const ROOM_NO_MAX_LEN = 15
+const ROOM_NO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9\-]{0,14})?$/
+/** e.g. IT23232323, ST12345 */
+const STUDENT_ID_RE = /^[A-Za-z]{2}\d{5,12}$/
+const MAX_DAYS_AHEAD = 30
+
+function normalizeWhitespaceName(s) {
+  return String(s ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+}
+
+function normalizeRoomNo(s) {
+  return String(s ?? '')
+    .trim()
+    .replace(/\s+/g, '')
+    .toUpperCase()
+}
+
+function normalizeNameForCompare(s) {
+  return normalizeWhitespaceName(s).toLowerCase()
+}
+
+function normalizeGuardianPhone(raw) {
+  let s = String(raw ?? '').trim().replace(/[\s\-()]/g, '')
+  if (s.startsWith('+')) s = s.slice(1)
+  if (s.startsWith('94') && s.length >= 10) {
+    s = `0${s.slice(2)}`
+  }
+  return s
+}
+
+function isValidLkGuardianPhone(normalized) {
+  return /^0[1-9]\d{8}$/.test(normalized)
+}
 
 function parseStudentsJson(raw) {
   if (raw == null) return null
@@ -27,11 +112,16 @@ function parseStudentsJson(raw) {
     return null
   }
   if (!Array.isArray(parsed)) return null
-  return parsed.map((row) => ({
-    studentName: String(row.studentName ?? '').trim(),
-    studentId: String(row.studentId ?? '').trim(),
-    roomNo: String(row.roomNo ?? '').trim(),
-  }))
+  return parsed
+}
+
+function sendValidationError(res, fieldErrors) {
+  const first =
+    Object.values(fieldErrors).find(Boolean) || 'Please correct the errors below.'
+  return res.status(400).json({
+    error: typeof first === 'string' ? first : 'Validation failed',
+    fieldErrors,
+  })
 }
 
 export const getMyLatepass = async (req, res) => {
@@ -118,53 +208,230 @@ export const getLatepassById = async (req, res) => {
 }
 
 export const createLatepass = async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Document upload is required (image or PDF)' })
-    }
+  const fieldErrors = {}
 
-    const students = parseStudentsJson(req.body.students)
-    if (!students || students.length < 1) {
-      return res.status(400).json({ error: 'At least one student row is required' })
-    }
+  if (!req.file) {
+    fieldErrors.document = 'Upload a valid document.'
+    return sendValidationError(res, fieldErrors)
+  }
 
-    const errors = []
-    students.forEach((row, i) => {
-      if (!row.studentName) errors.push(`Student ${i + 1}: name is required`)
-      if (!row.studentId) errors.push(`Student ${i + 1}: student ID is required`)
-      else if (!STUDENT_ID_RE.test(row.studentId)) {
-        errors.push(`Student ${i + 1}: student ID must be 2 letters followed by 8 numbers`)
+  const rawStudents = parseStudentsJson(req.body.students)
+  if (!rawStudents) {
+    fieldErrors.students = 'At least one student is required.'
+    return sendValidationError(res, fieldErrors)
+  }
+
+  if (rawStudents.length > MAX_STUDENTS_PER_REQUEST) {
+    fieldErrors.students = `You can add at most ${MAX_STUDENTS_PER_REQUEST} students per request.`
+    return sendValidationError(res, fieldErrors)
+  }
+
+  const rows = rawStudents.map((row, i) => ({
+    i,
+    studentName: normalizeWhitespaceName(row.studentName),
+    studentId: String(row.studentId ?? '').trim(),
+    roomNo: String(row.roomNo ?? '').trim(),
+  }))
+
+  for (const r of rows) {
+    const any = r.studentName || r.studentId || r.roomNo
+    const all = r.studentName && r.studentId && r.roomNo
+    if (any && !all) {
+      if (!r.studentName) fieldErrors[`student_${r.i}_studentName`] = 'Student name is required.'
+      if (!r.studentId) fieldErrors[`student_${r.i}_studentId`] = 'Student ID is required.'
+      if (!r.roomNo) fieldErrors[`student_${r.i}_roomNo`] = 'Room number is required.'
+    }
+    if (!any && rows.length > 1) {
+      fieldErrors[`student_${r.i}_studentName`] =
+        'Fill all fields for this student or remove the row.'
+    }
+  }
+
+  const finalRows = rows.filter((r) => r.studentName && r.studentId && r.roomNo)
+  if (finalRows.length === 0 && !fieldErrors.students) {
+    fieldErrors.students = 'At least one student is required.'
+  }
+
+  const idGroups = new Map()
+  for (const r of finalRows) {
+    const key = r.studentId.toUpperCase()
+    if (!idGroups.has(key)) idGroups.set(key, [])
+    idGroups.get(key).push(r.i)
+  }
+  for (const indices of idGroups.values()) {
+    if (indices.length > 1) {
+      for (const idx of indices) {
+        fieldErrors[`student_${idx}_studentId`] = 'Duplicate student ID is not allowed.'
       }
-      if (!row.roomNo) errors.push(`Student ${i + 1}: room number is required`)
-    })
+    }
+  }
 
-    const reason = String(req.body.reason ?? '').trim()
-    const guardianContactNo = String(req.body.guardianContactNo ?? '').trim()
-    const arrivingTime = String(req.body.arrivingTime ?? '').trim()
-
-    if (!req.body.date) errors.push('Date is required')
-    else if (Number.isNaN(new Date(req.body.date).getTime())) errors.push('Invalid date')
-    if (!arrivingTime) errors.push('Arriving time is required')
-    if (!reason) errors.push('Reason is required')
-    if (!guardianContactNo) errors.push('Guardian contact number is required')
-    else if (!PHONE_RE.test(guardianContactNo)) {
-      errors.push('Guardian contact: use 8–22 digits/plus/spaces/dashes/parentheses only')
+  for (const r of finalRows) {
+    const pn = validatePersonNameNormalized(normalizeWhitespaceName(r.studentName))
+    if (!pn.ok) {
+      fieldErrors[`student_${r.i}_studentName`] = pn.message
     }
 
-    if (errors.length) {
-      return res.status(400).json({ error: errors.join('. ') })
+    if (!STUDENT_ID_RE.test(r.studentId)) {
+      fieldErrors[`student_${r.i}_studentId`] = 'Enter a valid student ID.'
     }
 
+    if (r.roomNo.length > ROOM_NO_MAX_LEN) {
+      fieldErrors[`student_${r.i}_roomNo`] = `Room number must be at most ${ROOM_NO_MAX_LEN} characters.`
+    } else if (!ROOM_NO_RE.test(r.roomNo)) {
+      fieldErrors[`student_${r.i}_roomNo`] =
+        'Enter a valid room number (letters, digits, optional hyphen).'
+    }
+  }
+
+  const rawDate = String(req.body.date ?? '').trim()
+  let dateParsed = { ok: false, ymd: '', message: 'Date is required.' }
+  if (!rawDate) {
+    fieldErrors.date = 'Date is required.'
+  } else {
+    dateParsed = parseLatepassDateInput(rawDate)
+    if (!dateParsed.ok) {
+      fieldErrors.date = dateParsed.message
+    } else {
+      const { ymd } = dateParsed
+      const today = localYmd()
+      if (ymd < today) {
+        fieldErrors.date = 'Date cannot be in the past.'
+      } else if (ymd > addDaysToYmd(today, MAX_DAYS_AHEAD)) {
+        fieldErrors.date = `Date cannot be more than ${MAX_DAYS_AHEAD} days in the future.`
+      }
+    }
+  }
+
+  const arrivingTime = String(req.body.arrivingTime ?? '').trim()
+  if (!arrivingTime) {
+    fieldErrors.arrivingTime = 'Arriving time is required.'
+  } else {
+    const mins = parseTimeToMinutes(arrivingTime)
+    if (mins == null) {
+      fieldErrors.arrivingTime = 'Select a valid arrival time.'
+    } else if (mins < LATE_PASS_CUTOFF_MINUTES) {
+      fieldErrors.arrivingTime = 'Late pass is only needed for arrivals after 8:00 PM.'
+    } else if (dateParsed.ok && !fieldErrors.date) {
+      const { ymd } = dateParsed
+      const today = localYmd()
+      if (ymd === today) {
+        const [y, mo, d] = ymd.split('-').map(Number)
+        const [hh, mm] = arrivingTime.split(':').map(Number)
+        const arrivalDt = new Date(y, mo - 1, d, hh, mm, 0, 0)
+        if (arrivalDt.getTime() <= Date.now()) {
+          fieldErrors.arrivingTime = 'For today, choose an arrival time later than the current time.'
+        }
+      }
+    }
+  }
+
+  const reason = normalizeWhitespaceName(req.body.reason)
+  if (!reason) {
+    fieldErrors.reason = 'Reason is required.'
+  } else if (reason.length < REASON_MIN) {
+    fieldErrors.reason = `Reason must be at least ${REASON_MIN} characters.`
+  } else if (reason.length > REASON_MAX) {
+    fieldErrors.reason = `Reason must be at most ${REASON_MAX} characters.`
+  } else if (!/[\p{L}]/u.test(reason)) {
+    fieldErrors.reason = 'Enter a meaningful reason (letters required).'
+  }
+
+  const guardianRaw = String(req.body.guardianContactNo ?? '').trim()
+  if (!guardianRaw) {
+    fieldErrors.guardianContactNo = 'Guardian contact number is required.'
+  } else {
+    const gNorm = normalizeGuardianPhone(guardianRaw)
+    if (!isValidLkGuardianPhone(gNorm)) {
+      fieldErrors.guardianContactNo = 'Enter a valid guardian contact number.'
+    }
+  }
+
+  const syncBlocking = Object.keys(fieldErrors).length > 0
+
+  let dateForDb = null
+  let dayStart = null
+  let dayEnd = null
+  if (dateParsed.ok && !fieldErrors.date) {
+    const [y, mo, d] = dateParsed.ymd.split('-').map(Number)
+    dateForDb = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0, 0))
+    dayStart = new Date(Date.UTC(y, mo - 1, d, 0, 0, 0, 0))
+    dayEnd = new Date(Date.UTC(y, mo - 1, d + 1, 0, 0, 0, 0))
+  }
+
+  if (!syncBlocking && dateForDb && dayStart && dayEnd) {
+    const knownStudentRows = new Set()
+
+    for (const r of finalRows) {
+      const user = await User.findOne({
+        role: 'student',
+        universityId: new RegExp(`^${escapeRegex(r.studentId)}$`, 'i'),
+      }).lean()
+
+      if (!user) {
+        fieldErrors[`student_${r.i}_studentId`] = 'Student ID does not match our records.'
+        continue
+      }
+
+      knownStudentRows.add(r.i)
+
+      if (normalizeNameForCompare(user.name) !== normalizeNameForCompare(r.studentName)) {
+        fieldErrors[`student_${r.i}_studentName`] =
+          'Student name does not match the ID in our records.'
+      }
+
+      const booking = await Booking.findOne({
+        student: user._id,
+        status: { $in: ['pending', 'confirmed'] },
+      })
+        .sort({ updatedAt: -1 })
+        .lean()
+
+      if (!booking || normalizeRoomNo(booking.roomNumber) !== normalizeRoomNo(r.roomNo)) {
+        fieldErrors[`student_${r.i}_roomNo`] =
+          "Room number does not match this student's booking."
+      }
+    }
+
+    for (const r of finalRows) {
+      if (!knownStudentRows.has(r.i)) continue
+      const dup = await LatePass.findOne({
+        students: {
+          $elemMatch: {
+            studentId: new RegExp(`^${escapeRegex(r.studentId)}$`, 'i'),
+          },
+        },
+        date: { $gte: dayStart, $lt: dayEnd },
+        status: { $nin: ['rejected'] },
+      }).lean()
+
+      if (dup) {
+        fieldErrors[`student_${r.i}_studentId`] =
+          'A late pass already exists for this student on this date.'
+      }
+    }
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    return sendValidationError(res, fieldErrors)
+  }
+
+  try {
     const documentFile = documentPathFromFile(req.file)
+    const guardianStored = normalizeGuardianPhone(guardianRaw)
 
     const pass = await LatePass.create({
       createdBy: req.user._id,
-      date: req.body.date,
+      date: dateForDb,
       arrivingTime,
       reason,
-      guardianContactNo,
+      guardianContactNo: guardianStored,
       documentFile,
-      students,
+      students: finalRows.map((r) => ({
+        studentName: r.studentName,
+        studentId: r.studentId,
+        roomNo: r.roomNo,
+      })),
       status: 'pending',
     })
 
@@ -192,7 +459,6 @@ export const patchLatepassStatus = async (req, res) => {
       return res.status(400).json({ error: 'adminRemarks allowed only when status is rejected' })
     }
 
-    // Use $set only — avoids full-document validation on legacy rows missing newer required fields
     const $set = { status: nextStatus }
     if (nextStatus === 'rejected') $set.adminRemarks = req.body.adminRemarks
 
