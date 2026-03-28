@@ -15,24 +15,29 @@ fs.mkdirSync(paymentsDir, { recursive: true })
 fs.mkdirSync(latepassDir, { recursive: true })
 fs.mkdirSync(hostelsDir, { recursive: true })
 
-const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf'])
-const ALLOWED_MIME = new Set([
+const PAYMENT_ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.pdf'])
+const PAYMENT_ALLOWED_MIME = new Set([
   'image/jpeg',
   'image/png',
-  'image/webp',
   'application/pdf',
   'application/x-pdf',
 ])
 
-function imageOrPdfFilter(req, file, cb) {
+/** Payment proof: JPG, PNG, PDF only (no WebP). */
+function paymentProofFilter(req, file, cb) {
   const ext = path.extname(file.originalname || '').toLowerCase()
   const mime = String(file.mimetype || '').toLowerCase()
 
-  if (ALLOWED_MIME.has(mime)) return cb(null, true)
+  if (PAYMENT_ALLOWED_MIME.has(mime)) return cb(null, true)
   if (!mime || mime === 'application/octet-stream') {
-    if (ALLOWED_EXT.has(ext)) return cb(null, true)
+    if (PAYMENT_ALLOWED_EXT.has(ext)) return cb(null, true)
   }
-  cb(new Error('Only JPEG, PNG, WebP, and PDF files are allowed'))
+  cb(new Error('Only JPG, PNG, and PDF files are allowed.'))
+}
+
+/** Late pass document: same rules as payment proof (JPG, PNG, PDF). */
+function latepassDocumentFilter(req, file, cb) {
+  return paymentProofFilter(req, file, cb)
 }
 
 const HOSTEL_IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp'])
@@ -59,16 +64,20 @@ function makeStorage(destDir) {
   })
 }
 
+const PAYMENT_MAX_FILE_BYTES = 5 * 1024 * 1024
+
 const paymentMulter = multer({
   storage: makeStorage(paymentsDir),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: imageOrPdfFilter,
+  limits: { fileSize: PAYMENT_MAX_FILE_BYTES },
+  fileFilter: paymentProofFilter,
 })
+
+const LATEPASS_MAX_FILE_BYTES = 5 * 1024 * 1024
 
 const latepassMulter = multer({
   storage: makeStorage(latepassDir),
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: imageOrPdfFilter,
+  limits: { fileSize: LATEPASS_MAX_FILE_BYTES },
+  fileFilter: latepassDocumentFilter,
 })
 
 const hostelImageMulter = multer({
@@ -81,9 +90,12 @@ export function paymentProofUploadMiddleware(req, res, next) {
   paymentMulter.single('proof')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'Proof file must be 10 MB or smaller' })
+        return res.status(400).json({ error: 'File size must be less than 5MB.', fieldErrors: { proof: 'File size must be less than 5MB.' } })
       }
-      return res.status(400).json({ error: err.message || 'File upload failed' })
+      return res.status(400).json({
+        error: err.message || 'File upload failed',
+        fieldErrors: { proof: err.message || 'Upload a payment slip or proof.' },
+      })
     }
     next()
   })
@@ -93,9 +105,15 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
   latepassMulter.single('document')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'Document must be 10 MB or smaller' })
+        return res.status(400).json({
+          error: 'File size must be less than 5MB.',
+          fieldErrors: { document: 'File size must be less than 5MB.' },
+        })
       }
-      return res.status(400).json({ error: err.message || 'File upload failed' })
+      return res.status(400).json({
+        error: err.message || 'File upload failed',
+        fieldErrors: { document: err.message || 'Upload a valid document.' },
+      })
     }
     next()
   })

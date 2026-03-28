@@ -3,7 +3,7 @@ import mongoose from 'mongoose'
 
 export async function connectDB() {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/unihostel'
-  
+
   try {
     if (!uri) {
       throw new Error('MongoDB URI is not defined. Please set MONGODB_URI in .env file')
@@ -13,9 +13,8 @@ export async function connectDB() {
     // If `MONGODB_DNS_SERVERS` is provided, force Node's DNS resolver to those servers.
     // Example: `MONGODB_DNS_SERVERS=8.8.8.8,8.8.4.4`
     if (uri.startsWith('mongodb+srv://') && process.env.MONGODB_DNS_SERVERS) {
-      const servers = process.env.MONGODB_DNS_SERVERS
-        .split(',')
-        .map(s => s.trim())
+      const servers = process.env.MONGODB_DNS_SERVERS.split(',')
+        .map((s) => s.trim())
         .filter(Boolean)
       if (servers.length) dns.setServers(servers)
     }
@@ -33,9 +32,13 @@ export async function connectDB() {
     console.log(`📊 Database: ${mongoose.connection.name}`)
   } catch (err) {
     console.error('❌ MongoDB connection error:', err.message)
-    
+
     // More detailed error messages
-    if (err.name === 'MongoServerSelectionError' || err.code === 'ENOTFOUND' || err.message.includes('ENOTFOUND')) {
+    if (
+      err.name === 'MongoServerSelectionError' ||
+      err.code === 'ENOTFOUND' ||
+      err.message.includes('ENOTFOUND')
+    ) {
       console.error('💡 DNS/Network Error - Possible causes:')
       console.error('   1. Check if your IP is whitelisted in MongoDB Atlas')
       console.error('   2. Verify your network connection and DNS settings')
@@ -58,7 +61,7 @@ export async function connectDB() {
       console.error('   3. Verify the cluster exists in MongoDB Atlas')
       console.error('   4. Try getting a fresh connection string from Atlas')
     }
-    
+
     const redactedUri = uri ? uri.replace(/:[^:@]+@/, ':****@') : '<missing MONGODB_URI>'
     console.error(`\n🔗 Connection URI: ${redactedUri}`)
     process.exit(1)
