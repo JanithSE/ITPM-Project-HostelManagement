@@ -40,19 +40,17 @@ function normalizeRoomNo(s) {
     .toUpperCase()
 }
 
-function normalizeNameForCompare(s) {
-  return normalizeWhitespaceName(s).toLowerCase()
-}
-
-/** Current and next calendar month YYYY-MM (UTC) — payment allowed for these only. */
+/** Previous, current, and next calendar month YYYY-MM (UTC) — payment allowed for these only. */
 function getPaymentMonthBoundsUtc() {
   const d = new Date()
   const y = d.getUTCFullYear()
   const m0 = d.getUTCMonth()
+  const prevDate = new Date(Date.UTC(y, m0 - 1, 1))
+  const previous = `${prevDate.getUTCFullYear()}-${String(prevDate.getUTCMonth() + 1).padStart(2, '0')}`
   const current = `${y}-${String(m0 + 1).padStart(2, '0')}`
   const nextDate = new Date(Date.UTC(y, m0 + 1, 1))
   const next = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, '0')}`
-  return { current, next }
+  return { previous, current, next }
 }
 
 function validateStudentNameField(raw) {
@@ -80,11 +78,12 @@ function validateMonthField(raw) {
   const [, mm] = month.split('-')
   const mNum = Number.parseInt(mm, 10)
   if (mNum < 1 || mNum > 12) return { ok: false, message: 'Select a valid month.', value: month }
-  const { current, next } = getPaymentMonthBoundsUtc()
-  if (month !== current && month !== next) {
+  const { previous, current, next } = getPaymentMonthBoundsUtc()
+  const allowed = new Set([previous, current, next])
+  if (!allowed.has(month)) {
     return {
       ok: false,
-      message: 'You can only pay for the current month or the next month.',
+      message: 'You can only pay for the previous month, the current month, or the next month.',
       value: month,
     }
   }
@@ -232,10 +231,6 @@ export const createPayment = async (req, res) => {
       !amountsMatch(expected, amount)
     ) {
       fieldErrors.amount = 'Amount does not match the selected room and facility type.'
-    }
-
-    if (sn.ok && normalizeNameForCompare(sn.value) !== normalizeNameForCompare(req.user.name)) {
-      fieldErrors.studentName = 'Student name must match your registered name.'
     }
 
     const syncKeys = [
