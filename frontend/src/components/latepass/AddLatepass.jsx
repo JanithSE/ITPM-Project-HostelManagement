@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
@@ -15,7 +15,8 @@ const REASON_MIN = 10
 const REASON_MAX = 500
 const ROOM_NO_MAX_LEN = 15
 const ROOM_NO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9\-]{0,14})?$/
-const STUDENT_ID_RE = /^[A-Za-z]{2}\d{5,12}$/
+/** University / registration number: exactly 2 letters then 8 digits */
+const STUDENT_ID_RE = /^[A-Za-z]{2}\d{8}$/
 const LATE_PASS_CUTOFF_MINUTES = 20 * 60
 const MAX_DAYS_AHEAD = 30
 
@@ -38,6 +39,48 @@ function addDaysToYmd(ymdStr, days) {
   const dt = new Date(y, mo - 1, d)
   dt.setDate(dt.getDate() + days)
   return localYmd(dt)
+}
+
+const WEEKDAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function monthIndex(d) {
+  return d.getFullYear() * 12 + d.getMonth()
+}
+
+/** Monday-first grid: null = empty cell */
+function buildCalendarDayCells(year, month0) {
+  const first = new Date(year, month0, 1)
+  const lastDay = new Date(year, month0 + 1, 0).getDate()
+  const pad = (first.getDay() + 6) % 7
+  const cells = []
+  for (let i = 0; i < pad; i++) cells.push(null)
+  for (let day = 1; day <= lastDay; day++) cells.push(day)
+  while (cells.length % 7 !== 0) cells.push(null)
+  return cells
+}
+
+function ymdFromCalendarDay(year, month0, day) {
+  return localYmd(new Date(year, month0, day))
+}
+
+/** True if this calendar month has at least one day in [minYmd, maxYmd] (inclusive). */
+function monthIntersectsSelectableRange(year, month0, minYmd, maxYmd) {
+  const start = ymdFromCalendarDay(year, month0, 1)
+  const lastDay = new Date(year, month0 + 1, 0).getDate()
+  const end = ymdFromCalendarDay(year, month0, lastDay)
+  return !(end < minYmd || start > maxYmd)
+}
+
+const MONTH_SHORT_LABELS = Array.from({ length: 12 }, (_, i) =>
+  new Date(2024, i, 1).toLocaleDateString(undefined, { month: 'short' }),
+)
+
+/** e.g. "Sat, 28 March 2026" */
+function formatYmdLong(ymd) {
+  if (!ymd || !/^\d{4}-\d{2}-\d{2}$/.test(ymd)) return ''
+  const [y, m, d] = ymd.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  return dt.toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })
 }
 
 function normalizeGuardianPhone(raw) {
@@ -87,7 +130,8 @@ function inputClassWithError(base, hasError) {
 function liveValidateStudentId(raw, { blur = false } = {}) {
   const id = String(raw ?? '').trim()
   if (!id) return blur ? 'Student ID is required.' : undefined
-  if (!STUDENT_ID_RE.test(id)) return 'Enter a valid student ID (e.g. IT23232323).'
+  if (!STUDENT_ID_RE.test(id))
+    return 'Use 2 letters followed by 8 digits (e.g. IT23631515 or bm25252525).'
   return undefined
 }
 
@@ -244,9 +288,93 @@ export default function AddLatepass() {
   const [students, setStudents] = useState([emptyStudentRow()])
   const [fieldErrors, setFieldErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  const [datePickerOpen, setDatePickerOpen] = useState(false)
+  /** 'months' = 12 month tiles; 'days' = day grid for chosen month */
+  const [datePickerStep, setDatePickerStep] = useState('months')
+  const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const t = new Date()
+    return new Date(t.getFullYear(), t.getMonth(), 1)
+  })
+  const datePickerRef = useRef(null)
 
   const todayYmd = localYmd()
   const maxDateYmd = addDaysToYmd(todayYmd, MAX_DAYS_AHEAD)
+
+  const minMonthDate = useMemo(() => {
+    const [y, m] = todayYmd.split('-').map(Number)
+    return new Date(y, m - 1, 1)
+  }, [todayYmd])
+
+  const maxMonthDate = useMemo(() => {
+    const [y, m] = maxDateYmd.split('-').map(Number)
+    return new Date(y, m - 1, 1)
+  }, [maxDateYmd])
+
+  const calYear = calendarMonth.getFullYear()
+  const calMonth0 = calendarMonth.getMonth()
+  const calendarDayCells = useMemo(
+    () => buildCalendarDayCells(calYear, calMonth0),
+    [calYear, calMonth0],
+  )
+  const canGoCalendarPrev = monthIndex(calendarMonth) > monthIndex(minMonthDate)
+  const canGoCalendarNext = monthIndex(calendarMonth) < monthIndex(maxMonthDate)
+
+  const minPickerYear = minMonthDate.getFullYear()
+  const maxPickerYear = maxMonthDate.getFullYear()
+  const canGoYearPrev = viewYear > minPickerYear
+  const canGoYearNext = viewYear < maxPickerYear
+
+  useEffect(() => {
+    if (!datePickerOpen) return
+    function onDocMouseDown(e) {
+      if (datePickerRef.current && !datePickerRef.current.contains(e.target)) {
+        setDatePickerOpen(false)
+      }
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setDatePickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [datePickerOpen])
+
+  function openDatePicker() {
+    setDatePickerStep('months')
+    if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      const [y, m] = date.split('-').map(Number)
+      setViewYear(y)
+      setCalendarMonth(new Date(y, m - 1, 1))
+    } else {
+      const [y, m] = todayYmd.split('-').map(Number)
+      setViewYear(y)
+      setCalendarMonth(new Date(y, m - 1, 1))
+    }
+    setDatePickerOpen(true)
+  }
+
+  function selectMonthTile(month0) {
+    if (!monthIntersectsSelectableRange(viewYear, month0, todayYmd, maxDateYmd)) return
+    setCalendarMonth(new Date(viewYear, month0, 1))
+    setDatePickerStep('days')
+  }
+
+  function selectCalendarDay(ymd) {
+    setDate(ymd)
+    setDatePickerOpen(false)
+    setDatePickerStep('months')
+    setFieldErrors((f) => ({
+      ...f,
+      date: liveValidateDateField(ymd, todayYmd, maxDateYmd),
+      arrivingTime: arrivingTime
+        ? liveValidateArrivingTimeField(arrivingTime, ymd, todayYmd, maxDateYmd)
+        : f.arrivingTime,
+    }))
+  }
 
   function setStudentRow(index, key, value) {
     setStudents((prev) => {
@@ -391,7 +519,8 @@ export default function AddLatepass() {
       if (nameErr) err[`student_${i}_studentName`] = nameErr
 
       if (!STUDENT_ID_RE.test(id)) {
-        err[`student_${i}_studentId`] = 'Enter a valid student ID.'
+        err[`student_${i}_studentId`] =
+          'Enter a valid student ID (2 letters + 8 digits, e.g. IT23631515).'
       }
 
       if (room.length > ROOM_NO_MAX_LEN) {
@@ -478,35 +607,202 @@ export default function AddLatepass() {
             >
               Date <span className="late-pass-form__required text-red-500">*</span>
             </label>
-            <input
-              id="al-date"
-              name="latePassDate"
-              type="date"
-              required
-              min={todayYmd}
-              max={maxDateYmd}
-              value={date}
-              onChange={(e) => {
-                const v = e.target.value
-                setDate(v)
-                setFieldErrors((f) => ({
-                  ...f,
-                  date: liveValidateDateField(v, todayYmd, maxDateYmd),
-                  arrivingTime: arrivingTime
-                    ? liveValidateArrivingTimeField(arrivingTime, v, todayYmd, maxDateYmd)
-                    : f.arrivingTime,
-                }))
-              }}
-              onBlur={() =>
-                setFieldErrors((f) => ({
-                  ...f,
-                  date: liveValidateDateField(date, todayYmd, maxDateYmd, { blur: true }),
-                }))
-              }
-              className={`late-pass-form__input late-pass-form__input--date ${inputClassWithError(inputClass, !!fieldErrors.date)}`}
-              aria-invalid={Boolean(fieldErrors.date)}
-              aria-describedby={fieldErrors.date ? 'al-date-error' : undefined}
-            />
+            <div ref={datePickerRef} className="relative">
+              <button
+                type="button"
+                id="al-date"
+                name="latePassDate"
+                onClick={() => (datePickerOpen ? setDatePickerOpen(false) : openDatePicker())}
+                onBlur={() =>
+                  setFieldErrors((f) => ({
+                    ...f,
+                    date: liveValidateDateField(date, todayYmd, maxDateYmd, { blur: true }),
+                  }))
+                }
+                aria-expanded={datePickerOpen}
+                aria-haspopup="dialog"
+                aria-controls="al-date-calendar"
+                className={`late-pass-form__input late-pass-form__input--date relative flex w-full items-center gap-2 rounded-xl border py-2.5 pl-10 pr-3.5 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:text-slate-100 ${
+                  fieldErrors.date
+                    ? `${invalidInputRing} border-red-500 bg-slate-50/50 dark:border-red-500/80 dark:bg-slate-800/50`
+                    : 'border-slate-200 bg-slate-50/50 focus:border-primary-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800/50 dark:focus:border-primary-400 dark:focus:bg-slate-900'
+                }`}
+                aria-invalid={Boolean(fieldErrors.date)}
+                aria-describedby={fieldErrors.date ? 'al-date-error' : undefined}
+              >
+                <span
+                  className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-slate-500 dark:text-slate-400"
+                  aria-hidden
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5a2.25 2.25 0 012.25 2.25v7.5"
+                    />
+                  </svg>
+                </span>
+                <span className="min-w-0 flex-1 truncate">
+                  {date ? formatYmdLong(date) : <span className="text-slate-500 dark:text-slate-400">Select a date…</span>}
+                </span>
+                <svg className="h-4 w-4 shrink-0 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {datePickerOpen && (
+                <div
+                  id="al-date-calendar"
+                  role="dialog"
+                  aria-label="Choose date"
+                  className="absolute left-0 right-0 z-50 mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-lg dark:border-slate-600 dark:bg-slate-900 sm:left-auto sm:right-auto sm:min-w-[300px]"
+                >
+                  {datePickerStep === 'months' ? (
+                    <>
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
+                          disabled={!canGoYearPrev}
+                          aria-label="Previous year"
+                          onClick={() => setViewYear((y) => y - 1)}
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{viewYear}</span>
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
+                          disabled={!canGoYearNext}
+                          aria-label="Next year"
+                          onClick={() => setViewYear((y) => y + 1)}
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {MONTH_SHORT_LABELS.map((label, month0) => {
+                          const enabled = monthIntersectsSelectableRange(viewYear, month0, todayYmd, maxDateYmd)
+                          const isSelectedMonth =
+                            date &&
+                            /^\d{4}-\d{2}-\d{2}$/.test(date) &&
+                            (() => {
+                              const [y, m] = date.split('-').map(Number)
+                              return y === viewYear && m === month0 + 1
+                            })()
+                          return (
+                            <button
+                              key={month0}
+                              type="button"
+                              disabled={!enabled}
+                              onClick={() => selectMonthTile(month0)}
+                              className={`rounded-lg py-2.5 text-center text-sm font-medium transition-colors ${
+                                isSelectedMonth && enabled
+                                  ? 'bg-primary-600 text-white shadow-sm dark:bg-primary-500'
+                                  : !enabled
+                                    ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
+                                    : 'text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mb-3 flex items-center gap-1">
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                          aria-label="Back to months"
+                          onClick={() => {
+                            setViewYear(calendarMonth.getFullYear())
+                            setDatePickerStep('months')
+                          }}
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
+                          disabled={!canGoCalendarPrev}
+                          aria-label="Previous month"
+                          onClick={() =>
+                            setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))
+                          }
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <span className="min-w-0 flex-1 text-center text-sm font-semibold text-slate-900 dark:text-slate-100">
+                          {calendarMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+                        </span>
+                        <button
+                          type="button"
+                          className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-800"
+                          disabled={!canGoCalendarNext}
+                          aria-label="Next month"
+                          onClick={() =>
+                            setCalendarMonth((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))
+                          }
+                        >
+                          <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-7 gap-0.5 text-center text-xs font-medium text-slate-500 dark:text-slate-400">
+                        {WEEKDAY_LABELS.map((w) => (
+                          <div key={w} className="py-1">
+                            {w}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-1 grid grid-cols-7 gap-0.5">
+                        {calendarDayCells.map((dayNum, i) => {
+                          if (dayNum == null) {
+                            return <div key={`e-${i}`} className="min-h-[2.25rem]" />
+                          }
+                          const ymd = ymdFromCalendarDay(calYear, calMonth0, dayNum)
+                          const disabled = ymd < todayYmd || ymd > maxDateYmd
+                          const selected = date === ymd
+                          return (
+                            <button
+                              key={ymd}
+                              type="button"
+                              disabled={disabled}
+                              onClick={() => selectCalendarDay(ymd)}
+                              className={`min-h-[2.25rem] rounded-lg text-sm font-medium transition-colors ${
+                                selected
+                                  ? 'bg-primary-600 text-white shadow-sm dark:bg-primary-500'
+                                  : disabled
+                                    ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
+                                    : 'text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
+                              }`}
+                            >
+                              {dayNum}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </>
+                  )}
+                  <p className="mt-2 border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                    You can choose today up to {MAX_DAYS_AHEAD} days ahead.
+                  </p>
+                </div>
+              )}
+            </div>
             {fieldErrors.date && (
               <p id="al-date-error" className="late-pass-form__error late-pass-form__error--date mt-1 text-sm text-red-600 dark:text-red-400" role="alert">
                 {fieldErrors.date}
@@ -764,7 +1060,9 @@ export default function AddLatepass() {
                         value={row.studentId}
                         onChange={(e) => setStudentRow(index, 'studentId', e.target.value)}
                         className={`late-pass-form__input late-pass-form__input--student-id ${inputClassWithError(inputClass, !!fieldErrors[`student_${index}_studentId`])}`}
-                        placeholder="e.g. IT23232323"
+                        placeholder="e.g. IT23631515"
+                        minLength={10}
+                        maxLength={10}
                         aria-invalid={Boolean(fieldErrors[`student_${index}_studentId`])}
                       />
                       {fieldErrors[`student_${index}_studentId`] && (

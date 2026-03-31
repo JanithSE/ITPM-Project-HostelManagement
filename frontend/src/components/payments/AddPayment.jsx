@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
@@ -11,8 +11,8 @@ import {
 
 /** Keep in sync with backend/config/paymentPricing.js */
 const DEFAULT_PRICING = {
-  single: { fan: 18000, ac: 24000 },
-  '2 person': { fan: 14000, ac: 19000 },
+  single: { fan: 18000, ac: 22000 },
+  '2 person': { fan: 14000, ac: 18000 },
   '3 person': { fan: 11000, ac: 15000 },
 }
 
@@ -37,15 +37,61 @@ const TRANSACTION_TYPES = [
 const inputClass =
   'w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-slate-900 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-primary-400 dark:focus:bg-slate-900'
 
-/** Current and next calendar month as YYYY-MM (UTC), for payment month picker. */
+/** Previous, current, and next calendar month as YYYY-MM (UTC), for payment month picker. */
 function paymentMonthBoundsUtc() {
   const d = new Date()
   const y = d.getUTCFullYear()
   const m0 = d.getUTCMonth()
+  const prevDate = new Date(Date.UTC(y, m0 - 1, 1))
+  const previous = `${prevDate.getUTCFullYear()}-${String(prevDate.getUTCMonth() + 1).padStart(2, '0')}`
   const current = `${y}-${String(m0 + 1).padStart(2, '0')}`
   const nextDate = new Date(Date.UTC(y, m0 + 1, 1))
   const next = `${nextDate.getUTCFullYear()}-${String(nextDate.getUTCMonth() + 1).padStart(2, '0')}`
-  return { current, next, min: current, max: next }
+  return { previous, current, next }
+}
+
+function allowedPaymentMonthsSet() {
+  const { previous, current, next } = paymentMonthBoundsUtc()
+  return new Set([previous, current, next])
+}
+
+/** Three-letter month names; index = UTC month 0–11 (matches YYYY-MM keys). */
+const MONTH_ABBREV_UTC = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+const MONTH_PLACEHOLDER_DISPLAY = '-------- ----'
+
+function ymFromYearMonthUtc(year, month0) {
+  return `${year}-${String(month0 + 1).padStart(2, '0')}`
+}
+
+function paymentPickerYearBounds() {
+  const { previous, current, next } = paymentMonthBoundsUtc()
+  const ys = [previous, current, next].map((ym) => Number(ym.slice(0, 4)))
+  return { minYear: Math.min(...ys), maxYear: Math.max(...ys) }
+}
+
+/** Same rule as backend createPayment duplicate check */
+const PAYMENT_STATUSES_THAT_BLOCK_MONTH = new Set(['rejected', 'failed'])
+
+function monthKeysAlreadyPaid(paymentsList) {
+  const list = Array.isArray(paymentsList) ? paymentsList : []
+  const keys = new Set()
+  for (const p of list) {
+    const m = p?.month
+    if (!m || typeof m !== 'string') continue
+    const st = String(p.status ?? '').toLowerCase()
+    if (PAYMENT_STATUSES_THAT_BLOCK_MONTH.has(st)) continue
+    keys.add(m)
+  }
+  return [...keys]
+}
+
+/** e.g. 2026-03 → "March 2026" (UTC, matches payment month keys) */
+function formatYmLong(ym) {
+  if (!/^\d{4}-\d{2}$/.test(ym)) return ym
+  const [y, mo] = ym.split('-').map(Number)
+  const d = new Date(Date.UTC(y, mo - 1, 1))
+  return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
 function getExpectedAmount(pricing, roomType, facilityType) {
@@ -98,15 +144,18 @@ function liveValidateRoomNo(raw, { blur = false } = {}) {
   return undefined
 }
 
-function liveValidateMonth(month, { blur = false } = {}) {
+function liveValidateMonth(month, { blur = false, paidMonths = null } = {}) {
   if (!month) return blur ? 'Select a valid month.' : undefined
   if (!/^\d{4}-\d{2}$/.test(month)) return 'Select a valid month.'
   const [, mm] = month.split('-')
   const mNum = Number.parseInt(mm, 10)
   if (mNum < 1 || mNum > 12) return 'Select a valid month.'
-  const { current, next } = paymentMonthBoundsUtc()
-  if (month !== current && month !== next) {
-    return 'You can only select the current month or the next month.'
+  const allowed = allowedPaymentMonthsSet()
+  if (!allowed.has(month)) {
+    return 'You can only select the previous month, the current month, or the next month.'
+  }
+  if (paidMonths && paidMonths.has(month)) {
+    return 'Payment for this month already exists.'
   }
   return undefined
 }
@@ -178,6 +227,64 @@ export default function AddPayment() {
   const [proofFileName, setProofFileName] = useState('')
   const [fieldErrors, setFieldErrors] = useState({})
   const [submitting, setSubmitting] = useState(false)
+  const [paidMonthKeys, setPaidMonthKeys] = useState([])
+  const [monthPickerOpen, setMonthPickerOpen] = useState(false)
+  const [viewYear, setViewYear] = useState(() => Number(paymentMonthBoundsUtc().current.slice(0, 4)))
+  const monthPickerRef = useRef(null)
+
+  const paidMonths = useMemo(() => new Set(paidMonthKeys), [paidMonthKeys])
+
+  const { minYear: pickerMinYear, maxYear: pickerMaxYear } = paymentPickerYearBounds()
+  const canGoPickerYearPrev = viewYear > pickerMinYear
+  const canGoPickerYearNext = viewYear < pickerMaxYear
+
+  useEffect(() => {
+    if (!monthPickerOpen) return
+    function onDocMouseDown(e) {
+      if (monthPickerRef.current && !monthPickerRef.current.contains(e.target)) {
+        setMonthPickerOpen(false)
+      }
+    }
+    function onKey(e) {
+      if (e.key === 'Escape') setMonthPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDocMouseDown)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocMouseDown)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [monthPickerOpen])
+
+  function openMonthPicker() {
+    if (month && /^\d{4}-\d{2}$/.test(month)) {
+      setViewYear(Number(month.slice(0, 4)))
+    } else {
+      setViewYear(Number(paymentMonthBoundsUtc().current.slice(0, 4)))
+    }
+    setMonthPickerOpen(true)
+  }
+
+  function selectPaymentMonthYm(ym) {
+    setMonth(ym)
+    setMonthPickerOpen(false)
+    setFieldErrors((f) => ({
+      ...f,
+      month: liveValidateMonth(ym, { paidMonths }),
+    }))
+  }
+
+  function clearPaymentMonth() {
+    setMonth('')
+    setFieldErrors((f) => ({
+      ...f,
+      month: liveValidateMonth('', { blur: true, paidMonths }),
+    }))
+  }
+
+  function selectThisUtcMonth() {
+    selectPaymentMonthYm(paymentMonthBoundsUtc().current)
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -193,6 +300,38 @@ export default function AddPayment() {
       cancelled = true
     }
   }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data } = await axiosClient.get('/payments/my')
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : []
+        setPaidMonthKeys(monthKeysAlreadyPaid(list))
+      } catch {
+        if (!cancelled) setPaidMonthKeys([])
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /** Prefer first allowed month that does not already have a payment */
+  useEffect(() => {
+    const paid = new Set(paidMonthKeys)
+    const { previous, current, next } = paymentMonthBoundsUtc()
+    const order = [previous, current, next]
+    setMonth((prev) => {
+      const prevOk = prev && !paid.has(prev) && order.includes(prev)
+      if (prevOk) return prev
+      for (const ym of order) {
+        if (!paid.has(ym)) return ym
+      }
+      return ''
+    })
+  }, [paidMonthKeys])
 
   useEffect(() => {
     const expected = getExpectedAmount(pricing, roomType, facilityType)
@@ -220,15 +359,17 @@ export default function AddPayment() {
       err.roomNo = 'Enter a valid room number (letters, digits, optional hyphen).'
     }
 
-    const { current: curM, next: nextM } = paymentMonthBoundsUtc()
+    const allowed = allowedPaymentMonthsSet()
     if (!month || !/^\d{4}-\d{2}$/.test(month)) {
       err.month = 'Select a valid month.'
     } else {
       const [, mm] = month.split('-')
       const mNum = Number.parseInt(mm, 10)
       if (mNum < 1 || mNum > 12) err.month = 'Select a valid month.'
-      else if (month !== curM && month !== nextM) {
-        err.month = 'You can only pay for the current month or the next month.'
+      else if (!allowed.has(month)) {
+        err.month = 'You can only pay for the previous month, the current month, or the next month.'
+      } else if (paidMonths.has(month)) {
+        err.month = 'Payment for this month already exists.'
       }
     }
 
@@ -311,7 +452,15 @@ export default function AddPayment() {
     }
   }
 
-  const { min: monthMin, max: monthMax } = paymentMonthBoundsUtc()
+  const { previous: optPrev, current: optCurrent, next: optNext } = paymentMonthBoundsUtc()
+  const monthOptions = [
+    { ym: optPrev, paid: paidMonths.has(optPrev) },
+    { ym: optCurrent, paid: paidMonths.has(optCurrent) },
+    { ym: optNext, paid: paidMonths.has(optNext) },
+  ]
+  const allAllowedMonthsPaid = monthOptions.every((o) => o.paid)
+  const allowedYmSet = allowedPaymentMonthsSet()
+  const currentUtcYm = paymentMonthBoundsUtc().current
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -319,8 +468,8 @@ export default function AddPayment() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Add payment</h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
-            All fields marked * are required. Month must be this month or next month only. Amount follows room type
-            + facility (LKR).
+            All fields marked * are required. You can pay for the previous month, this month, or next month only. The
+            month list shows if a payment is already on file. Amount follows room type + facility (LKR).
           </p>
         </div>
         <Link
@@ -341,8 +490,8 @@ export default function AddPayment() {
               id="ap-name"
               type="text"
               required
-              minLength={STUDENT_NAME_MIN}
-              maxLength={STUDENT_NAME_MAX}
+              minLength={PERSON_NAME_MIN}
+              maxLength={PERSON_NAME_MAX}
               autoComplete="name"
               value={studentName}
               onChange={(e) => {
@@ -400,27 +549,144 @@ export default function AddPayment() {
             <label htmlFor="ap-month" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Month <span className="text-red-500">*</span>
             </label>
-            <input
-              id="ap-month"
-              type="month"
-              required
-              min={monthMin}
-              max={monthMax}
-              value={month}
-              onChange={(e) => {
-                const v = e.target.value
-                setMonth(v)
-                setFieldErrors((f) => ({ ...f, month: liveValidateMonth(v) }))
-              }}
-              onBlur={() =>
-                setFieldErrors((f) => ({
-                  ...f,
-                  month: liveValidateMonth(month, { blur: true }),
-                }))
-              }
-              className={inputClassWithError(inputClass, !!fieldErrors.month)}
-              aria-invalid={Boolean(fieldErrors.month)}
-            />
+            <div ref={monthPickerRef} className="relative">
+              <button
+                type="button"
+                id="ap-month"
+                disabled={allAllowedMonthsPaid}
+                onClick={() => (monthPickerOpen ? setMonthPickerOpen(false) : openMonthPicker())}
+                onBlur={() =>
+                  setFieldErrors((f) => ({
+                    ...f,
+                    month: liveValidateMonth(month, { blur: true, paidMonths }),
+                  }))
+                }
+                aria-expanded={monthPickerOpen}
+                aria-haspopup="dialog"
+                aria-controls="ap-month-calendar"
+                className={`relative flex w-full items-center rounded-xl border py-2.5 pl-3.5 pr-10 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-100 ${
+                  fieldErrors.month
+                    ? `${invalidInputRing} border-red-500 bg-slate-50/50 dark:border-red-500/80 dark:bg-slate-800/50`
+                    : 'border-slate-200 bg-slate-50/50 focus:border-primary-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800/50 dark:focus:border-primary-400 dark:focus:bg-slate-900'
+                }`}
+                aria-invalid={Boolean(fieldErrors.month)}
+              >
+                <span className="min-w-0 flex-1 truncate font-mono text-[15px] tracking-wide">
+                  {month ? (
+                    formatYmLong(month)
+                  ) : (
+                    <span className="text-slate-400 dark:text-slate-500">{MONTH_PLACEHOLDER_DISPLAY}</span>
+                  )}
+                </span>
+                <span
+                  className="pointer-events-none absolute right-3 top-1/2 z-[1] -translate-y-1/2 text-slate-500 dark:text-slate-400"
+                  aria-hidden
+                >
+                  <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5a2.25 2.25 0 002.25-2.25m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5a2.25 2.25 0 012.25 2.25v7.5"
+                    />
+                  </svg>
+                </span>
+              </button>
+
+              {monthPickerOpen && !allAllowedMonthsPaid && (
+                <div
+                  id="ap-month-calendar"
+                  role="dialog"
+                  aria-label="Choose payment month"
+                  className="absolute left-0 right-0 z-50 mt-2 rounded-xl border border-slate-200 bg-white p-3 shadow-xl dark:border-slate-600 dark:bg-slate-800 sm:left-auto sm:min-w-[300px]"
+                >
+                  <div className="flex items-center justify-between gap-2 pb-2">
+                    <span className="text-base font-semibold tabular-nums text-slate-900 dark:text-slate-100">
+                      {viewYear}
+                    </span>
+                    <div className="flex items-center gap-0.5">
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-700"
+                        disabled={!canGoPickerYearPrev}
+                        aria-label="Previous year"
+                        onClick={() => setViewYear((y) => y - 1)}
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+                      <button
+                        type="button"
+                        className="rounded-lg p-1.5 text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-30 dark:text-slate-300 dark:hover:bg-slate-700"
+                        disabled={!canGoPickerYearNext}
+                        aria-label="Next year"
+                        onClick={() => setViewYear((y) => y + 1)}
+                      >
+                        <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div className="border-t border-slate-200 dark:border-slate-600" />
+                  <div className="grid grid-cols-4 gap-1.5 pt-3">
+                    {MONTH_ABBREV_UTC.map((label, month0) => {
+                      const ym = ymFromYearMonthUtc(viewYear, month0)
+                      const inWindow = allowedYmSet.has(ym)
+                      const paid = paidMonths.has(ym)
+                      const clickable = inWindow && !paid
+                      const isSelected = month === ym
+                      let title = ''
+                      if (!inWindow) title = 'Not available for payment'
+                      else if (paid) title = 'Payment already submitted for this month'
+                      return (
+                        <button
+                          key={`${viewYear}-${month0}`}
+                          type="button"
+                          title={title || undefined}
+                          disabled={!clickable}
+                          onClick={() => selectPaymentMonthYm(ym)}
+                          className={`rounded-md py-2 text-center text-xs font-semibold transition-colors sm:text-sm ${
+                            isSelected && clickable
+                              ? 'bg-slate-200 text-slate-900 ring-1 ring-slate-300 dark:bg-slate-600 dark:text-white dark:ring-slate-500'
+                              : !clickable
+                                ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
+                                : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3 dark:border-slate-600">
+                    <button
+                      type="button"
+                      className="text-sm font-medium text-sky-500 hover:text-sky-400 dark:text-sky-400 dark:hover:text-sky-300"
+                      onClick={clearPaymentMonth}
+                    >
+                      Clear
+                    </button>
+                    <button
+                      type="button"
+                      disabled={paidMonths.has(currentUtcYm)}
+                      title={paidMonths.has(currentUtcYm) ? 'Payment already submitted for this month' : undefined}
+                      className="text-sm font-medium text-sky-500 hover:text-sky-400 disabled:cursor-not-allowed disabled:opacity-40 dark:text-sky-400 dark:hover:text-sky-300"
+                      onClick={selectThisUtcMonth}
+                    >
+                      This month
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            {allAllowedMonthsPaid && (
+              <p className="mt-2 text-sm text-amber-700 dark:text-amber-300" role="status">
+                You already have a payment on file for the previous, current, and next month (pending, processing, or
+                completed). Submit is disabled until at least one is rejected or a new payment window applies.
+              </p>
+            )}
             {fieldErrors.month && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.month}</p>}
           </div>
 
@@ -590,7 +856,7 @@ export default function AddPayment() {
           <div className="flex flex-wrap gap-3 pt-2">
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || allAllowedMonthsPaid}
               className="rounded-full bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700 disabled:opacity-50"
             >
               {submitting ? 'Submitting…' : 'Submit Payment'}

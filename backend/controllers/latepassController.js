@@ -1,4 +1,3 @@
-import Booking from '../models/Booking.js'
 import LatePass from '../models/LatePass.js'
 import User from '../models/User.js'
 import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
@@ -70,24 +69,13 @@ const REASON_MAX = 500
 const ROOM_NO_MAX_LEN = 15
 const ROOM_NO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9\-]{0,14})?$/
 /** e.g. IT23232323, ST12345 */
-const STUDENT_ID_RE = /^[A-Za-z]{2}\d{5,12}$/
+const STUDENT_ID_RE = /^[A-Za-z]{2}\d{8}$/
 const MAX_DAYS_AHEAD = 30
 
 function normalizeWhitespaceName(s) {
   return String(s ?? '')
     .trim()
     .replace(/\s+/g, ' ')
-}
-
-function normalizeRoomNo(s) {
-  return String(s ?? '')
-    .trim()
-    .replace(/\s+/g, '')
-    .toUpperCase()
-}
-
-function normalizeNameForCompare(s) {
-  return normalizeWhitespaceName(s).toLowerCase()
 }
 
 function normalizeGuardianPhone(raw) {
@@ -273,7 +261,8 @@ export const createLatepass = async (req, res) => {
     }
 
     if (!STUDENT_ID_RE.test(r.studentId)) {
-      fieldErrors[`student_${r.i}_studentId`] = 'Enter a valid student ID.'
+      fieldErrors[`student_${r.i}_studentId`] =
+        'Enter a valid student ID (2 letters + 8 digits, e.g. IT23631515).'
     }
 
     if (r.roomNo.length > ROOM_NO_MAX_LEN) {
@@ -360,41 +349,7 @@ export const createLatepass = async (req, res) => {
   }
 
   if (!syncBlocking && dateForDb && dayStart && dayEnd) {
-    const knownStudentRows = new Set()
-
     for (const r of finalRows) {
-      const user = await User.findOne({
-        role: 'student',
-        universityId: new RegExp(`^${escapeRegex(r.studentId)}$`, 'i'),
-      }).lean()
-
-      if (!user) {
-        fieldErrors[`student_${r.i}_studentId`] = 'Student ID does not match our records.'
-        continue
-      }
-
-      knownStudentRows.add(r.i)
-
-      if (normalizeNameForCompare(user.name) !== normalizeNameForCompare(r.studentName)) {
-        fieldErrors[`student_${r.i}_studentName`] =
-          'Student name does not match the ID in our records.'
-      }
-
-      const booking = await Booking.findOne({
-        student: user._id,
-        status: { $in: ['pending', 'confirmed'] },
-      })
-        .sort({ updatedAt: -1 })
-        .lean()
-
-      if (!booking || normalizeRoomNo(booking.roomNumber) !== normalizeRoomNo(r.roomNo)) {
-        fieldErrors[`student_${r.i}_roomNo`] =
-          "Room number does not match this student's booking."
-      }
-    }
-
-    for (const r of finalRows) {
-      if (!knownStudentRows.has(r.i)) continue
       const dup = await LatePass.findOne({
         students: {
           $elemMatch: {
