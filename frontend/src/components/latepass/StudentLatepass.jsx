@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import StatusBadge from '../../shared/components/StatusBadge'
 
@@ -65,8 +66,9 @@ function StudentsList({ students }) {
   )
 }
 
-function LatepassCard({ row }) {
+function LatepassCard({ row, onDelete }) {
   const href = docHref(row)
+  const isPending = String(row?.status || '').toLowerCase() === 'pending'
   return (
     <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-900/80">
       <div className="mb-3 flex flex-wrap items-start justify-between gap-2">
@@ -138,6 +140,32 @@ function LatepassCard({ row }) {
           </dt>
           <dd className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{formatSubmitted(row.createdAt)}</dd>
         </div>
+        <div className="border-t border-slate-100 pt-2 dark:border-slate-700">
+          <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+            Actions
+          </dt>
+          <dd className="mt-1">
+            {isPending ? (
+              <div className="flex items-center gap-2">
+                <Link
+                  to={`/student/latepass/${row._id}/edit`}
+                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  Edit
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => onDelete(row._id)}
+                  className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+                >
+                  Delete
+                </button>
+              </div>
+            ) : (
+              <span className="text-xs text-slate-500 dark:text-slate-400">Read only</span>
+            )}
+          </dd>
+        </div>
       </dl>
     </article>
   )
@@ -165,6 +193,18 @@ export default function StudentLatepass() {
   useEffect(() => {
     load()
   }, [load])
+
+  async function handleDelete(id) {
+    const ok = window.confirm('Delete this late pass request? This action cannot be undone.')
+    if (!ok) return
+    try {
+      await axiosClient.delete(`/latepass/${id}/delete-by-student`)
+      toast.success('Late pass deleted.')
+      await load()
+    } catch (err) {
+      toast.error(getAxiosErrorMessage(err))
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -211,7 +251,7 @@ export default function StudentLatepass() {
               {/* Mobile: one card per request */}
               <div className="space-y-4 md:hidden">
                 {list.map((row) => (
-                  <LatepassCard key={row._id} row={row} />
+                  <LatepassCard key={row._id} row={row} onDelete={handleDelete} />
                 ))}
               </div>
 
@@ -229,11 +269,13 @@ export default function StudentLatepass() {
                       <th className="w-[9%] align-bottom">Status</th>
                       <th className="min-w-0 w-[10%] align-bottom">Admin remarks</th>
                       <th className="w-[14%] align-bottom">Submitted</th>
+                      <th className="w-[12%] align-bottom">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {list.map((row) => {
                       const href = docHref(row)
+                      const isPending = String(row?.status || '').toLowerCase() === 'pending'
                       return (
                         <tr key={row._id}>
                           <td className="align-top whitespace-nowrap text-xs">{formatDate(row.date)}</td>
@@ -267,6 +309,27 @@ export default function StudentLatepass() {
                           </td>
                           <td className="align-top text-xs leading-snug text-slate-600 dark:text-slate-400">
                             {formatSubmitted(row.createdAt)}
+                          </td>
+                          <td className="align-top whitespace-nowrap">
+                            {isPending ? (
+                              <div className="flex items-center gap-2">
+                                <Link
+                                  to={`/student/latepass/${row._id}/edit`}
+                                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                >
+                                  Edit
+                                </Link>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDelete(row._id)}
+                                  className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-slate-500 dark:text-slate-400">Read only</span>
+                            )}
                           </td>
                         </tr>
                       )

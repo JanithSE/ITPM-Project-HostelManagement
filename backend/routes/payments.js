@@ -6,9 +6,11 @@ import {
   getPaymentPricing,
   createPayment,
   patchPaymentStatus,
+  editPaymentByStudent,
+  deletePaymentByStudent,
 } from '../controllers/paymentController.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
-import { paymentProofUploadMiddleware } from '../middleware/upload.js'
+import { paymentProofUploadMiddleware, paymentProofUploadOptionalMiddleware } from '../middleware/upload.js'
 
 const router = express.Router()
 
@@ -20,6 +22,8 @@ router.get('/pricing', requireRole('student'), getPaymentPricing)
 router.get('/:id', getPaymentById)
 
 router.post('/', requireRole('student'), paymentProofUploadMiddleware, createPayment)
+router.put('/:id/edit-by-student', requireRole('student'), paymentProofUploadOptionalMiddleware, editPaymentByStudent)
+router.delete('/:id/delete-by-student', requireRole('student'), deletePaymentByStudent)
 router.patch('/:id/status', requireRole('admin'), patchPaymentStatus)
 
 export default router

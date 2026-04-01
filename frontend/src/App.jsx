@@ -14,11 +14,13 @@ import Hostels from './components/hostels/Hostels'
 import AdminHostels from './components/hostels/AdminHostels'
 import StudentPayments from './components/payments/StudentPayments'
 import AddPayment from './components/payments/AddPayment'
+import EditPayment from './components/payments/EditPayment'
 import AdminPayments from './components/payments/AdminPayments'
 import StudentInquiries from './components/inquiries/StudentInquiries'
 import AdminInquiries from './components/inquiries/AdminInquiries'
 import StudentLatepass from './components/latepass/StudentLatepass'
 import AddLatepass from './components/latepass/AddLatepass'
+import EditLatepass from './components/latepass/EditLatepass'
 import AdminLatepass from './components/latepass/AdminLatepass'
 import Complains from './components/complains/Complains'
 import Inventory from './components/inventory/Inventory'
@@ -52,11 +54,13 @@ export default function App() {
         <Route path="hostels" element={<Hostels />} />
         <Route path="payments" element={<StudentPayments />} />
         <Route path="payments/new" element={<AddPayment />} />
+        <Route path="payments/:id/edit" element={<EditPayment />} />
         <Route path="bookings" element={<StudentBookings />} />
         <Route path="maintenance" element={<StudentMaintenance />} />
         <Route path="inquiries" element={<StudentInquiries />} />
         <Route path="latepass" element={<StudentLatepass />} />
         <Route path="latepass/new" element={<AddLatepass />} />
+          <Route path="latepass/:id/edit" element={<EditLatepass />} />
         <Route path="complains" element={<Complains />} />
       </Route>
 

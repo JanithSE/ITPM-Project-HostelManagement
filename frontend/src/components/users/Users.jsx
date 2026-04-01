@@ -68,6 +68,23 @@ export default function Users() {
     })
   }
 
+  async function handleDeleteUser(u) {
+    const id = userId(u)
+    if (!id) {
+      toast.error('Invalid user id.')
+      return
+    }
+    const ok = window.confirm(`Delete user "${u?.name || u?.email || 'this user'}"?`)
+    if (!ok) return
+    try {
+      await axiosClient.delete(`/users/${id}`)
+      toast.success('User deleted.')
+      await load()
+    } catch (err) {
+      toast.error(getAxiosErrorMessage(err))
+    }
+  }
+
   return (
     <div className="content-card">
       <h1 className="page-title mb-4">Users</h1>
@@ -115,16 +132,26 @@ export default function Users() {
                   <td>{u.email || '—'}</td>
                   <td>{formatRole(u.role)}</td>
                   <td>
-                    <button
-                      type="button"
-                      className="table-action-link"
-                      title="Edit user"
-                      onClick={() =>
-                        toast('User editing is not wired yet. Use the API PATCH /api/users/:id if needed.')
-                      }
-                    >
-                      Edit
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        className="table-action-link"
+                        title="Edit user"
+                        onClick={() =>
+                          toast('User editing is not wired yet. Use the API PATCH /api/users/:id if needed.')
+                        }
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        className="text-sm font-semibold text-rose-600 hover:text-rose-700 hover:underline dark:text-rose-400 dark:hover:text-rose-300"
+                        title="Delete user"
+                        onClick={() => handleDeleteUser(u)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))

@@ -22,6 +22,24 @@ function arrivingLabel(row) {
   return row.arrivingTime || row.returnTime || '—'
 }
 
+function hasTestLikeKeyword(v) {
+  return /(^|\b)(test|dummy|sample|invalid)(\b|$)/i.test(String(v ?? ''))
+}
+
+function canAdminDeleteLatepass(row) {
+  const st = String(row?.status || '').toLowerCase()
+  if (st === 'rejected') return true
+  if (!Array.isArray(row?.students) || row.students.length === 0) return true
+  if (!row?.date || !row?.arrivingTime || !row?.reason || !row?.guardianContactNo) return true
+  if (hasTestLikeKeyword(row.reason)) return true
+  return (row.students || []).some((s) =>
+    !s?.studentName || !s?.studentId || !s?.roomNo ||
+    hasTestLikeKeyword(s.studentName) ||
+    hasTestLikeKeyword(s.studentId) ||
+    hasTestLikeKeyword(s.roomNo),
+  )
+}
+
 function formatDateShort(d) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })
@@ -137,6 +155,21 @@ export default function AdminLatepass() {
     }
   }
 
+  async function deleteLatepass(id) {
+    const ok = window.confirm('Delete this late pass request? This action cannot be undone.')
+    if (!ok) return
+    setUpdatingId(id)
+    try {
+      await axiosClient.delete(`/latepass/${id}/delete-by-admin`)
+      toast.success('Late pass deleted')
+      await load()
+    } catch (err) {
+      toast.error(getAxiosErrorMessage(err))
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
   function setRow(id, patch) {
     setRowState((prev) => ({
       ...prev,
@@ -225,6 +258,7 @@ export default function AdminLatepass() {
                     status: latepassSelectStatus(row.status),
                     remarks: row.adminRemarks || '',
                   }
+                  const allowDelete = canAdminDeleteLatepass(row)
                   const href = row.documentFile || ''
                   const students = row.students?.length ? row.students : []
                   return (
@@ -298,6 +332,15 @@ export default function AdminLatepass() {
                             className="rounded-full bg-primary-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-primary-600/20 hover:bg-primary-700 disabled:opacity-50"
                           >
                             {updatingId === row._id ? 'Saving…' : 'Save'}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => deleteLatepass(row._id)}
+                            disabled={updatingId === row._id || !allowDelete}
+                            title={!allowDelete ? 'Delete allowed only for rejected or invalid/test records' : 'Delete request'}
+                            className="rounded-full border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                          >
+                            Delete
                           </button>
                         </div>
                       </td>
