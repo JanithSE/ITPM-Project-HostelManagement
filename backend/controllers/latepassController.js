@@ -112,6 +112,25 @@ function sendValidationError(res, fieldErrors) {
   })
 }
 
+function hasTestLikeKeyword(v) {
+  const s = String(v ?? '').toLowerCase()
+  return /(^|\b)(test|dummy|sample|invalid)(\b|$)/i.test(s)
+}
+
+function isInvalidOrTestLatepass(pass) {
+  if (!pass) return false
+  if (!Array.isArray(pass.students) || pass.students.length === 0) return true
+  if (!pass.date || !pass.arrivingTime || !pass.reason || !pass.guardianContactNo) return true
+  if (hasTestLikeKeyword(pass.reason)) return true
+  for (const s of pass.students) {
+    if (!s || !s.studentName || !s.studentId || !s.roomNo) return true
+    if (hasTestLikeKeyword(s.studentName) || hasTestLikeKeyword(s.studentId) || hasTestLikeKeyword(s.roomNo)) {
+      return true
+    }
+  }
+  return false
+}
+
 export const getMyLatepass = async (req, res) => {
   try {
     if (req.user.role !== 'student') {
@@ -577,6 +596,28 @@ export const deleteLatepassByStudent = async (req, res) => {
     }
     if (String(pass.status).toLowerCase() !== 'pending') {
       return res.status(400).json({ error: 'Only pending late pass requests can be deleted.' })
+    }
+
+    await LatePass.deleteOne({ _id: pass._id })
+    return res.json({ message: 'Late pass deleted.' })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
+export const deleteLatepassByAdmin = async (req, res) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admins only' })
+    }
+
+    const pass = await LatePass.findById(req.params.id).lean()
+    if (!pass) return res.status(404).json({ error: 'Late pass not found' })
+
+    const st = String(pass.status || '').toLowerCase()
+    const canDelete = st === 'rejected' || isInvalidOrTestLatepass(pass)
+    if (!canDelete) {
+      return res.status(400).json({ error: 'Only rejected or invalid/test late pass records can be deleted.' })
     }
 
     await LatePass.deleteOne({ _id: pass._id })
