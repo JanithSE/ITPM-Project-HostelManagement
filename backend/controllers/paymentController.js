@@ -321,6 +321,131 @@ export const patchPaymentStatus = async (req, res) => {
   }
 }
 
+export const editPaymentByStudent = async (req, res) => {
+  const fieldErrors = {}
+  try {
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ error: 'Students only' })
+    }
+
+    const payment = await Payment.findById(req.params.id)
+    if (!payment) return res.status(404).json({ error: 'Payment not found' })
+
+    if (String(payment.student) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (String(payment.status).toLowerCase() !== 'pending') {
+      return res.status(400).json({ error: 'Only pending payments can be edited.' })
+    }
+
+    const mo = validateMonthField(req.body.month)
+    if (!mo.ok) fieldErrors.month = mo.message
+
+    const roomType = String(req.body.roomType ?? '').trim()
+    const facilityType = String(req.body.facilityType ?? '').trim()
+
+    if (!PAYMENT_ROOM_TYPES.includes(roomType)) {
+      fieldErrors.roomType = 'Select a room type.'
+    }
+    if (!PAYMENT_FACILITY_TYPES.includes(facilityType)) {
+      fieldErrors.facilityType = 'Select a facility type.'
+    }
+
+    const amountRaw = req.body.amount
+    const amountNum =
+      typeof amountRaw === 'string' ? Number.parseFloat(String(amountRaw).replace(/,/g, '')) : Number(amountRaw)
+    const amount = Number.isFinite(amountNum) ? Math.round(amountNum * 100) / 100 : NaN
+    const amountStr = String(amountRaw ?? '').replace(/,/g, '').trim()
+
+    if (amountRaw === '' || amountRaw === undefined || amountRaw === null) {
+      fieldErrors.amount = 'Amount is required.'
+    } else if (!Number.isFinite(amount)) {
+      fieldErrors.amount = 'Enter a valid amount in LKR.'
+    } else if (amount <= 0) {
+      fieldErrors.amount = 'Amount must be greater than 0.'
+    } else if (amountStr.includes('.')) {
+      const dec = amountStr.split('.')[1] || ''
+      if (dec.length > 2) {
+        fieldErrors.amount = 'Enter a valid amount in LKR (up to 2 decimal places).'
+      }
+    }
+
+    const expected = getExpectedAmountLkr(roomType, facilityType)
+    if (
+      PAYMENT_ROOM_TYPES.includes(roomType) &&
+      PAYMENT_FACILITY_TYPES.includes(facilityType) &&
+      expected != null &&
+      Number.isFinite(amount) &&
+      !fieldErrors.amount &&
+      !amountsMatch(expected, amount)
+    ) {
+      fieldErrors.amount = 'Amount does not match the selected room and facility type.'
+    }
+
+    const transactionReference = String(req.body.transactionReference ?? '').trim()
+    if (transactionReference.length > 100) {
+      fieldErrors.transactionReference = 'Transaction reference must be at most 100 characters.'
+    }
+
+    const hasSyncErrors = ['month', 'roomType', 'facilityType', 'amount', 'transactionReference'].some((k) =>
+      Boolean(fieldErrors[k]),
+    )
+
+    if (!hasSyncErrors) {
+      const dup = await Payment.findOne({
+        _id: { $ne: payment._id },
+        student: req.user._id,
+        month: mo.value,
+        status: { $nin: ['rejected', 'failed'] },
+      }).lean()
+      if (dup) fieldErrors.month = 'Payment for this month already exists.'
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return sendValidationError(res, fieldErrors)
+    }
+
+    payment.month = mo.value
+    payment.roomType = roomType
+    payment.facilityType = facilityType
+    payment.amount = amount
+    payment.transactionReference = transactionReference
+    if (req.file) {
+      payment.proofFile = proofPathFromFile(req.file)
+    }
+    await payment.save()
+
+    const populated = await Payment.findById(payment._id).populate('student', 'name email universityId')
+    return res.json(serializePayment(populated))
+  } catch (err) {
+    const code = err?.name === 'ValidationError' ? 400 : 500
+    return res.status(code).json({ error: err.message })
+  }
+}
+
+export const deletePaymentByStudent = async (req, res) => {
+  try {
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ error: 'Students only' })
+    }
+
+    const payment = await Payment.findById(req.params.id).lean()
+    if (!payment) return res.status(404).json({ error: 'Payment not found' })
+
+    if (String(payment.student) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (String(payment.status).toLowerCase() !== 'pending') {
+      return res.status(400).json({ error: 'Only pending payments can be deleted.' })
+    }
+
+    await Payment.deleteOne({ _id: payment._id })
+    return res.json({ message: 'Payment deleted.' })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
 /** @deprecated */
 export const getAllPayments = getAdminPayments
 export const updatePaymentStatus = patchPaymentStatus
