@@ -20,6 +20,7 @@ import StudentInquiries from './components/inquiries/StudentInquiries'
 import AdminInquiries from './components/inquiries/AdminInquiries'
 import StudentLatepass from './components/latepass/StudentLatepass'
 import AddLatepass from './components/latepass/AddLatepass'
+import EditLatepass from './components/latepass/EditLatepass'
 import AdminLatepass from './components/latepass/AdminLatepass'
 import Complains from './components/complains/Complains'
 import Inventory from './components/inventory/Inventory'
@@ -59,6 +60,7 @@ export default function App() {
         <Route path="inquiries" element={<StudentInquiries />} />
         <Route path="latepass" element={<StudentLatepass />} />
         <Route path="latepass/new" element={<AddLatepass />} />
+          <Route path="latepass/:id/edit" element={<EditLatepass />} />
         <Route path="complains" element={<Complains />} />
       </Route>
 

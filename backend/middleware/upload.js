@@ -135,6 +135,25 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
   })
 }
 
+/** Same as latepassDocumentUploadMiddleware, but document is optional (used for edit). */
+export function latepassDocumentUploadOptionalMiddleware(req, res, next) {
+  latepassMulter.single('document')(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          error: 'File size must be less than 5MB.',
+          fieldErrors: { document: 'File size must be less than 5MB.' },
+        })
+      }
+      return res.status(400).json({
+        error: err.message || 'File upload failed',
+        fieldErrors: { document: err.message || 'Upload a valid document.' },
+      })
+    }
+    next()
+  })
+}
+
 export function hostelImageUploadMiddleware(req, res, next) {
   hostelImageMulter.single('image')(req, res, (err) => {
     if (err) {

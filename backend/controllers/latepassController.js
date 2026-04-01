@@ -428,6 +428,164 @@ export const patchLatepassStatus = async (req, res) => {
   }
 }
 
+export const editLatepassByStudent = async (req, res) => {
+  const fieldErrors = {}
+  try {
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ error: 'Students only' })
+    }
+
+    const pass = await LatePass.findById(req.params.id)
+    if (!pass) return res.status(404).json({ error: 'Late pass not found' })
+
+    if (String(pass.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (String(pass.status).toLowerCase() !== 'pending') {
+      return res.status(400).json({ error: 'Only pending late pass requests can be edited.' })
+    }
+
+    const rawDate = String(req.body.date ?? '').trim()
+    let dateParsed = { ok: false, ymd: '', message: 'Date is required.' }
+    if (!rawDate) {
+      fieldErrors.date = 'Date is required.'
+    } else {
+      dateParsed = parseLatepassDateInput(rawDate)
+      if (!dateParsed.ok) {
+        fieldErrors.date = dateParsed.message
+      } else {
+        const { ymd } = dateParsed
+        const today = localYmd()
+        if (ymd < today) {
+          fieldErrors.date = 'Date cannot be in the past.'
+        } else if (ymd > addDaysToYmd(today, MAX_DAYS_AHEAD)) {
+          fieldErrors.date = `Date cannot be more than ${MAX_DAYS_AHEAD} days in the future.`
+        }
+      }
+    }
+
+    const arrivingTime = String(req.body.arrivingTime ?? '').trim()
+    if (!arrivingTime) {
+      fieldErrors.arrivingTime = 'Arriving time is required.'
+    } else {
+      const mins = parseTimeToMinutes(arrivingTime)
+      if (mins == null) {
+        fieldErrors.arrivingTime = 'Select a valid arrival time.'
+      } else if (mins < LATE_PASS_CUTOFF_MINUTES) {
+        fieldErrors.arrivingTime = 'Late pass is only needed for arrivals after 8:00 PM.'
+      } else if (dateParsed.ok && !fieldErrors.date) {
+        const { ymd } = dateParsed
+        const today = localYmd()
+        if (ymd === today) {
+          const [y, mo, d] = ymd.split('-').map(Number)
+          const [hh, mm] = arrivingTime.split(':').map(Number)
+          const arrivalDt = new Date(y, mo - 1, d, hh, mm, 0, 0)
+          if (arrivalDt.getTime() <= Date.now()) {
+            fieldErrors.arrivingTime = 'For today, choose an arrival time later than the current time.'
+          }
+        }
+      }
+    }
+
+    const reason = normalizeWhitespaceName(req.body.reason)
+    if (!reason) {
+      fieldErrors.reason = 'Reason is required.'
+    } else if (reason.length < REASON_MIN) {
+      fieldErrors.reason = `Reason must be at least ${REASON_MIN} characters.`
+    } else if (reason.length > REASON_MAX) {
+      fieldErrors.reason = `Reason must be at most ${REASON_MAX} characters.`
+    } else if (!/[\p{L}]/u.test(reason)) {
+      fieldErrors.reason = 'Enter a meaningful reason (letters required).'
+    }
+
+    const guardianRaw = String(req.body.guardianContactNo ?? '').trim()
+    if (!guardianRaw) {
+      fieldErrors.guardianContactNo = 'Guardian contact number is required.'
+    } else {
+      const gNorm = normalizeGuardianPhone(guardianRaw)
+      if (!isValidLkGuardianPhone(gNorm)) {
+        fieldErrors.guardianContactNo = 'Enter a valid guardian contact number.'
+      }
+    }
+
+    let dateForDb = null
+    let dayStart = null
+    let dayEnd = null
+    if (dateParsed.ok && !fieldErrors.date) {
+      const [y, mo, d] = dateParsed.ymd.split('-').map(Number)
+      dateForDb = new Date(Date.UTC(y, mo - 1, d, 12, 0, 0, 0))
+      dayStart = new Date(Date.UTC(y, mo - 1, d, 0, 0, 0, 0))
+      dayEnd = new Date(Date.UTC(y, mo - 1, d + 1, 0, 0, 0, 0))
+    }
+
+    if (!Object.keys(fieldErrors).length && dayStart && dayEnd) {
+      for (const s of pass.students || []) {
+        const sid = String(s?.studentId || '').trim()
+        if (!sid) continue
+        const dup = await LatePass.findOne({
+          _id: { $ne: pass._id },
+          students: {
+            $elemMatch: {
+              studentId: new RegExp(`^${escapeRegex(sid)}$`, 'i'),
+            },
+          },
+          date: { $gte: dayStart, $lt: dayEnd },
+          status: { $nin: ['rejected'] },
+        }).lean()
+        if (dup) {
+          fieldErrors.date = 'A late pass already exists for one or more students on this date.'
+          break
+        }
+      }
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      return sendValidationError(res, fieldErrors)
+    }
+
+    pass.date = dateForDb
+    pass.arrivingTime = arrivingTime
+    pass.reason = reason
+    pass.guardianContactNo = normalizeGuardianPhone(guardianRaw)
+    if (req.file) {
+      pass.documentFile = documentPathFromFile(req.file)
+    }
+    await pass.save()
+
+    const populated = await LatePass.findById(pass._id)
+      .populate('createdBy', 'name email universityId')
+      .populate('student', 'name email universityId')
+
+    return res.json(serializeLatepass(populated))
+  } catch (err) {
+    const code = err?.name === 'ValidationError' ? 400 : 500
+    return res.status(code).json({ error: err.message })
+  }
+}
+
+export const deleteLatepassByStudent = async (req, res) => {
+  try {
+    if (req.user.role !== 'student') {
+      return res.status(403).json({ error: 'Students only' })
+    }
+
+    const pass = await LatePass.findById(req.params.id).lean()
+    if (!pass) return res.status(404).json({ error: 'Late pass not found' })
+
+    if (String(pass.createdBy) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (String(pass.status).toLowerCase() !== 'pending') {
+      return res.status(400).json({ error: 'Only pending late pass requests can be deleted.' })
+    }
+
+    await LatePass.deleteOne({ _id: pass._id })
+    return res.json({ message: 'Late pass deleted.' })
+  } catch (err) {
+    return res.status(500).json({ error: err.message })
+  }
+}
+
 export const getAllLatepass = getAdminLatepass
 export const updateLatepassStatus = patchLatepassStatus
 export const listLatepasses = getAdminLatepass
