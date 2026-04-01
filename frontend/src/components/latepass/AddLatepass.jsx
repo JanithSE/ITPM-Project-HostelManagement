@@ -610,15 +610,15 @@ export default function AddLatepass() {
             <div ref={datePickerRef} className="relative">
               <button
                 type="button"
-                id="al-date"
-                name="latePassDate"
+              id="al-date"
+              name="latePassDate"
                 onClick={() => (datePickerOpen ? setDatePickerOpen(false) : openDatePicker())}
-                onBlur={() =>
-                  setFieldErrors((f) => ({
-                    ...f,
-                    date: liveValidateDateField(date, todayYmd, maxDateYmd, { blur: true }),
-                  }))
-                }
+              onBlur={() =>
+                setFieldErrors((f) => ({
+                  ...f,
+                  date: liveValidateDateField(date, todayYmd, maxDateYmd, { blur: true }),
+                }))
+              }
                 aria-expanded={datePickerOpen}
                 aria-haspopup="dialog"
                 aria-controls="al-date-calendar"
@@ -627,8 +627,8 @@ export default function AddLatepass() {
                     ? `${invalidInputRing} border-red-500 bg-slate-50/50 dark:border-red-500/80 dark:bg-slate-800/50`
                     : 'border-slate-200 bg-slate-50/50 focus:border-primary-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800/50 dark:focus:border-primary-400 dark:focus:bg-slate-900'
                 }`}
-                aria-invalid={Boolean(fieldErrors.date)}
-                aria-describedby={fieldErrors.date ? 'al-date-error' : undefined}
+              aria-invalid={Boolean(fieldErrors.date)}
+              aria-describedby={fieldErrors.date ? 'al-date-error' : undefined}
               >
                 <span
                   className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-slate-500 dark:text-slate-400"
