@@ -9,19 +9,14 @@ const __dirname = path.dirname(__filename)
 const backendRoot = path.join(__dirname, '..')
 const paymentsDir = path.join(backendRoot, 'uploads', 'payments')
 const latepassDir = path.join(backendRoot, 'uploads', 'latepass')
-<<<<<<< HEAD
 const hostelsDir = path.join(backendRoot, 'uploads', 'hostels')
+const bookingsDir = path.join(backendRoot, 'uploads', 'bookings')
 
+// ✅ create all folders
 fs.mkdirSync(paymentsDir, { recursive: true })
 fs.mkdirSync(latepassDir, { recursive: true })
 fs.mkdirSync(hostelsDir, { recursive: true })
-=======
-const bookingsDir = path.join(backendRoot, 'uploads', 'bookings')
-
-fs.mkdirSync(paymentsDir, { recursive: true })
-fs.mkdirSync(latepassDir, { recursive: true })
 fs.mkdirSync(bookingsDir, { recursive: true })
->>>>>>> recovery-work
 
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf'])
 const ALLOWED_MIME = new Set([
@@ -49,6 +44,7 @@ const HOSTEL_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
 function hostelImageFilter(req, file, cb) {
   const ext = path.extname(file.originalname || '').toLowerCase()
   const mime = String(file.mimetype || '').toLowerCase()
+
   if (HOSTEL_IMAGE_MIME.has(mime)) return cb(null, true)
   if (!mime || mime === 'application/octet-stream') {
     if (HOSTEL_IMAGE_EXT.has(ext)) return cb(null, true)
@@ -67,6 +63,7 @@ function makeStorage(destDir) {
   })
 }
 
+// ✅ Multer instances
 const paymentMulter = multer({
   storage: makeStorage(paymentsDir),
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -79,19 +76,19 @@ const latepassMulter = multer({
   fileFilter: imageOrPdfFilter,
 })
 
-<<<<<<< HEAD
 const hostelImageMulter = multer({
   storage: makeStorage(hostelsDir),
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: hostelImageFilter,
-=======
+})
+
 const bookingMulter = multer({
   storage: makeStorage(bookingsDir),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: imageOrPdfFilter,
->>>>>>> recovery-work
 })
 
+// ✅ Middleware
 export function paymentProofUploadMiddleware(req, res, next) {
   paymentMulter.single('proof')(req, res, (err) => {
     if (err) {
@@ -116,7 +113,6 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
   })
 }
 
-<<<<<<< HEAD
 export function hostelImageUploadMiddleware(req, res, next) {
   hostelImageMulter.single('image')(req, res, (err) => {
     if (err) {
@@ -124,7 +120,11 @@ export function hostelImageUploadMiddleware(req, res, next) {
         return res.status(400).json({ error: 'Hostel image must be 8 MB or smaller' })
       }
       return res.status(400).json({ error: err.message || 'Image upload failed' })
-=======
+    }
+    next()
+  })
+}
+
 export function bookingDocumentsUploadMiddleware(req, res, next) {
   bookingMulter.fields([
     { name: 'nic', maxCount: 1 },
@@ -139,14 +139,12 @@ export function bookingDocumentsUploadMiddleware(req, res, next) {
         return res.status(400).json({ error: 'Each document must be 10 MB or smaller' })
       }
       return res.status(400).json({ error: err.message || 'File upload failed' })
->>>>>>> recovery-work
     }
     next()
   })
 }
 
-<<<<<<< HEAD
-/** Use multipart parsing only when the client sends multipart/form-data (optional image). */
+/** Optional hostel image upload */
 export function conditionalHostelImageUpload(req, res, next) {
   const ct = String(req.headers['content-type'] || '')
   if (ct.includes('multipart/form-data')) {
@@ -155,7 +153,5 @@ export function conditionalHostelImageUpload(req, res, next) {
   next()
 }
 
-=======
->>>>>>> recovery-work
-/** @deprecated use paymentProofUploadMiddleware */
+/** @deprecated */
 export const proofUploadMiddleware = paymentProofUploadMiddleware

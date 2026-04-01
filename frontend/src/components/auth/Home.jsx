@@ -1,197 +1,213 @@
+import React from 'react'
 import { Link } from 'react-router-dom'
-import HostelCardMedia from '../../shared/components/HostelCardMedia'
-/** Bundled building photo — blurred hero background + sharp column image (always loads, no API). */
-import heroBuildingUrl from '../../assets/hostel.jpg'
-
-const HERO_IMAGE_SRC = heroBuildingUrl
-const HERO_IMAGE_ALT = 'Modern student hostel accommodation'
-
-const featuredHostels = [
-  {
-    name: 'Emerald Grove Residences',
-    location: 'Malabe – Near SLIIT & Horizon Campus',
-    price: 'LKR 18,000',
-    period: ' / bed / month',
-    description: 'Quiet, greenery-filled environment perfect for focused students.',
-    beds: '180',
-    amenities: ['Wi-Fi', 'Study rooms', 'Laundry'],
-    imageUrl: '/uploads/hostels/hostel1.JPG',
-  },
-  {
-    name: 'Urban Nest Living',
-    location: 'Malabe South – Kothalawala Area',
-    price: 'LKR 15,000',
-    period: ' / bed / month',
-    description: 'Lively and social atmosphere close to food spots and transport.',
-    beds: '150',
-    amenities: ['Wi-Fi', 'Common room', 'Parking'],
-    imageUrl: '/uploads/hostels/hostel2.jpg',
-  },
-  {
-    name: 'Skyline Elite Hostel',
-    location: 'Malabe Town – Premium',
-    price: 'LKR 25,000',
-    period: ' / bed / month',
-    description: 'Modern premium hostel with hotel-like facilities and 24/7 security.',
-    beds: '120',
-    amenities: ['Wi-Fi', 'Attached bath', '24/7 Security'],
-    imageUrl: '/uploads/hostels/hostel3.jpg',
-  },
-  {
-    name: 'Lakeview Budget Stay',
-    location: 'Rajagiriya Area',
-    price: 'LKR 12,000',
-    period: ' / bed / month',
-    description: 'Affordable and peaceful stay with easy access to Colombo city.',
-    beds: '200',
-    amenities: ['Wi-Fi', 'Garden', 'Shared kitchen'],
-    imageUrl: '/uploads/hostels/hostel1.JPG',
-  },
-]
 
 export default function Home() {
+  const hostels = [
+    {
+      name: 'Green Valley Hostel',
+      location: 'Malabe – Near SLIIT & Horizon Campus',
+      price: 'LKR 18,000',
+      period: '/bed/month',
+      tag: 'Quiet Zone',
+      description:
+        'Quiet, greenery-filled environment perfect for focused students.',
+    },
+    {
+      name: 'City View Residence',
+      location: 'Colombo – Near University of Colombo',
+      price: 'LKR 25,000',
+      period: '/bed/month',
+      tag: 'City Access',
+      description:
+        'Modern hostel with city views and easy access to universities.',
+    },
+    {
+      name: 'Lake Side Hostel',
+      location: 'Kandy – Near University of Peradeniya',
+      price: 'LKR 20,000',
+      period: '/bed/month',
+      tag: 'Scenic Study',
+      description:
+        'Peaceful lakeside environment ideal for studying and relaxation.',
+    },
+  ]
+
+  const features = [
+    {
+      title: 'Verified Hostels',
+      description: 'Only reviewed properties with transparent rules and facilities.',
+    },
+    {
+      title: 'Digital Bookings',
+      description: 'Apply, upload documents, and track approval from one dashboard.',
+    },
+    {
+      title: 'Student Support',
+      description: 'Handle payments, inquiries, maintenance, and late pass requests online.',
+    },
+  ]
+
   return (
-    <div className="page-container">
-      <header className="site-header">
-        <div className="container-main">
-          <div className="site-header-inner">
-            <Link to="/" className="site-logo">
-              <span className="site-logo-mark" aria-hidden>
-                UH
-              </span>
-              UniHostel
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
+      <header className="sticky top-0 z-30 border-b border-slate-200/70 bg-white/85 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-5 py-4 sm:px-8">
+          <Link to="/" className="flex items-center gap-3 text-xl font-extrabold tracking-tight">
+            <span className="rounded-lg bg-indigo-600 px-2.5 py-1 text-sm font-black text-white">UH</span>
+            UniHostel
+          </Link>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              to="/login"
+              className="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-900"
+            >
+              Login
             </Link>
-            <nav className="nav-links">
-              <Link to="/login" className="btn-primary-solid">
-                Login
-              </Link>
-            </nav>
+            <Link
+              to="/signup"
+              className="rounded-full bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-700"
+            >
+              Create Account
+            </Link>
           </div>
         </div>
       </header>
 
-      <section className="hero">
-        <div
-          className="hero-bg-blur"
-          style={{ backgroundImage: `url(${HERO_IMAGE_SRC})` }}
-          aria-hidden
-        />
-        <div className="hero-bg-scrim" aria-hidden />
-        <div className="hero-pattern" aria-hidden />
-        <div className="hero-content">
-          <div className="hero-layout">
-            <div className="hero-inner">
-              <h1 className="hero-title">Campus living, simplified — one place for rooms, fees &amp; late passes</h1>
-              <p className="hero-tagline">
-                UniHostel helps you find a bed, pay on time, and stay compliant with hostel rules — all with a clean student dashboard and admin tools staff actually enjoy using.
-              </p>
-              <div className="hero-cta-row">
-                <Link to="/signup" className="hero-cta">
-                  Get started free
-                  <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </Link>
-                <a href="#hostels" className="hero-cta-secondary">
-                  Browse hostels
-                  <svg className="hero-cta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </a>
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(79,70,229,0.18),transparent_40%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,0.2),transparent_45%),linear-gradient(to_bottom,rgba(255,255,255,0.8),rgba(248,250,252,1))] dark:bg-[radial-gradient(circle_at_20%_20%,rgba(79,70,229,0.35),transparent_45%),radial-gradient(circle_at_80%_10%,rgba(14,165,233,0.22),transparent_45%),linear-gradient(to_bottom,rgba(2,6,23,0.75),rgba(2,6,23,1))]" />
+
+        <div className="relative mx-auto grid w-full max-w-7xl gap-10 px-5 pb-16 pt-14 sm:px-8 lg:grid-cols-12 lg:items-center lg:pb-24 lg:pt-20">
+          <div className="lg:col-span-7">
+            <p className="mb-4 inline-flex items-center rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-bold uppercase tracking-wider text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300">
+              Student Housing Platform
+            </p>
+
+            <h1 className="text-4xl font-black tracking-tight text-slate-900 sm:text-5xl lg:text-6xl dark:text-white">
+              Professional Hostel Management for Modern Campuses
+            </h1>
+
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-slate-600 sm:text-lg dark:text-slate-300">
+              Discover trusted hostels near your university, apply online, and manage everything from booking to payments in one secure portal.
+            </p>
+
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Link
+                to="/signup"
+                className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-indigo-700"
+              >
+                Get Started
+              </Link>
+              <Link
+                to="/login"
+                className="rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition hover:border-slate-400 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Student Login
+              </Link>
+            </div>
+
+            <div className="mt-10 grid gap-3 sm:grid-cols-3">
+              {[
+                ['120+', 'Active Hostels'],
+                ['8k+', 'Students Served'],
+                ['99.2%', 'Support Success'],
+              ].map(([value, label]) => (
+                <div key={label} className="rounded-2xl border border-slate-200/80 bg-white/80 p-4 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80">
+                  <p className="text-2xl font-black text-slate-900 dark:text-slate-100">{value}</p>
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="lg:col-span-5">
+            <div className="rounded-3xl border border-slate-200/80 bg-white p-6 shadow-xl shadow-slate-300/20 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/30">
+              <h2 className="text-lg font-extrabold text-slate-900 dark:text-slate-100">Why Students Choose UniHostel</h2>
+              <div className="mt-5 space-y-4">
+                {features.map((item) => (
+                  <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+                    <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">{item.title}</h3>
+                    <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{item.description}</p>
+                  </div>
+                ))}
               </div>
             </div>
-            <div className="hero-visual">
-              <img
-                src={HERO_IMAGE_SRC}
-                alt={HERO_IMAGE_ALT}
-                className="hero-visual-img"
-                width={800}
-                height={600}
-                loading="eager"
-                decoding="async"
-              />
+
+              <Link
+                to="/signup"
+                className="mt-6 inline-flex w-full items-center justify-center rounded-xl bg-slate-900 px-4 py-3 text-sm font-bold text-white transition hover:bg-black dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200"
+              >
+                Create Your Student Account
+              </Link>
             </div>
           </div>
-        </div>
       </section>
 
-      <section className="about-strip">
-        <div className="container-main">
-          <p className="about-text">
-            <span className="brand-name">UniHostel</span> manages campus accommodation so you can book rooms, pay fees, request late passes, and raise inquiries—all in one place. Students get a simple dashboard; admins get full control.
-          </p>
-        </div>
-      </section>
-
-      <section className="stats-strip" aria-label="At a glance">
-        <div className="stats-strip-inner">
-          <p className="stats-strip-heading">Why students choose UniHostel</p>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <p className="stat-card-value">500+</p>
-              <p className="stat-card-label">Beds managed</p>
-            </div>
-            <div className="stat-card">
-              <p className="stat-card-value">24/7</p>
-              <p className="stat-card-label">Support ready</p>
-            </div>
-            <div className="stat-card">
-              <p className="stat-card-value">100%</p>
-              <p className="stat-card-label">Online payments</p>
-            </div>
+      <section className="mx-auto w-full max-w-7xl px-5 pb-16 sm:px-8 lg:pb-24">
+        <div className="mb-8 flex items-end justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-indigo-600 dark:text-indigo-400">Featured Listings</p>
+            <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Explore Top Student Hostels</h2>
           </div>
-          <p className="stat-card-footnote">Built for busy semesters — fewer queues, clearer status, faster approvals.</p>
         </div>
-      </section>
 
-      <section id="hostels" className="container-main hostel-section">
-        <h2 className="section-heading">Featured hostels</h2>
-        <p className="section-subtitle">Comfortable, secure accommodation across campus.</p>
-        <div className="hostel-grid">
-          {featuredHostels.map((hostel) => (
-            <article key={hostel.name} className="hostel-card">
-              <HostelCardMedia imageUrl={hostel.imageUrl} title={hostel.name} />
-              <div className="hostel-card-body">
-                <div className="hostel-card-header">
-                  <h3 className="hostel-card-title">{hostel.name}</h3>
-                  <span className="hostel-price">{hostel.price}{hostel.period}</span>
-                </div>
-                <p className="hostel-location">
-                  <svg className="hostel-location-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  {hostel.location}
-                </p>
-                <p className="hostel-description">{hostel.description}</p>
-                <div className="hostel-amenities">
-                  {hostel.amenities.map((a) => (
-                    <span key={a} className="hostel-amenity-tag">{a}</span>
-                  ))}
-                </div>
-                <p className="hostel-meta">{hostel.beds} beds</p>
+        <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+          {hostels.map((hostel, index) => (
+            <article
+              key={index}
+              className="group overflow-hidden rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/30 dark:border-slate-800 dark:bg-slate-900 dark:hover:shadow-black/30"
+            >
+              <div className="mb-5 flex items-center justify-between">
+                <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-wide text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300">
+                  {hostel.tag}
+                </span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">Featured</span>
+              </div>
+
+              <h3 className="text-xl font-extrabold text-slate-900 dark:text-slate-100">{hostel.name}</h3>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{hostel.location}</p>
+
+              <p className="mt-4 text-lg font-black text-indigo-600 dark:text-indigo-400">
+                {hostel.price}
+                <span className="ml-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{hostel.period}</span>
+              </p>
+
+              <p className="mt-3 text-sm leading-relaxed text-slate-600 dark:text-slate-300">{hostel.description}</p>
+
+              <div className="mt-6">
+                <Link
+                  to="/signup"
+                  className="inline-flex items-center rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 transition hover:border-indigo-500 hover:text-indigo-600 dark:border-slate-700 dark:text-slate-200 dark:hover:border-indigo-400 dark:hover:text-indigo-300"
+                >
+                  Request Booking
+                </Link>
               </div>
             </article>
           ))}
         </div>
-        <div className="section-cta-wrap">
-          <Link to="/login" className="btn-primary-with-icon">
-            Sign in to book
-            <svg className="btn-icon-right" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </Link>
+
+        <div className="mt-14 rounded-3xl border border-slate-200 bg-white p-7 sm:p-10 dark:border-slate-800 dark:bg-slate-900">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Ready to Begin</p>
+              <h3 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">Join UniHostel and simplify your stay</h3>
+              <p className="mt-2 max-w-2xl text-sm text-slate-600 dark:text-slate-300">
+                Create your account and get instant access to bookings, support requests, and payment tracking.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <Link to="/signup" className="rounded-full bg-indigo-600 px-6 py-3 text-sm font-bold text-white transition hover:bg-indigo-700">
+                Sign Up Now
+              </Link>
+              <Link
+                to="/login"
+                className="rounded-full border border-slate-300 px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                Login
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
-
-      <footer className="site-footer">
-        <div className="container-main">
-          <h2 className="site-footer-title">Leading campus hostel management</h2>
-          <p className="site-footer-inner">
-            UniHostel — rooms, payments, late passes, and admin workflows in one modern experience.
-          </p>
-        </div>
-      </footer>
     </div>
   )
 }

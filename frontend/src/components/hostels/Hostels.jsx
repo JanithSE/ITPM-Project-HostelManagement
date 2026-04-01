@@ -9,6 +9,7 @@ function formatPrice(n) {
 }
 
 export default function Hostels() {
+  const fallbackImages = ['/images/hostel-real-1.jpg', '/images/hostel-real-2.jpg', '/images/hostel-real-3.jpg']
   const [hostels, setHostels] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -54,9 +55,13 @@ export default function Hostels() {
 
       {!loading && !error && (
         <div className="hostel-grid">
-          {hostels.map((hostel) => (
-            <article key={hostel._id} className="hostel-card">
-              <HostelCardMedia imageUrl={hostel.imageUrl} title={hostel.name} />
+          {hostels.map((hostel, index) => (
+            <article key={hostel._id} className="hostel-card group">
+              <HostelCardMedia
+                imageUrl={hostel.imageUrl}
+                fallbackImage={fallbackImages[index % fallbackImages.length]}
+                title={hostel.name}
+              />
 
               <div className="hostel-card-body">
                 <div className="hostel-card-grow">

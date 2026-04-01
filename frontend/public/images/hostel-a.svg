@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-label="Modern city hostel">
+  <defs>
+    <linearGradient id="bgA" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e3a8a"/>
+    </linearGradient>
+    <linearGradient id="towerA" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#93c5fd"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bgA)"/>
+  <rect x="90" y="210" width="280" height="370" rx="14" fill="#1d4ed8" opacity="0.85"/>
+  <rect x="420" y="140" width="330" height="440" rx="16" fill="url(#towerA)"/>
+  <rect x="810" y="240" width="300" height="340" rx="14" fill="#2563eb" opacity="0.9"/>
+  <g fill="#dbeafe" opacity="0.85">
+    <rect x="460" y="180" width="34" height="28"/><rect x="515" y="180" width="34" height="28"/><rect x="570" y="180" width="34" height="28"/>
+    <rect x="625" y="180" width="34" height="28"/><rect x="680" y="180" width="34" height="28"/>
+    <rect x="460" y="230" width="34" height="28"/><rect x="515" y="230" width="34" height="28"/><rect x="570" y="230" width="34" height="28"/>
+    <rect x="625" y="230" width="34" height="28"/><rect x="680" y="230" width="34" height="28"/>
+  </g>
+  <text x="70" y="86" fill="#ffffff" font-size="54" font-family="Segoe UI, Arial, sans-serif" font-weight="700">City View Residence</text>
+</svg>

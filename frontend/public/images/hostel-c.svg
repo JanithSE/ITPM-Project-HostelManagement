@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-label="Green valley hostel">
+  <defs>
+    <linearGradient id="bgC" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#14532d"/>
+      <stop offset="100%" stop-color="#22c55e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#bgC)"/>
+  <circle cx="980" cy="120" r="62" fill="#fde047"/>
+  <path d="M0 470 C180 390, 340 520, 520 450 C700 380, 860 520, 1200 430 L1200 700 L0 700 Z" fill="#166534"/>
+  <rect x="420" y="270" width="360" height="250" rx="16" fill="#f1f5f9"/>
+  <polygon points="390,290 600,180 810,290" fill="#7f1d1d"/>
+  <rect x="580" y="390" width="50" height="130" fill="#475569"/>
+  <g fill="#bae6fd">
+    <rect x="455" y="325" width="72" height="64"/><rect x="545" y="325" width="72" height="64"/><rect x="635" y="325" width="72" height="64"/>
+  </g>
+  <text x="60" y="86" fill="#ecfeff" font-size="54" font-family="Segoe UI, Arial, sans-serif" font-weight="700">Green Valley Hostel</text>
+</svg>
