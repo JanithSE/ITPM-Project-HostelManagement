@@ -9,9 +9,11 @@ const __dirname = path.dirname(__filename)
 const backendRoot = path.join(__dirname, '..')
 const paymentsDir = path.join(backendRoot, 'uploads', 'payments')
 const latepassDir = path.join(backendRoot, 'uploads', 'latepass')
+const bookingsDir = path.join(backendRoot, 'uploads', 'bookings')
 
 fs.mkdirSync(paymentsDir, { recursive: true })
 fs.mkdirSync(latepassDir, { recursive: true })
+fs.mkdirSync(bookingsDir, { recursive: true })
 
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf'])
 const ALLOWED_MIME = new Set([
@@ -56,6 +58,12 @@ const latepassMulter = multer({
   fileFilter: imageOrPdfFilter,
 })
 
+const bookingMulter = multer({
+  storage: makeStorage(bookingsDir),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageOrPdfFilter,
+})
+
 export function paymentProofUploadMiddleware(req, res, next) {
   paymentMulter.single('proof')(req, res, (err) => {
     if (err) {
@@ -73,6 +81,25 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
         return res.status(400).json({ error: 'Document must be 10 MB or smaller' })
+      }
+      return res.status(400).json({ error: err.message || 'File upload failed' })
+    }
+    next()
+  })
+}
+
+export function bookingDocumentsUploadMiddleware(req, res, next) {
+  bookingMulter.fields([
+    { name: 'nic', maxCount: 1 },
+    { name: 'studentId', maxCount: 1 },
+    { name: 'medicalReport', maxCount: 1 },
+    { name: 'policeReport', maxCount: 1 },
+    { name: 'guardianLetter', maxCount: 1 },
+    { name: 'recommendationLetter', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Each document must be 10 MB or smaller' })
       }
       return res.status(400).json({ error: err.message || 'File upload failed' })
     }

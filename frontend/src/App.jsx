@@ -8,6 +8,9 @@ import StudentAuth from './components/auth/StudentAuth'
 import RoleSelectLogin from './components/auth/RoleSelectLogin'
 import AdminLogin from './components/auth/AdminLogin'
 import WardenAuth from './components/auth/WardenAuth'
+import OtpVerification from './components/auth/OtpVerification'
+import ForgotPassword from './components/auth/ForgotPassword'
+import ResetPassword from './components/auth/ResetPassword'
 import StudentDashboard from './components/dashboard/StudentDashboard'
 import AdminDashboard from './components/dashboard/AdminDashboard'
 import WardenDashboard from './components/dashboard/WardenDashboard'
@@ -25,8 +28,10 @@ import Complains from './components/complains/Complains'
 import Inventory from './components/inventory/Inventory'
 import Maintenance from './components/maintenance/Maintenance'
 import Users from './components/users/Users'
+import CreateUser from './components/users/CreateUser'
 import Booking from './components/bookings/Booking'
 import StudentBooking from './components/bookings/StudentBooking'
+import AdminRooms from './components/rooms/AdminRooms'
 import ThemeToggle from './shared/components/ThemeToggle'
 
 export default function App() {
@@ -38,7 +43,11 @@ export default function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<RoleSelectLogin />} />
         <Route path="/signup" element={<StudentAuth />} />
+        <Route path="/register" element={<StudentAuth />} />
         <Route path="/student/login" element={<StudentAuth />} />
+        <Route path="/verify-otp" element={<OtpVerification />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/warden/login" element={<WardenAuth />} />
         <Route path="/warden/register" element={<WardenAuth />} />
@@ -61,6 +70,17 @@ export default function App() {
           <Route path="latepass/new" element={<AddLatepass />} />
           <Route path="complains" element={<Complains />} />
           <Route path="booking" element={<StudentBooking />} />
+        </Route>
+
+        <Route
+          path="/student-dashboard"
+          element={
+            <ProtectedRoute allowedRole="student">
+              <StudentLayout />
+            </ProtectedRoute>
+          }
+        >
+          <Route index element={<StudentDashboard />} />
         </Route>
 
         {/* Warden (protected) */}
@@ -86,7 +106,9 @@ export default function App() {
         >
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<Users />} />
+          <Route path="users/create" element={<CreateUser />} />
           <Route path="booking" element={<Booking />} />
+          <Route path="rooms" element={<AdminRooms />} />
           <Route path="hostels" element={<AdminHostels />} />
           <Route path="payments" element={<AdminPayments />} />
           <Route path="latepass" element={<AdminLatepass />} />

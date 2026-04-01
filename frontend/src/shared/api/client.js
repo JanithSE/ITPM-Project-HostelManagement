@@ -66,10 +66,20 @@ export const latepassApi = {
 }
 
 export const authApi = {
+  register: (name, email, password) =>
+    apiFetch('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
+  verifyOtp: (email, otp, purpose = 'registration') =>
+    apiFetch('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp, purpose }) }),
+  login: (email, password) =>
+    apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  forgotPassword: (email) =>
+    apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (email, otp, password) =>
+    apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, otp, password }) }),
   studentSignup: (name, email, password) =>
-    apiFetch('/auth/student-signup', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
+    apiFetch('/auth/register', { method: 'POST', body: JSON.stringify({ name, email, password }) }),
   studentLogin: (email, password) =>
-    apiFetch('/auth/student-login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    apiFetch('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   adminLogin: (username, password) =>
     apiFetch('/auth/admin-login', { method: 'POST', body: JSON.stringify({ username, password }) }),
   wardenLogin: (email, password) =>
@@ -89,6 +99,13 @@ export const hostelApi = {
 }
 
 export const roomApi = {
+  list: (params = {}) => {
+    const qs = new URLSearchParams(params).toString()
+    return apiFetch(`/rooms${qs ? `?${qs}` : ''}`)
+  },
+  create: (payload) => apiFetch('/rooms', { method: 'POST', body: JSON.stringify(payload) }),
+  update: (id, payload) => apiFetch(`/rooms/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  delete: (id) => apiFetch(`/rooms/${id}`, { method: 'DELETE' }),
   listDetails: (params = {}) => {
     const qs = new URLSearchParams(params).toString()
     return apiFetch(`/rooms/details${qs ? `?${qs}` : ''}`)
@@ -98,7 +115,27 @@ export const roomApi = {
 export const bookingApi = {
   list: () => apiFetch('/bookings'),
   create: (payload) => apiFetch('/bookings', { method: 'POST', body: JSON.stringify(payload) }),
+  createDetailed: (formData) => apiPostForm('/bookings', formData),
   update: (id, payload) => apiFetch(`/bookings/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
   approve: (id) => apiFetch(`/bookings/${id}/approve`, { method: 'PUT' }),
-  reject: (id) => apiFetch(`/bookings/${id}/reject`, { method: 'PUT' }),
+  reject: (id, payload = {}) =>
+    apiFetch(`/bookings/${id}/reject`, { method: 'PUT', body: JSON.stringify(payload) }),
+  reviewDocument: (id, documentKey, status, note = '') =>
+    apiFetch(`/bookings/${id}/documents/${documentKey}/review`, {
+      method: 'PUT',
+      body: JSON.stringify({ status, note }),
+    }),
+  delete: (id) => apiFetch(`/bookings/${id}`, { method: 'DELETE' }),
+}
+
+export const notificationApi = {
+  listMine: () => apiFetch('/notifications/my'),
+  markRead: (id) => apiFetch(`/notifications/${id}/read`, { method: 'PATCH' }),
+}
+
+export const userApi = {
+  list: () => apiFetch('/users'),
+  create: (payload) => apiFetch('/users', { method: 'POST', body: JSON.stringify(payload) }),
+  update: (id, payload) => apiFetch(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
+  delete: (id) => apiFetch(`/users/${id}`, { method: 'DELETE' }),
 }

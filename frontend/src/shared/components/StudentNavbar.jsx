@@ -11,36 +11,44 @@ export default function StudentNavbar() {
   }
 
   const navLinks = [
-    { to: '/student/hostels', label: 'Our Hostels' },
-    { to: '/student/booking', label: 'Room Booking' },
+    { to: '/student', label: 'Dashboard' },
+    { to: '/student/hostels', label: 'Explore' },
+    { to: '/student/booking', label: 'Book Room' },
     { to: '/student/payments', label: 'Payments' },
     { to: '/student/inquiries', label: 'Inquiries' },
-    { to: '/student/latepass', label: 'Late pass' },
-    { to: '/student/complains', label: 'Complains' },
+    { to: '/student/latepass', label: 'Late Pass' },
   ]
 
   return (
-    <header className="student-header">
-      <nav className="student-nav-inner">
-        <div className="student-nav-bar">
+    <header className="site-header border-b border-slate-100 dark:border-slate-800">
+      <nav className="container-main">
+        <div className="flex justify-between items-center h-20">
           <Link to="/student" className="site-logo">
+            <span className="site-logo-mark">UH</span>
             UniHostel
           </Link>
-          <div className="student-nav-links">
+          
+          <div className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-2xl dark:bg-slate-900/50">
             {navLinks.map(({ to, label }) => (
               <NavLink
                 key={to}
                 to={to}
+                end={to === '/student'}
                 className={({ isActive }) =>
-                  `student-nav-link ${isActive ? 'student-nav-link-active' : 'student-nav-link-inactive'}`
+                  `px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                    isActive ? 'nav-item-active' : 'nav-item-inactive'
+                  }`
                 }
               >
                 {label}
               </NavLink>
             ))}
-            <button type="button" onClick={handleLogout} className="btn-logout">
-              Logout
-            </button>
+          </div>
+
+          <div className="flex items-center gap-3">
+             <button type="button" onClick={handleLogout} className="btn-secondary-outline !px-4 !py-2 !text-xs">
+                Log Out
+             </button>
           </div>
         </div>
       </nav>

@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema(
     assignedHostel: { type: String, trim: true, default: '' },
     /** University / registration ID — used to match late-pass group requests */
     universityId: { type: String, trim: true, default: '' },
+    isVerified: { type: Boolean, default: false },
+    otpCode: { type: String, default: '' },
+    otpExpiresAt: { type: Date, default: null },
+    otpPurpose: { type: String, enum: ['', 'registration', 'password_reset'], default: '' },
   },
   { timestamps: true }
 )
