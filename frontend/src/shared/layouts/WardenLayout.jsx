@@ -1,10 +1,7 @@
-import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom'
-import ThemeToggle from '../components/ThemeToggle'
+import { Outlet, Link, useNavigate } from 'react-router-dom'
 
 export default function WardenLayout() {
   const navigate = useNavigate()
-  const location = useLocation()
-  const onDashboard = location.pathname === '/warden' || location.pathname === '/warden/'
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -14,29 +11,28 @@ export default function WardenLayout() {
   }
 
   return (
-    <div className="dashboard-wrap">
-      <header className="student-header">
-        <div className="student-nav-inner">
-          <div className="student-nav-bar">
-            <Link to="/warden" className="text-lg font-bold text-primary-600 dark:text-primary-400">
-              UniHostel · Warden
+    <div className="page-container min-h-screen bg-slate-50 dark:bg-slate-950">
+      <header className="site-header border-b border-slate-100 dark:border-slate-800">
+        <nav className="container-main">
+          <div className="flex justify-between items-center h-20">
+            <Link to="/warden" className="site-logo">
+              <span className="site-logo-mark">UH</span>
+              Warden
             </Link>
-            <div className="student-nav-links">
-              <Link
-                to="/warden"
-                className={`student-nav-link ${onDashboard ? 'student-nav-link-active' : 'student-nav-link-inactive'}`}
-              >
-                Dashboard
-              </Link>
-              <ThemeToggle />
-              <button type="button" onClick={handleLogout} className="btn-logout">
-                Log out
-              </button>
+            
+            <div className="flex items-center gap-6">
+               <Link to="/warden" className="text-sm font-semibold text-slate-600 dark:text-slate-400 hover:text-indigo-600 transition-colors">
+                  Dashboard
+               </Link>
+               <button type="button" onClick={handleLogout} className="btn-secondary-outline !px-4 !py-2 !text-xs">
+                  Log Out
+               </button>
             </div>
           </div>
-        </div>
+        </nav>
       </header>
-      <main className="content-main">
+      
+      <main className="container-main py-10">
         <Outlet />
       </main>
     </div>

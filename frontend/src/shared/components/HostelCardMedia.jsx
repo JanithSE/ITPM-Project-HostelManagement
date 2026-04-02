@@ -1,3 +1,5 @@
+import { useEffect, useMemo, useState } from 'react'
+
 /** Public path from API (e.g. /uploads/hostels/...) or absolute URL. */
 export function hostelPhotoSrc(imageUrl) {
   if (!imageUrl || typeof imageUrl !== 'string') return null
@@ -7,14 +9,30 @@ export function hostelPhotoSrc(imageUrl) {
   return t.startsWith('/') ? t : `/${t}`
 }
 
-export default function HostelCardMedia({ imageUrl, title }) {
-  const src = hostelPhotoSrc(imageUrl)
+export default function HostelCardMedia({ imageUrl, title, fallbackImage }) {
+  const primarySrc = hostelPhotoSrc(imageUrl)
+  const fallbackSrc = hostelPhotoSrc(fallbackImage)
+  const candidates = useMemo(
+    () => [primarySrc, fallbackSrc].filter(Boolean),
+    [primarySrc, fallbackSrc]
+  )
+  const [srcIndex, setSrcIndex] = useState(0)
+
+  useEffect(() => {
+    setSrcIndex(0)
+  }, [primarySrc, fallbackSrc])
+
+  const src = candidates[srcIndex] || null
   const alt = title ? `${title} photo` : 'Hostel photo'
+
+  function handleError() {
+    setSrcIndex((prev) => prev + 1)
+  }
 
   return (
     <div className="hostel-card-image">
       {src ? (
-        <img src={src} alt={alt} className="hostel-card-image-photo" loading="lazy" />
+        <img src={src} alt={alt} className="hostel-card-image-photo" loading="lazy" onError={handleError} />
       ) : (
         <svg className="hostel-card-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
           <path

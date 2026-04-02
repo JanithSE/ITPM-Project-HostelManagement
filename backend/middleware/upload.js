@@ -10,34 +10,32 @@ const backendRoot = path.join(__dirname, '..')
 const paymentsDir = path.join(backendRoot, 'uploads', 'payments')
 const latepassDir = path.join(backendRoot, 'uploads', 'latepass')
 const hostelsDir = path.join(backendRoot, 'uploads', 'hostels')
+const bookingsDir = path.join(backendRoot, 'uploads', 'bookings')
 
+// ✅ create all folders
 fs.mkdirSync(paymentsDir, { recursive: true })
 fs.mkdirSync(latepassDir, { recursive: true })
 fs.mkdirSync(hostelsDir, { recursive: true })
+fs.mkdirSync(bookingsDir, { recursive: true })
 
-const PAYMENT_ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.pdf'])
-const PAYMENT_ALLOWED_MIME = new Set([
+const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf'])
+const ALLOWED_MIME = new Set([
   'image/jpeg',
   'image/png',
+  'image/webp',
   'application/pdf',
   'application/x-pdf',
 ])
 
-/** Payment proof: JPG, PNG, PDF only (no WebP). */
-function paymentProofFilter(req, file, cb) {
+function imageOrPdfFilter(req, file, cb) {
   const ext = path.extname(file.originalname || '').toLowerCase()
   const mime = String(file.mimetype || '').toLowerCase()
 
-  if (PAYMENT_ALLOWED_MIME.has(mime)) return cb(null, true)
+  if (ALLOWED_MIME.has(mime)) return cb(null, true)
   if (!mime || mime === 'application/octet-stream') {
-    if (PAYMENT_ALLOWED_EXT.has(ext)) return cb(null, true)
+    if (ALLOWED_EXT.has(ext)) return cb(null, true)
   }
-  cb(new Error('Only JPG, PNG, and PDF files are allowed.'))
-}
-
-/** Late pass document: same rules as payment proof (JPG, PNG, PDF). */
-function latepassDocumentFilter(req, file, cb) {
-  return paymentProofFilter(req, file, cb)
+  cb(new Error('Only JPEG, PNG, WebP, and PDF files are allowed'))
 }
 
 const HOSTEL_IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp'])
@@ -46,6 +44,7 @@ const HOSTEL_IMAGE_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
 function hostelImageFilter(req, file, cb) {
   const ext = path.extname(file.originalname || '').toLowerCase()
   const mime = String(file.mimetype || '').toLowerCase()
+
   if (HOSTEL_IMAGE_MIME.has(mime)) return cb(null, true)
   if (!mime || mime === 'application/octet-stream') {
     if (HOSTEL_IMAGE_EXT.has(ext)) return cb(null, true)
@@ -64,20 +63,17 @@ function makeStorage(destDir) {
   })
 }
 
-const PAYMENT_MAX_FILE_BYTES = 5 * 1024 * 1024
-
+// ✅ Multer instances
 const paymentMulter = multer({
   storage: makeStorage(paymentsDir),
-  limits: { fileSize: PAYMENT_MAX_FILE_BYTES },
-  fileFilter: paymentProofFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageOrPdfFilter,
 })
-
-const LATEPASS_MAX_FILE_BYTES = 5 * 1024 * 1024
 
 const latepassMulter = multer({
   storage: makeStorage(latepassDir),
-  limits: { fileSize: LATEPASS_MAX_FILE_BYTES },
-  fileFilter: latepassDocumentFilter,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageOrPdfFilter,
 })
 
 const hostelImageMulter = multer({
@@ -86,32 +82,20 @@ const hostelImageMulter = multer({
   fileFilter: hostelImageFilter,
 })
 
+const bookingMulter = multer({
+  storage: makeStorage(bookingsDir),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageOrPdfFilter,
+})
+
+// ✅ Middleware
 export function paymentProofUploadMiddleware(req, res, next) {
   paymentMulter.single('proof')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File size must be less than 5MB.', fieldErrors: { proof: 'File size must be less than 5MB.' } })
+        return res.status(400).json({ error: 'Proof file must be 10 MB or smaller' })
       }
-      return res.status(400).json({
-        error: err.message || 'File upload failed',
-        fieldErrors: { proof: err.message || 'Upload a payment slip or proof.' },
-      })
-    }
-    next()
-  })
-}
-
-/** Same as paymentProofUploadMiddleware, but proof file is optional (used for edit). */
-export function paymentProofUploadOptionalMiddleware(req, res, next) {
-  paymentMulter.single('proof')(req, res, (err) => {
-    if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({ error: 'File size must be less than 5MB.', fieldErrors: { proof: 'File size must be less than 5MB.' } })
-      }
-      return res.status(400).json({
-        error: err.message || 'File upload failed',
-        fieldErrors: { proof: err.message || 'Upload a payment slip or proof.' },
-      })
+      return res.status(400).json({ error: err.message || 'File upload failed' })
     }
     next()
   })
@@ -121,34 +105,9 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
   latepassMulter.single('document')(req, res, (err) => {
     if (err) {
       if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({
-          error: 'File size must be less than 5MB.',
-          fieldErrors: { document: 'File size must be less than 5MB.' },
-        })
+        return res.status(400).json({ error: 'Document must be 10 MB or smaller' })
       }
-      return res.status(400).json({
-        error: err.message || 'File upload failed',
-        fieldErrors: { document: err.message || 'Upload a valid document.' },
-      })
-    }
-    next()
-  })
-}
-
-/** Same as latepassDocumentUploadMiddleware, but document is optional (used for edit). */
-export function latepassDocumentUploadOptionalMiddleware(req, res, next) {
-  latepassMulter.single('document')(req, res, (err) => {
-    if (err) {
-      if (err.code === 'LIMIT_FILE_SIZE') {
-        return res.status(400).json({
-          error: 'File size must be less than 5MB.',
-          fieldErrors: { document: 'File size must be less than 5MB.' },
-        })
-      }
-      return res.status(400).json({
-        error: err.message || 'File upload failed',
-        fieldErrors: { document: err.message || 'Upload a valid document.' },
-      })
+      return res.status(400).json({ error: err.message || 'File upload failed' })
     }
     next()
   })
@@ -166,7 +125,26 @@ export function hostelImageUploadMiddleware(req, res, next) {
   })
 }
 
-/** Use multipart parsing only when the client sends multipart/form-data (optional image). */
+export function bookingDocumentsUploadMiddleware(req, res, next) {
+  bookingMulter.fields([
+    { name: 'nic', maxCount: 1 },
+    { name: 'studentId', maxCount: 1 },
+    { name: 'medicalReport', maxCount: 1 },
+    { name: 'policeReport', maxCount: 1 },
+    { name: 'guardianLetter', maxCount: 1 },
+    { name: 'recommendationLetter', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Each document must be 10 MB or smaller' })
+      }
+      return res.status(400).json({ error: err.message || 'File upload failed' })
+    }
+    next()
+  })
+}
+
+/** Optional hostel image upload */
 export function conditionalHostelImageUpload(req, res, next) {
   const ct = String(req.headers['content-type'] || '')
   if (ct.includes('multipart/form-data')) {
@@ -175,5 +153,5 @@ export function conditionalHostelImageUpload(req, res, next) {
   next()
 }
 
-/** @deprecated use paymentProofUploadMiddleware */
+/** @deprecated */
 export const proofUploadMiddleware = paymentProofUploadMiddleware

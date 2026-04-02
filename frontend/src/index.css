@@ -1,432 +1,567 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+  --radius: 0.85rem;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+}
+
 @layer base {
-  html {
-    /* Slightly larger default text across the app (Tailwind rem scale + readability) */
-    font-size: 106.25%;
-  }
-  html.dark {
-    color-scheme: dark;
-  }
   body {
-    margin: 0;
-    @apply font-sans antialiased text-slate-800 bg-slate-50 dark:bg-slate-950 dark:text-slate-100 text-base;
+    @apply font-['Inter'] antialiased text-slate-900 bg-slate-50 dark:bg-slate-950 dark:text-slate-100;
   }
 }
 
-/* Layout & marketing */
 @layer components {
-  .page-container {
-    @apply min-h-screen bg-gradient-to-b from-slate-50 via-white to-blue-50/40 dark:from-slate-950 dark:via-slate-950 dark:to-blue-950/20;
-  }
-  .container-main {
-    @apply max-w-6xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
 
-  /* Header */
-  .site-header {
-    @apply sticky top-0 z-50 border-b border-slate-100 bg-white/90 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/90;
-  }
-  .site-header-inner {
-    @apply flex justify-between items-center h-16 md:h-[4.25rem];
-  }
   .site-logo {
-    @apply flex items-center gap-2.5 text-xl font-extrabold tracking-tight text-primary-600 dark:text-primary-400;
+    @apply flex items-center gap-3 text-2xl font-extrabold tracking-tighter;
   }
-  .site-logo-mark {
-    @apply flex h-9 w-9 items-center justify-center rounded-xl bg-primary-600 text-sm font-bold text-white shadow-md shadow-primary-600/25;
-  }
-  .nav-links {
-    @apply flex items-center gap-2 sm:gap-3 flex-wrap justify-end;
-  }
-  .nav-link-text {
-    @apply rounded-full px-4 py-2 text-base font-medium text-slate-600 transition-all duration-200 hover:bg-primary-50 hover:text-primary-600 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-primary-400;
-  }
-  .nav-link-outline {
-    @apply rounded-full border border-primary-200 px-4 py-2 text-base font-medium text-primary-600 transition-all duration-200 hover:bg-primary-50 dark:border-primary-800 dark:text-primary-400 dark:hover:bg-slate-800;
-  }
+
   .btn-primary-solid {
-    @apply bg-zinc-900 text-white font-semibold px-5 py-2.5 rounded-full hover:bg-zinc-800 shadow-lg shadow-zinc-900/15 transition-all duration-200 text-sm;
+    @apply bg-indigo-600 text-white px-6 py-3 rounded-full;
   }
 
-  /* Hero — full-bleed blurred photo + scrim (image URL set in Home.jsx) */
+  /* ✅ CLEAN HERO */
   .hero {
-    @apply relative isolate overflow-hidden bg-slate-100 dark:bg-slate-950;
+    @apply relative overflow-hidden py-24 sm:py-32;
   }
-  .hero-bg-blur {
-    @apply pointer-events-none absolute inset-0 z-0 bg-slate-300 bg-cover bg-center dark:bg-slate-900;
-    transform: scale(1.15);
-    filter: blur(48px) saturate(1.05);
-    -webkit-filter: blur(48px) saturate(1.05);
-  }
-  .hero-bg-scrim {
-    @apply pointer-events-none absolute inset-0 z-[1];
-    background: linear-gradient(
-      to bottom,
-      rgb(255 255 255 / 0.72),
-      rgb(255 255 255 / 0.62),
-      rgb(255 255 255 / 0.76)
-    );
-  }
-  .dark .hero-bg-scrim {
-    /* Let the blurred building show through the navy tint */
-    background: linear-gradient(
-      to bottom,
-      rgb(2 6 23 / 0.68),
-      rgb(2 6 23 / 0.55),
-      rgb(2 6 23 / 0.72)
-    );
-  }
-  .hero-pattern {
-    @apply pointer-events-none absolute inset-0 z-[2] opacity-30 dark:opacity-25;
-    background-image: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.1) 0%, transparent 45%),
-      radial-gradient(circle at 80% 60%, rgba(99, 102, 241, 0.08) 0%, transparent 40%);
-  }
+
   .hero-content {
-    @apply relative z-[3];
+    @apply relative z-10 text-center max-w-4xl mx-auto px-6;
   }
-  .hero-layout {
-    @apply mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 sm:gap-12 sm:px-6 sm:py-24 lg:grid-cols-2 lg:gap-14 lg:px-8 lg:py-28;
-  }
-  .hero-inner {
-    @apply min-w-0 max-w-2xl;
-  }
-  .hero-visual {
-    @apply min-w-0;
-  }
-  .hero-visual-img {
-    @apply aspect-[4/3] w-full rounded-2xl border border-slate-200/90 object-cover shadow-2xl shadow-slate-900/10 dark:border-slate-700 dark:shadow-black/40;
-  }
+
   .hero-title {
-    @apply mb-5 text-4xl font-extrabold leading-[1.1] tracking-tight text-slate-900 sm:text-5xl lg:text-[3.25rem] dark:text-slate-50;
+    @apply text-5xl font-extrabold mb-6;
   }
+
   .hero-tagline {
-    @apply mb-10 max-w-2xl text-lg leading-relaxed text-slate-600 sm:text-xl dark:text-slate-400;
-  }
-  .hero-cta-row {
-    @apply flex flex-col sm:flex-row flex-wrap gap-4 items-stretch sm:items-center;
-  }
-  .hero-cta {
-    @apply inline-flex items-center justify-center gap-2 bg-zinc-900 text-white font-semibold px-8 py-3.5 rounded-full hover:bg-zinc-800 shadow-xl shadow-zinc-900/20 transition-all duration-200 text-sm sm:text-base;
-  }
-  .hero-cta-secondary {
-    @apply inline-flex items-center justify-center gap-2 rounded-full border-2 border-slate-200 bg-white px-8 py-3.5 text-sm font-semibold text-slate-800 transition-all duration-200 hover:border-primary-200 hover:bg-primary-50/50 sm:text-base dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100 dark:hover:border-primary-700 dark:hover:bg-slate-800;
-  }
-  .hero-cta-icon {
-    @apply w-5 h-5;
+    @apply text-lg text-slate-600 dark:text-slate-400;
   }
 
-  /* Stats strip */
-  .stats-strip {
-    @apply border-y border-slate-100 bg-white py-16 sm:py-20 dark:border-slate-800 dark:bg-slate-950;
-  }
-  .stats-strip-inner {
-    @apply max-w-5xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
-  .stats-strip-heading {
-    @apply mb-10 text-center text-sm font-semibold uppercase tracking-widest text-slate-500 dark:text-slate-400;
-  }
-  .stats-grid {
-    @apply grid sm:grid-cols-3 gap-6 lg:gap-8;
-  }
-  .stat-card {
-    @apply rounded-3xl border border-slate-100/80 bg-white p-8 text-center shadow-card transition-all duration-300 hover:border-primary-100 hover:shadow-soft lg:p-10 dark:border-slate-700 dark:bg-slate-900 dark:hover:border-primary-900;
-  }
-  .stat-card-value {
-    @apply text-4xl sm:text-5xl font-extrabold text-primary-600 mb-2 tracking-tight;
-  }
-  .stat-card-label {
-    @apply text-sm font-semibold text-slate-800 sm:text-base dark:text-slate-100;
-  }
-  .stat-card-footnote {
-    @apply mx-auto mt-10 max-w-lg text-center text-sm text-slate-500 dark:text-slate-400;
-  }
-
-  /* About strip */
-  .about-strip {
-    @apply bg-blue-50/50 py-14 sm:py-16 dark:bg-slate-900/50;
-  }
-  .about-text {
-    @apply mx-auto max-w-3xl text-center text-lg leading-relaxed text-slate-600 dark:text-slate-400;
-  }
-  .brand-name {
-    @apply font-semibold text-primary-600;
-  }
-
-  /* Hostel section */
-  .hostel-section {
-    @apply py-16 sm:py-20;
-  }
-  .section-heading {
-    @apply mb-3 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl dark:text-slate-50;
-  }
-  .section-subtitle {
-    @apply mb-12 text-lg text-slate-600 dark:text-slate-400;
-  }
-  .hostel-grid {
-    @apply grid sm:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8;
-  }
+  /* Cards */
   .hostel-card {
-    @apply overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-card transition-all duration-300 hover:-translate-y-0.5 hover:border-primary-100 hover:shadow-soft dark:border-slate-700 dark:bg-slate-900 dark:hover:border-primary-800;
+    @apply flex flex-col rounded-2xl border bg-white dark:bg-slate-900;
   }
+
   .hostel-card-image {
-    @apply relative flex min-h-[9rem] items-center justify-center overflow-hidden bg-gradient-to-br from-primary-100 to-indigo-100 dark:from-primary-900 dark:to-slate-900;
+    @apply flex h-40 items-center justify-center bg-slate-100 dark:bg-slate-800;
   }
-  .hostel-card-image-photo {
-    @apply absolute inset-0 h-full w-full object-cover;
-  }
+
   .hostel-card-icon {
-    @apply relative z-[1] w-14 h-14 shrink-0 text-primary-600;
+    @apply h-14 w-14 text-indigo-600;
   }
-  .hostel-card-body {
+
+  .nav-item-active {
+    @apply bg-indigo-50 text-indigo-700;
+  }
+
+  .nav-item-inactive {
+    @apply text-slate-600 hover:bg-slate-100;
+  }
+
+  /* Glass effect */
+  .glass {
+    @apply bg-white/70 backdrop-blur-md border;
+  }
+
+  .auth-page {
+    @apply min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.18),transparent_35%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.16),transparent_30%),linear-gradient(to_bottom,rgba(248,250,252,1),rgba(241,245,249,1))] px-5 py-10 dark:bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.28),transparent_35%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.18),transparent_30%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(15,23,42,1))];
+  }
+
+  .auth-card {
+    @apply mx-auto w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/60 bg-white/90 shadow-2xl shadow-slate-300/30 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:shadow-black/30;
+  }
+
+  .auth-grid {
+    @apply grid lg:grid-cols-[1.05fr_0.95fr];
+  }
+
+  .auth-hero {
+    @apply flex flex-col justify-between bg-slate-950 px-8 py-10 text-white sm:px-10 lg:px-12;
+  }
+
+  .auth-hero-card {
+    @apply rounded-[1.75rem] border border-white/10 bg-white/5 p-6 backdrop-blur;
+  }
+
+  .auth-hero-badge {
+    @apply mb-5 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-slate-200;
+  }
+
+  .auth-hero-mark {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-full bg-white text-sm font-black text-slate-900;
+  }
+
+  .auth-hero-title {
+    @apply text-3xl font-black tracking-tight sm:text-4xl;
+  }
+
+  .auth-hero-subtitle {
+    @apply mt-4 max-w-md text-sm leading-6 text-slate-300 sm:text-base;
+  }
+
+  .auth-hero-list {
+    @apply mt-8 space-y-3;
+  }
+
+  .auth-hero-item {
+    @apply flex items-start gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm text-slate-200;
+  }
+
+  .auth-hero-check {
+    @apply mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-black text-emerald-300;
+  }
+
+  .auth-panel {
+    @apply px-6 py-8 sm:px-8 sm:py-10 lg:px-10;
+  }
+
+  .auth-panel-header {
+    @apply flex items-start gap-4;
+  }
+
+  .auth-panel-mark {
+    @apply inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-indigo-600 text-sm font-black text-white shadow-lg shadow-indigo-600/25;
+  }
+
+  .auth-heading {
+    @apply text-2xl font-black tracking-tight text-slate-900 dark:text-slate-100 sm:text-3xl;
+  }
+
+  .auth-subtitle {
+    @apply mt-2 max-w-xl text-sm leading-6 text-slate-600 dark:text-slate-400;
+  }
+
+  .auth-tabs,
+  .auth-mode-row,
+  .auth-role-row {
+    @apply mt-6 flex flex-wrap gap-3;
+  }
+
+  .auth-tab,
+  .auth-mode-btn,
+  .auth-role-btn {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-bold transition;
+  }
+
+  .auth-tab-active,
+  .auth-mode-btn-active,
+  .auth-role-btn-active {
+    @apply bg-slate-900 text-white shadow-lg shadow-slate-900/15 dark:bg-white dark:text-slate-900;
+  }
+
+  .auth-tab-inactive,
+  .auth-mode-btn-inactive,
+  .auth-role-btn-inactive {
+    @apply border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800;
+  }
+
+  .auth-form {
+    @apply mt-6 space-y-5;
+  }
+
+  .auth-label {
+    @apply mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300;
+  }
+
+  .auth-input {
+    @apply w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:bg-slate-950 dark:focus:ring-indigo-400/10;
+  }
+
+  .auth-input-wrap {
+    @apply relative;
+  }
+
+  .auth-toggle {
+    @apply absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800;
+  }
+
+  .auth-submit,
+  .btn-submit {
+    @apply inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70;
+  }
+
+  .auth-error {
+    @apply mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300;
+  }
+
+  .auth-footer,
+  .auth-footer-secondary,
+  .auth-pro-footer {
+    @apply mt-6 text-center text-sm text-slate-500 dark:text-slate-400;
+  }
+
+  .auth-link {
+    @apply font-semibold text-indigo-600 transition hover:underline dark:text-indigo-400;
+  }
+
+  .auth-pro-wrap {
+    @apply min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.18),transparent_35%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.16),transparent_30%),linear-gradient(to_bottom,rgba(248,250,252,1),rgba(241,245,249,1))] px-5 py-10 dark:bg-[radial-gradient(circle_at_top_left,rgba(79,70,229,0.28),transparent_35%),radial-gradient(circle_at_top_right,rgba(14,165,233,0.18),transparent_30%),linear-gradient(to_bottom,rgba(2,6,23,1),rgba(15,23,42,1))];
+  }
+
+  .auth-pro-card {
+    @apply mx-auto w-full max-w-6xl overflow-hidden rounded-[2rem] border border-white/60 bg-white/90 shadow-2xl shadow-slate-300/30 backdrop-blur dark:border-slate-800 dark:bg-slate-950/80 dark:shadow-black/30;
+  }
+
+  .auth-pro-grid {
+    @apply grid lg:grid-cols-[1fr_1.08fr];
+  }
+
+  .auth-pro-brand {
+    @apply bg-slate-950 px-8 py-10 text-white sm:px-10 lg:px-12;
+  }
+
+  .auth-pro-brand-inner {
+    @apply flex h-full flex-col justify-between rounded-[1.75rem] border border-white/10 bg-white/5 p-6 backdrop-blur;
+  }
+
+  .auth-pro-brand-badge,
+  .auth-pro-panel-header {
+    @apply flex items-center gap-3;
+  }
+
+  .auth-pro-brand-mark,
+  .auth-pro-panel-mark {
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-sm font-black text-slate-900;
+  }
+
+  .auth-pro-brand-title,
+  .auth-pro-heading {
+    @apply text-3xl font-black tracking-tight sm:text-4xl;
+  }
+
+  .auth-pro-brand-subtitle,
+  .auth-pro-subheading {
+    @apply mt-4 max-w-xl text-sm leading-6 text-slate-300 sm:text-base;
+  }
+
+  .auth-pro-brand-list {
+    @apply mt-8 space-y-3;
+  }
+
+  .auth-pro-brand-item {
+    @apply flex items-start gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm text-slate-200;
+  }
+
+  .auth-pro-brand-check {
+    @apply mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 text-[11px] font-black text-emerald-300;
+  }
+
+  .auth-pro-panel {
+    @apply px-6 py-8 sm:px-8 sm:py-10 lg:px-10;
+  }
+
+  .auth-pro-mode-row,
+  .auth-pro-role-row {
+    @apply mt-6 flex flex-wrap gap-3;
+  }
+
+  .auth-pro-mode-btn,
+  .auth-pro-role-btn {
+    @apply inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-bold transition;
+  }
+
+  .auth-pro-mode-btn-active,
+  .auth-pro-role-btn-active {
+    @apply bg-slate-900 text-white shadow-lg shadow-slate-900/15 dark:bg-white dark:text-slate-900;
+  }
+
+  .auth-pro-mode-btn-inactive,
+  .auth-pro-role-btn-inactive {
+    @apply border border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800;
+  }
+
+  .auth-pro-form {
+    @apply mt-6 space-y-5;
+  }
+
+  .auth-pro-label {
+    @apply mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300;
+  }
+
+  .auth-pro-input,
+  .auth-pro-input-wrap select,
+  .auth-pro-input-wrap textarea {
+    @apply w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3.5 text-sm text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-indigo-400 dark:focus:bg-slate-950 dark:focus:ring-indigo-400/10;
+  }
+
+  .auth-pro-input-wrap {
+    @apply relative;
+  }
+
+  .auth-pro-toggle {
+    @apply absolute right-2 top-1/2 -translate-y-1/2 rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-600 transition hover:border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-300 dark:hover:bg-slate-800;
+  }
+
+  .auth-pro-submit {
+    @apply inline-flex w-full items-center justify-center rounded-2xl bg-indigo-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-indigo-600/20 transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70;
+  }
+
+  .auth-pro-error {
+    @apply mb-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700 dark:border-rose-900/60 dark:bg-rose-950/30 dark:text-rose-300;
+  }
+
+  .auth-pro-trust {
+    @apply mt-5 flex items-center justify-center gap-2 text-center text-xs font-medium text-slate-500 dark:text-slate-400;
+  }
+
+  .auth-pro-link {
+    @apply font-semibold text-indigo-600 transition hover:underline dark:text-indigo-400;
+  }
+
+  .auth-pro-footer {
+    @apply mt-6 text-center text-sm text-slate-500 dark:text-slate-400;
+  }
+
+  @media (max-width: 1023px) {
+    .auth-grid,
+    .auth-pro-grid {
+      @apply grid-cols-1;
+    }
+  }
+
+  .admin-sidebar {
+    @apply flex min-h-screen w-72 shrink-0 flex-col border-r border-slate-200/60 bg-white dark:border-slate-800 dark:bg-slate-950;
+  }
+
+  .admin-sidebar-header {
     @apply p-6;
   }
-  .hostel-card-header {
-    @apply flex items-start justify-between gap-2 mb-2;
-  }
-  .hostel-card-title {
-    @apply text-lg font-bold text-slate-900 dark:text-slate-50;
-  }
-  .hostel-price {
-    @apply text-primary-600 font-bold whitespace-nowrap text-sm;
-  }
-  .hostel-location {
-    @apply text-slate-500 text-sm mb-3 flex items-center gap-1;
-  }
-  .hostel-location-icon {
-    @apply w-4 h-4 text-slate-400 shrink-0;
-  }
-  .hostel-description {
-    @apply mb-4 line-clamp-3 text-sm leading-relaxed text-slate-600 dark:text-slate-400;
-  }
-  .hostel-amenities {
-    @apply flex flex-wrap gap-1.5 mb-4;
-  }
-  .hostel-amenity-tag {
-    @apply rounded-full bg-primary-50 px-2.5 py-1 text-xs font-medium text-primary-700 dark:bg-primary-900/40 dark:text-primary-300;
-  }
-  .hostel-meta {
-    @apply text-slate-500 text-xs;
-  }
-  .section-cta-wrap {
-    @apply mt-12 text-center;
-  }
-  .btn-primary-with-icon {
-    @apply inline-flex items-center gap-2 bg-primary-600 text-white font-semibold px-8 py-3.5 rounded-full hover:bg-primary-700 shadow-lg shadow-primary-600/25 transition-all duration-200;
-  }
-  .btn-icon-right {
-    @apply w-5 h-5;
+
+  .admin-sidebar-theme-wrap {
+    @apply mb-4 flex justify-end;
   }
 
-  /* Footer — blue band */
-  .site-footer {
-    @apply mt-0 bg-primary-600 py-14 text-white dark:bg-primary-900;
-  }
-  .site-footer-inner {
-    @apply mx-auto max-w-2xl text-center text-sm text-blue-100 dark:text-blue-200;
-  }
-  .site-footer-title {
-    @apply text-2xl sm:text-3xl font-extrabold text-white mb-3 tracking-tight;
+  .admin-sidebar-brand {
+    @apply flex items-center gap-2 text-xl font-black tracking-tight;
   }
 
-  /* Auth */
-  .auth-page {
-    @apply flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50/40 to-indigo-50/30 px-4 py-12 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900;
-  }
-  .auth-card {
-    @apply w-full max-w-md rounded-2xl border border-slate-100 bg-white p-8 shadow-card sm:p-10 dark:border-slate-700 dark:bg-slate-900;
-  }
-  .auth-title {
-    @apply mb-1 text-2xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50;
-  }
-  .auth-subtitle {
-    @apply mb-8 text-sm text-slate-600 dark:text-slate-400;
-  }
-  .auth-error {
-    @apply mb-4 text-sm text-red-700 bg-red-50 px-4 py-3 rounded-xl border border-red-100;
-  }
-  .auth-form {
-    @apply space-y-5;
-  }
-  .auth-label {
-    @apply mb-1.5 block text-base font-semibold text-slate-700 dark:text-slate-300;
-  }
-  .auth-input {
-    @apply w-full rounded-xl border border-slate-200 bg-slate-50/50 px-4 py-3 text-base transition-all focus:border-primary-500 focus:bg-white focus:ring-2 focus:ring-primary-500/30 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-primary-400 dark:focus:bg-slate-900;
-  }
-  .btn-submit {
-    @apply w-full bg-primary-600 text-white py-3 rounded-full font-semibold hover:bg-primary-700 shadow-lg shadow-primary-600/20 transition-all disabled:opacity-50;
-  }
-  .auth-footer {
-    @apply mt-6 text-center text-sm text-slate-600 dark:text-slate-400;
-  }
-  .auth-link {
-    @apply font-semibold text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300;
-  }
-  .auth-footer-secondary {
-    @apply mt-3 text-center text-sm text-slate-600 dark:text-slate-400;
-  }
-  .auth-tabs {
-    @apply mb-8 flex gap-1 overflow-hidden rounded-t-xl border-b border-slate-200 bg-slate-50/80 p-1 dark:border-slate-700 dark:bg-slate-800/50;
-  }
-  .auth-tab {
-    @apply flex-1 py-3 text-center text-sm font-semibold transition-all rounded-lg;
-  }
-  .auth-tab-inactive {
-    @apply text-slate-500 hover:bg-white/80 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-slate-700/80 dark:hover:text-slate-100;
-  }
-  .auth-tab-active {
-    @apply border border-slate-100 bg-white text-primary-700 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-primary-300;
+  .admin-sidebar-brand-mark {
+    @apply rounded-md bg-indigo-600 px-2 py-1 text-white;
   }
 
-  /* Dashboard */
-  .dashboard-wrap {
-    @apply min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/20 dark:from-slate-950 dark:to-slate-900;
-  }
-  .content-main {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-10;
-  }
-  .content-card {
-    @apply rounded-2xl border border-slate-100/90 bg-white p-6 shadow-soft sm:p-8 dark:border-slate-700 dark:bg-slate-900;
-  }
-  .page-title {
-    @apply mb-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-50;
-  }
-  .page-description {
-    @apply mb-6 text-base text-slate-600 dark:text-slate-400;
-  }
-  .btn-primary-action {
-    @apply inline-flex items-center justify-center bg-primary-600 text-white px-5 py-2.5 rounded-full font-semibold text-base hover:bg-primary-700 shadow-md shadow-primary-600/20 transition-all;
-  }
-
-  /* Student nav */
-  .student-header {
-    @apply border-b border-slate-100 bg-white/95 shadow-sm backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95;
-  }
-  .student-nav-inner {
-    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
-  }
-  .student-nav-bar {
-    @apply flex justify-between min-h-14 py-2 items-center gap-4;
-  }
-  .student-nav-links {
-    @apply flex items-center gap-1.5 flex-wrap justify-end;
-  }
-  .student-nav-link {
-    @apply px-3.5 py-2 rounded-full text-base font-medium transition-all duration-200;
-  }
-  .student-nav-link-active {
-    @apply bg-primary-50 text-primary-700 shadow-sm dark:bg-primary-900/50 dark:text-primary-300;
-  }
-  .student-nav-link-inactive {
-    @apply text-slate-600 hover:bg-slate-50 hover:text-primary-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-primary-400;
-  }
-  .btn-logout {
-    @apply rounded-full bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-md transition-all hover:bg-zinc-800 dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white;
-  }
-
-  /* Admin sidebar */
-  .admin-sidebar {
-    @apply flex min-h-screen w-64 flex-col border-r border-slate-100 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950;
-  }
-  .admin-sidebar-header {
-    @apply border-b border-slate-100 p-5 dark:border-slate-800;
-  }
   .admin-sidebar-nav {
-    @apply flex-1 p-4 space-y-1;
+    @apply flex-1 space-y-1 px-4;
   }
+
   .admin-sidebar-link {
-    @apply block px-4 py-2.5 rounded-xl text-base font-medium transition-all duration-200;
+    @apply flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold transition-all;
   }
+
   .admin-sidebar-link-active {
-    @apply border border-primary-100/80 bg-primary-50 text-primary-800 shadow-sm dark:border-primary-900 dark:bg-primary-900/30 dark:text-primary-300;
+    @apply bg-indigo-100 text-indigo-700 dark:bg-slate-800 dark:text-white;
   }
+
   .admin-sidebar-link-inactive {
-    @apply text-slate-600 hover:bg-slate-50 hover:text-primary-700 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-primary-400;
+    @apply text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800;
   }
+
+  .admin-sidebar-icon {
+    @apply text-lg;
+  }
+
   .admin-sidebar-footer {
-    @apply border-t border-slate-100 p-4 dark:border-slate-800;
+    @apply border-t border-slate-100 p-6 dark:border-slate-800;
   }
-  .admin-main {
-    @apply flex-1 overflow-auto p-6 lg:p-10 bg-transparent;
+
+  .admin-sidebar-logout {
+    @apply flex w-full items-center justify-center gap-2 rounded-xl bg-slate-50 px-4 py-3 text-sm font-bold text-slate-600 transition-colors hover:bg-slate-100 dark:bg-slate-900 dark:text-slate-400;
   }
+
+  .admin-sidebar-logout-icon {
+    @apply h-4 w-4;
+  }
+
+  .dashboard-wrap {
+    @apply min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/30 dark:from-slate-950 dark:to-slate-900;
+  }
+
+  .content-main {
+    @apply mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10;
+  }
+
+  .content-card {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-lg shadow-slate-200/60 sm:p-6 dark:border-slate-700 dark:bg-slate-900 dark:shadow-black/20;
+  }
+
+  .page-title {
+    @apply text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl dark:text-slate-100;
+  }
+
+  .page-description {
+    @apply text-base text-slate-600 dark:text-slate-400;
+  }
+
   .admin-layout {
-    @apply flex min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/20 dark:from-slate-950 dark:to-slate-900;
+    @apply flex min-h-screen bg-gradient-to-b from-slate-50 to-blue-50/30 dark:from-slate-950 dark:to-slate-900;
   }
 
-  /* Tables */
+  .admin-main {
+    @apply min-w-0 flex-1 overflow-auto p-6 lg:p-8;
+  }
+
   .table-wrap {
-    @apply overflow-x-auto rounded-xl border border-slate-100 dark:border-slate-700;
+    @apply overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900;
   }
+
   .table-admin {
-    @apply min-w-full divide-y divide-slate-100 dark:divide-slate-700;
+    @apply min-w-full divide-y divide-slate-200 dark:divide-slate-700;
   }
+
   .table-admin th {
-    @apply bg-slate-50/80 px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-slate-500 dark:bg-slate-800/80 dark:text-slate-400;
+    @apply bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400;
   }
+
   .table-admin tbody tr {
-    @apply divide-y divide-slate-100 transition-colors hover:bg-slate-50/50 dark:divide-slate-800 dark:hover:bg-slate-800/40;
+    @apply transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70;
   }
+
+  .table-admin tbody tr + tr {
+    @apply border-t border-slate-100 dark:border-slate-800;
+  }
+
   .table-admin td {
-    @apply px-4 py-3 text-base text-slate-600 dark:text-slate-300;
+    @apply px-4 py-3 text-sm text-slate-700 dark:text-slate-200;
   }
+
   .table-action-link {
-    @apply text-base font-semibold text-primary-600 hover:text-primary-700 hover:underline dark:text-primary-400 dark:hover:text-primary-300;
+    @apply text-sm font-semibold text-indigo-600 transition hover:text-indigo-700 hover:underline dark:text-indigo-400 dark:hover:text-indigo-300;
   }
-  .actions-row {
-    @apply mt-4 flex gap-3 flex-wrap;
-  }
+
   .btn-table-primary {
-    @apply bg-primary-600 text-white px-5 py-2 rounded-full text-base font-semibold hover:bg-primary-700 shadow-md shadow-primary-600/15 transition-all;
+    @apply inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white shadow-md shadow-indigo-600/20 transition hover:bg-indigo-700;
   }
+
   .btn-table-secondary {
-    @apply rounded-full border border-slate-200 bg-white px-5 py-2 text-base font-semibold text-slate-700 transition-all hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
-  }
-}
-
-/* Data tables inside dashboard panels (inline Tailwind tables) */
-@layer components {
-  .table-dashboard {
-    @apply min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-700;
-  }
-  .table-dashboard thead tr {
-    @apply border-b border-slate-200 dark:border-slate-600;
-  }
-  .table-dashboard th {
-    @apply whitespace-nowrap bg-slate-50/90 px-3 py-3 font-semibold text-slate-800 dark:bg-slate-800 dark:text-slate-100;
-  }
-  .table-dashboard tbody {
-    @apply divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-900;
-  }
-  .table-dashboard tbody tr {
-    @apply bg-white text-slate-700 transition-colors hover:bg-slate-50/80 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/90;
-  }
-  .table-dashboard td {
-    @apply px-3 py-3 text-slate-700 dark:text-slate-200;
+    @apply inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
   }
 
-  .panel-surface {
-    @apply border border-slate-100 bg-white dark:border-slate-700 dark:bg-slate-900;
+  .dashboard-grid {
+    @apply grid gap-8 lg:grid-cols-12;
   }
 
-  .table-admin-compact {
-    @apply min-w-full divide-y divide-slate-200 text-left text-base dark:divide-slate-700;
+  .stat-widget {
+    @apply rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-900;
   }
-  .table-admin-compact thead tr {
-    @apply border-b border-slate-200 dark:border-slate-700;
+
+  .stat-label {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
   }
-  .table-admin-compact th {
-    @apply bg-slate-50/90 px-2 py-2 text-xs font-semibold text-slate-800 dark:bg-slate-800 dark:text-slate-100;
+
+  .stat-value {
+    @apply mt-1 text-3xl font-black tracking-tight text-slate-900 dark:text-slate-100;
   }
-  .table-admin-compact tbody {
-    @apply divide-y divide-slate-100 bg-white dark:divide-slate-700 dark:bg-slate-900;
+
+  .premium-card {
+    @apply rounded-3xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-700 dark:bg-slate-900;
   }
-  .table-admin-compact tbody tr {
-    @apply bg-white text-slate-700 transition-colors hover:bg-slate-50/80 dark:bg-slate-900 dark:text-slate-100 dark:hover:bg-slate-800/90;
+
+  .premium-card-inner {
+    @apply p-5 sm:p-6 lg:p-7;
   }
-  .table-admin-compact td {
-    @apply px-2 py-2 align-top text-sm dark:text-slate-300;
+
+  .container-main {
+    @apply mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8;
   }
+
+  .site-header {
+    @apply bg-white/90 backdrop-blur dark:bg-slate-950/85;
+  }
+
+  .site-logo-mark {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600 text-lg font-black text-white;
+  }
+
+  .btn-secondary-outline {
+    @apply inline-flex items-center justify-center rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800;
+  }
+
+  .hostel-grid {
+    @apply grid gap-6 md:grid-cols-2 xl:grid-cols-3;
+  }
+
+  .hostel-card {
+    @apply overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-300/30 dark:border-slate-700 dark:bg-slate-900 dark:hover:shadow-black/30;
+  }
+
+  .hostel-card-image {
+    @apply relative h-52 overflow-hidden bg-slate-100 dark:bg-slate-800;
+  }
+
+  .hostel-card-image-photo {
+    @apply h-full w-full object-cover transition duration-500 group-hover:scale-105;
+  }
+
+  .hostel-card-icon {
+    @apply mx-auto mt-16 h-14 w-14 text-indigo-500;
+  }
+
+  .hostel-card-body {
+    @apply flex h-full min-h-[260px] flex-col gap-4 p-5;
+  }
+
+  .hostel-card-grow {
+    @apply space-y-3;
+  }
+
+  .hostel-card-header {
+    @apply flex items-start justify-between gap-3;
+  }
+
+  .hostel-card-title {
+    @apply text-xl font-extrabold tracking-tight text-slate-900 dark:text-slate-100;
+  }
+
+  .hostel-price {
+    @apply shrink-0 rounded-full bg-indigo-50 px-3 py-1 text-xs font-bold text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-300;
+  }
+
+  .hostel-location {
+    @apply flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-slate-400;
+  }
+
+  .hostel-location-icon {
+    @apply h-4 w-4 text-indigo-500;
+  }
+
+  .hostel-description {
+    @apply text-sm leading-relaxed text-slate-600 dark:text-slate-300;
+  }
+
+  .hostel-amenities {
+    @apply flex flex-wrap gap-2;
+  }
+
+  .hostel-amenity-tag {
+    @apply rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300;
+  }
+
+  .hostel-meta {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400;
+  }
+
+  .hostel-card-cta {
+    @apply inline-flex w-full items-center justify-center rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-indigo-700;
+  }
+
 }

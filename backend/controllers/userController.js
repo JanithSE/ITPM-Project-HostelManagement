@@ -40,14 +40,18 @@ export const getUserById = async (req, res) => {
 export const updateUser = async (req, res) => {
   try {
     const { name, email, role, password } = req.body
-    const update = {}
-    if (name != null) update.name = name
-    if (email != null) update.email = email
-    if (role != null) update.role = role
-    if (password != null) update.password = password
-    const user = await User.findByIdAndUpdate(req.params.id, update, { new: true }).select('-password')
+    const user = await User.findById(req.params.id)
     if (!user) return res.status(404).json({ error: 'User not found' })
-    res.json(user)
+
+    if (name != null) user.name = name
+    if (email != null) user.email = email
+    if (role != null) user.role = role
+    if (password != null) user.password = password
+
+    await user.save()
+    const safeUser = user.toObject()
+    delete safeUser.password
+    res.json(safeUser)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

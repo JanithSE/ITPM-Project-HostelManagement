@@ -6,7 +6,11 @@ export default function ProtectedRoute({ children, allowedRole }) {
   const location = useLocation()
 
   if (!token || !role) {
-    const loginPath = allowedRole === 'warden' ? '/warden/login' : '/login'
+    const loginPath = allowedRole === 'student'
+      ? '/student/login'
+      : allowedRole === 'warden'
+        ? '/warden/login'
+        : '/admin/login'
     return <Navigate to={loginPath} state={{ from: location }} replace />
   }
 
