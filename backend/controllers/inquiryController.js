@@ -28,7 +28,11 @@ export const listMyInquiries = async (req, res) => {
 
 export const createInquiry = async (req, res) => {
   try {
-    const { subject, message } = req.body
+    const { campusId, subject, message } = req.body
+    const campusIdTrim = String(campusId || '').trim().toUpperCase()
+    if (!/^[A-Z]{2}\d{8}$/.test(campusIdTrim)) {
+      return res.status(400).json({ error: 'Campus ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
+    }
     if (!subject || !String(subject).trim()) {
       return res.status(400).json({ error: 'Subject is required' })
     }
@@ -37,6 +41,7 @@ export const createInquiry = async (req, res) => {
     }
     const inquiry = await Inquiry.create({
       from: req.user._id,
+      campusId: campusIdTrim,
       subject: String(subject).trim(),
       message: String(message).trim(),
       status: 'open',
@@ -104,6 +109,61 @@ export const addInquiryComment = async (req, res) => {
 
     const populated = await inquiryPopulate(Inquiry.findById(inquiry._id))
     res.json(populated)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+export const updateMyInquiry = async (req, res) => {
+  try {
+    const { campusId, subject, message } = req.body || {}
+    const campusIdTrim = String(campusId || '').trim().toUpperCase()
+    const inquiry = await Inquiry.findById(req.params.id)
+    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' })
+
+    if (String(inquiry.from) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (inquiry.status !== 'open' || inquiry.reply) {
+      return res.status(400).json({ error: 'Only open inquiries without replies can be updated' })
+    }
+
+    if (!subject || !String(subject).trim()) {
+      return res.status(400).json({ error: 'Subject is required' })
+    }
+    if (!/^[A-Z]{2}\d{8}$/.test(campusIdTrim)) {
+      return res.status(400).json({ error: 'Campus ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
+    }
+    if (!message || !String(message).trim()) {
+      return res.status(400).json({ error: 'Message is required' })
+    }
+
+    inquiry.campusId = campusIdTrim
+    inquiry.subject = String(subject).trim()
+    inquiry.message = String(message).trim()
+    await inquiry.save()
+
+    const populated = await inquiryPopulate(Inquiry.findById(inquiry._id))
+    res.json(populated)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+export const deleteMyInquiry = async (req, res) => {
+  try {
+    const inquiry = await Inquiry.findById(req.params.id)
+    if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' })
+
+    if (String(inquiry.from) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (inquiry.status !== 'open' || inquiry.reply) {
+      return res.status(400).json({ error: 'Only open inquiries without replies can be deleted' })
+    }
+
+    await inquiry.deleteOne()
+    res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

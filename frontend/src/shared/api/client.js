@@ -173,6 +173,10 @@ export const maintenanceApi = {
   create: (payload) =>
     apiFetch('/maintenance', { method: 'POST', body: JSON.stringify(payload) }),
   myList: () => apiFetch('/maintenance/my'),
+  updateMine: (id, payload) =>
+    apiFetch(`/maintenance/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeMine: (id) =>
+    apiFetch(`/maintenance/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/maintenance'),
   updateStatus: (id, status) =>
     apiFetch(`/maintenance/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
@@ -181,6 +185,10 @@ export const maintenanceApi = {
 export const inquiryApi = {
   create: (payload) => apiFetch('/inquiry', { method: 'POST', body: JSON.stringify(payload) }),
   myList: () => apiFetch('/inquiry/my'),
+  updateMine: (id, payload) =>
+    apiFetch(`/inquiry/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeMine: (id) =>
+    apiFetch(`/inquiry/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/inquiry'),
   reply: (id, replyText) =>
     apiFetch(`/inquiry/${id}/reply`, { method: 'PUT', body: JSON.stringify({ reply: replyText }) }),

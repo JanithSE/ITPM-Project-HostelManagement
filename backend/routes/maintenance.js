@@ -4,6 +4,8 @@ import {
   listMyMaintenance,
   createMaintenance,
   updateMaintenanceStatus,
+  updateMyMaintenance,
+  deleteMyMaintenance,
 } from '../controllers/maintenanceController.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
 
@@ -16,6 +18,12 @@ router.post('/', requireRole('student'), createMaintenance)
 
 // GET /api/maintenance/my — student: own requests
 router.get('/my', requireRole('student'), listMyMaintenance)
+
+// PUT /api/maintenance/:id/my — student: update own open request
+router.put('/:id/my', requireRole('student'), updateMyMaintenance)
+
+// DELETE /api/maintenance/:id/my — student: delete own open request
+router.delete('/:id/my', requireRole('student'), deleteMyMaintenance)
 
 // GET /api/maintenance — admin: all requests
 router.get('/', requireRole('admin'), listMaintenance)

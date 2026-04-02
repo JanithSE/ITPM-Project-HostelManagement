@@ -3,10 +3,14 @@ import { inquiryApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+const CAMPUS_ID_REGEX = /^[A-Z]{2}\d{8}$/
 // Optional UX rule: keep email providers limited to common domains.
 const COMMON_EMAIL_DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com']
 
 export default function StudentInquiries() {
+  const normalizeCampusId = (value) => String(value || '').replace(/\s+/g, '').toUpperCase()
+
+  const [campusId, setCampusId] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [message, setMessage] = useState('')
@@ -14,9 +18,11 @@ export default function StudentInquiries() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [success, setSuccess] = useState('')
+  const [editingId, setEditingId] = useState('')
   const [emailHint, setEmailHint] = useState('')
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({
+    campusId: false,
     name: false,
     email: false,
     message: false,
@@ -42,11 +48,17 @@ export default function StudentInquiries() {
   }, [load])
 
   // Client-side validation keeps obvious invalid inputs out of the API.
-  function validateForm(next = { name, email, message }) {
+  function validateForm(next = { campusId, name, email, message }) {
     const nextErrors = {}
+    const campusIdTrim = normalizeCampusId(next.campusId)
     const nameTrim = next.name.trim()
     const emailTrim = next.email.trim()
     const messageTrim = next.message.trim()
+
+    if (!campusIdTrim) nextErrors.campusId = 'Campus ID is required.'
+    else if (!CAMPUS_ID_REGEX.test(campusIdTrim)) {
+      nextErrors.campusId = 'Use 2 capital letters + 8 numbers (example: AB12345678).'
+    }
 
     if (!nameTrim) nextErrors.name = 'Name is required.'
 //email validation in inquiry form 
@@ -75,6 +87,7 @@ export default function StudentInquiries() {
   function updateField(field, value) {
     setSuccess('')
     if (field !== 'email') setEmailHint('')
+    if (field === 'campusId') setCampusId(normalizeCampusId(value))
     if (field === 'name') setName(value)
     if (field === 'email') {
       // Real-time normalization: trim spaces and force lowercase.
@@ -88,6 +101,7 @@ export default function StudentInquiries() {
     }
     if (field === 'message') setMessage(value)
     const nextForm = {
+      campusId: field === 'campusId' ? normalizeCampusId(value) : campusId,
       name: field === 'name' ? value : name,
       email: field === 'email' ? value.trim().toLowerCase() : email,
       message: field === 'message' ? value : message,
@@ -106,26 +120,73 @@ export default function StudentInquiries() {
     e.preventDefault()
     setMsg('')
     setSuccess('')
-    const allTouched = { name: true, email: true, message: true }
+    const allTouched = { campusId: true, name: true, email: true, message: true }
     setTouched(allTouched)
     const nextErrors = validateForm()
     setErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
     try {
-      // Create inquiry then refresh list so the latest item appears immediately.
-      await inquiryApi.create({
+      const payload = {
+        campusId: normalizeCampusId(campusId),
         subject: `Inquiry from ${name.trim()} (${email.trim()})`,
         message: message.trim(),
-      })
+      }
+      if (editingId) {
+        await inquiryApi.updateMine(editingId, payload)
+      } else {
+        // Create inquiry then refresh list so the latest item appears immediately.
+        await inquiryApi.create(payload)
+      }
+      setCampusId('')
       setName('')
       setEmail('')
       setMessage('')
+      setEditingId('')
       setErrors({})
-      setTouched({ name: false, email: false, message: false })
-      setSuccess('Inquiry submitted successfully.')
+      setTouched({ campusId: false, name: false, email: false, message: false })
+      setSuccess(editingId ? 'Inquiry updated successfully.' : 'Inquiry submitted successfully.')
       await load()
     } catch (e) {
       setMsg(e.message || 'Submit failed')
+    }
+  }
+
+  function startEdit(row) {
+    setMsg('')
+    setSuccess('')
+    setEditingId(row._id)
+    setCampusId(normalizeCampusId(row.campusId || ''))
+    setName(row.from?.name || '')
+    setEmail((row.from?.email || '').toLowerCase())
+    setMessage(row.message || '')
+    setErrors({})
+    setTouched({ campusId: false, name: false, email: false, message: false })
+    setEmailHint('')
+  }
+
+  function cancelEdit() {
+    setEditingId('')
+    setCampusId('')
+    setName('')
+    setEmail('')
+    setMessage('')
+    setErrors({})
+    setTouched({ campusId: false, name: false, email: false, message: false })
+    setEmailHint('')
+  }
+
+  async function removeRow(row) {
+    const ok = window.confirm('Delete this inquiry?')
+    if (!ok) return
+    try {
+      setMsg('')
+      setSuccess('')
+      await inquiryApi.removeMine(row._id)
+      if (editingId === row._id) cancelEdit()
+      setSuccess('Inquiry deleted successfully.')
+      await load()
+    } catch (e) {
+      setMsg(e.message || 'Delete failed')
     }
   }
 
@@ -151,13 +212,28 @@ export default function StudentInquiries() {
           background: 'rgba(15, 23, 42, 0.58)',
         }}
       />
-      <div className="content-card" style={{ position: 'relative', zIndex: 1, maxWidth: 1100, margin: '0 auto' }}>
+      <div className="content-card" style={{ position: 'relative', zIndex: 1, maxWidth: 1450, width: '96%', margin: '0 auto' }}>
       <h1 className="page-title mb-4">Student Inquiry Form</h1>
 
       <h2 className="page-description" style={{ marginBottom: '0.75rem' }}>
-        New Inquiry
+        {editingId ? 'Update Inquiry' : 'New Inquiry'}
       </h2>
-      <form onSubmit={handleSubmit} style={{ maxWidth: 480, marginBottom: '2rem' }}>
+      <form onSubmit={handleSubmit} style={{ maxWidth: 640, width: '100%', marginBottom: '2rem' }}>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <label style={{ display: 'block', marginBottom: 4 }}>Campus ID</label>
+          <input
+            style={{ width: '100%', padding: '0.5rem', border: `1px solid ${inputBorder('campusId', campusId.trim().length > 0)}` }}
+            value={campusId}
+            onChange={(e) => updateField('campusId', e.target.value)}
+            onBlur={() => markTouched('campusId')}
+            maxLength={10}
+            placeholder="Example: AB12345678"
+          />
+          <div style={{ marginTop: 4, display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+            <span style={{ color: '#dc2626' }}>{touched.campusId ? errors.campusId || '' : ''}</span>
+            <span style={{ color: '#6b7280' }}>{campusId.length}/10</span>
+          </div>
+        </div>
         <div style={{ marginBottom: '0.75rem' }}>
           <label style={{ display: 'block', marginBottom: 4 }}>Name</label>
           <input
@@ -205,9 +281,16 @@ export default function StudentInquiries() {
             <span style={{ color: '#6b7280' }}>{message.length}/1200</span>
           </div>
         </div>
-        <button type="submit" className="btn-primary-action" disabled={!isFormValid}>
-          Submit Inquiry
-        </button>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="submit" className="btn-primary-action" disabled={!isFormValid}>
+            {editingId ? 'Update Inquiry' : 'Submit Inquiry'}
+          </button>
+          {editingId && (
+            <button type="button" className="btn-table-primary" onClick={cancelEdit}>
+              Cancel Edit
+            </button>
+          )}
+        </div>
       </form>
 
       <h2 className="page-description" style={{ marginBottom: '0.75rem' }}>
@@ -219,32 +302,59 @@ export default function StudentInquiries() {
         Refresh
       </button>
       <div className="table-wrap">
-        <table className="table-admin">
+        <table className="table-admin" style={{ width: '100%', tableLayout: 'fixed' }}>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Message</th>
-              <th>Status</th>
-              <th>Reply</th>
-              <th>Date</th>
+              <th style={{ width: '12%' }}>Campus ID</th>
+              <th style={{ width: '10%' }}>Name</th>
+              <th style={{ width: '18%' }}>Email</th>
+              <th style={{ width: '20%' }}>Message</th>
+              <th style={{ width: '9%' }}>Status</th>
+              <th style={{ width: '15%' }}>Reply</th>
+              <th style={{ width: '10%' }}>Date</th>
+              <th style={{ width: '12%' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {list.length === 0 && !loading && (
               <tr>
-                <td colSpan={6}>No inquiries yet.</td>
+                <td colSpan={8}>No inquiries yet.</td>
               </tr>
             )}
             {list.map((row) => (
               <tr key={row._id}>
-                <td>{row.from?.name || '—'}</td>
-                <td>{row.from?.email || '—'}</td>
-                <td style={{ maxWidth: 200, wordBreak: 'break-word' }}>{row.message}</td>
-                <td>{row.status}</td>
-                <td style={{ maxWidth: 200, wordBreak: 'break-word' }}>{row.reply || '—'}</td>
+                <td style={{ whiteSpace: 'nowrap' }}>{row.campusId || '—'}</td>
+                <td style={{ wordBreak: 'break-word' }}>{row.from?.name || '—'}</td>
+                <td style={{ wordBreak: 'break-word' }}>{row.from?.email || '—'}</td>
+                <td style={{ wordBreak: 'break-word' }}>{row.message}</td>
+                <td style={{ textTransform: 'capitalize', whiteSpace: 'nowrap' }}>{row.status}</td>
+                <td style={{ wordBreak: 'break-word' }}>{row.reply || '—'}</td>
                 {/* Inquiry createdAt is auto-set by backend timestamps; display in readable local format */}
-                <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
+                <td style={{ whiteSpace: 'normal', lineHeight: 1.35 }}>
+                  {row.createdAt ? (
+                    <>
+                      {new Date(row.createdAt).toLocaleDateString()}
+                      <br />
+                      {new Date(row.createdAt).toLocaleTimeString()}
+                    </>
+                  ) : (
+                    '—'
+                  )}
+                </td>
+                <td style={{ whiteSpace: 'nowrap' }}>
+                  {row.status === 'open' && !row.reply ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <button type="button" className="btn-table-primary" onClick={() => startEdit(row)}>
+                        Edit
+                      </button>
+                      <button type="button" className="btn-delete-table" onClick={() => removeRow(row)}>
+                        Delete
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ color: '#94a3b8', fontWeight: 600 }}>Locked</span>
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>
