@@ -20,20 +20,25 @@ function normalizeBedNumber(bedNumber) {
   const s = String(bedNumber).toLowerCase().trim()
   const m = s.match(/(\d+)/)
   if (!m) return null
-  const n = m[1]
-  return n === '1' || n === '2' ? n : null
+  return m[1]
 }
 
-function buildDefaultBeds() {
-  return [
-    { bedNumber: '1', status: 'Available', student: null, studentName: null },
-    { bedNumber: '2', status: 'Available', student: null, studentName: null },
-  ]
+function buildDefaultBeds(count = 2) {
+  const n = Number(count)
+  const safe = Number.isFinite(n) ? Math.min(Math.max(Math.trunc(n), 1), 8) : 2
+  return Array.from({ length: safe }, (_, i) => ({
+    bedNumber: String(i + 1),
+    status: 'Available',
+    student: null,
+    studentName: null,
+  }))
 }
 
-function normalizeBedsInput(bedsInput) {
-  // If beds are not provided, always default to 2 beds.
-  if (!Array.isArray(bedsInput) || bedsInput.length === 0) return buildDefaultBeds()
+function normalizeBedsInput(bedsInput, roomType = null) {
+  // If beds are not provided, default based on room type.
+  if (!Array.isArray(bedsInput) || bedsInput.length === 0) {
+    return roomType === 'single' ? buildDefaultBeds(1) : buildDefaultBeds(2)
+  }
 
   const bedMap = new Map()
   for (const b of bedsInput) {
@@ -48,14 +53,24 @@ function normalizeBedsInput(bedsInput) {
     })
   }
 
-  // Ensure exactly 2 beds (1 and 2).
-  const result = ['1', '2'].map((bn) => bedMap.get(bn) ?? { bedNumber: bn, status: 'Available', student: null, studentName: null })
+  const sorted = Array.from(bedMap.values()).sort((a, b) => Number(a.bedNumber) - Number(b.bedNumber))
+  if (!sorted.length) return roomType === 'single' ? buildDefaultBeds(1) : buildDefaultBeds(2)
+  const result = sorted
   return result
 }
 
+function normalizeCapacity(capacityInput, roomType = null) {
+  if (capacityInput !== undefined && capacityInput !== null && String(capacityInput).trim() !== '') {
+    const n = Number(capacityInput)
+    if (Number.isFinite(n)) return Math.max(1, Math.min(8, Math.trunc(n)))
+  }
+  return roomType === 'single' ? 1 : 2
+}
+
 async function refreshHostelCounts(hostelId) {
-  const roomsCount = await Room.countDocuments({ hostel: hostelId })
-  const totalBeds = roomsCount * 2
+  const rooms = await Room.find({ hostel: hostelId }).select('beds')
+  const roomsCount = rooms.length
+  const totalBeds = rooms.reduce((sum, r) => sum + (Array.isArray(r.beds) ? r.beds.length : 0), 0)
   const occupiedBeds = await Booking.countDocuments({
     hostel: hostelId,
     status: { $in: ['confirmed'] },
@@ -90,10 +105,50 @@ export const createRoom = async (req, res) => {
     const existing = await Room.findOne({ hostel: hostelId, roomNumber })
     if (existing) return res.status(409).json({ error: 'Room already exists in this hostel' })
 
+    const roomType = req.body?.roomType === 'single' ? 'single' : (req.body?.roomType === 'sharing' ? 'sharing' : null)
+    const block = ['A', 'B', 'C'].includes(String(req.body?.block || '').toUpperCase())
+      ? String(req.body?.block || '').toUpperCase()
+      : null
+    const acType = req.body?.acType === 'ac' ? 'ac' : (req.body?.acType === 'non-ac' ? 'non-ac' : null)
+    const bathType = req.body?.bathType === 'attached' ? 'attached' : 'common'
+    const floor = req.body?.floor !== undefined ? Number(req.body.floor) : 0
+    if (!Number.isFinite(floor) || floor < 0) return res.status(400).json({ error: 'floor must be a non-negative number' })
+    const capacity = normalizeCapacity(req.body?.capacity, roomType)
+    const price = req.body?.price !== undefined ? Number(req.body.price) : 0
+    if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: 'price must be a positive number' })
+    const status = req.body?.status
+    if (status !== undefined && !['available', 'reserved', 'occupied'].includes(status)) {
+      return res.status(400).json({ error: 'status must be available, reserved or occupied' })
+    }
+    const hasBalcony = Boolean(req.body?.hasBalcony)
+    const hasAttachedBath = req.body?.hasAttachedBath !== undefined ? Boolean(req.body?.hasAttachedBath) : bathType === 'attached'
+    const hasKitchen = Boolean(req.body?.hasKitchen)
+    const furnishedLevel = ['basic', 'semi', 'fully'].includes(req.body?.furnishedLevel) ? req.body.furnishedLevel : 'semi'
+    const securityDeposit = req.body?.securityDeposit !== undefined ? Number(req.body.securityDeposit) : 0
+    if (!Number.isFinite(securityDeposit) || securityDeposit < 0) {
+      return res.status(400).json({ error: 'securityDeposit must be a positive number' })
+    }
+
     const room = await Room.create({
       hostel: hostelId,
       roomNumber,
-      beds: normalizeBedsInput(req.body?.beds),
+      block,
+      floor: Math.trunc(floor),
+      capacity,
+      price,
+      status: status || 'available',
+      roomType,
+      acType,
+      bathType,
+      hasBalcony,
+      hasAttachedBath,
+      hasKitchen,
+      furnishedLevel,
+      securityDeposit,
+      beds: normalizeBedsInput(
+        req.body?.beds || Array.from({ length: capacity }, (_, i) => ({ bedNumber: String(i + 1) })),
+        roomType
+      ),
     })
 
     await refreshHostelCounts(hostelId)
@@ -132,8 +187,78 @@ export const updateRoom = async (req, res) => {
     room.roomNumber = nextRoomNumber
     room.hostel = nextHostelId
 
-    // Allow optional bed structure update, but occupancy remains derived from `Booking`.
-    if (req.body?.beds !== undefined) room.beds = normalizeBedsInput(req.body.beds)
+    if (req.body?.block !== undefined) {
+      const block = String(req.body.block || '').toUpperCase()
+      if (!['A', 'B', 'C'].includes(block)) return res.status(400).json({ error: 'block must be A, B or C' })
+      room.block = block
+    }
+    if (req.body?.floor !== undefined) {
+      const floor = Number(req.body.floor)
+      if (!Number.isFinite(floor) || floor < 0) return res.status(400).json({ error: 'floor must be a non-negative number' })
+      room.floor = Math.trunc(floor)
+    }
+    if (req.body?.capacity !== undefined) {
+      const capacity = normalizeCapacity(req.body.capacity, room.roomType)
+      room.capacity = capacity
+      if (req.body?.beds === undefined) {
+        room.beds = normalizeBedsInput(
+          Array.from({ length: capacity }, (_, i) => ({ bedNumber: String(i + 1) })),
+          room.roomType
+        )
+      }
+    }
+    if (req.body?.price !== undefined) {
+      const price = Number(req.body.price)
+      if (!Number.isFinite(price) || price < 0) return res.status(400).json({ error: 'price must be a positive number' })
+      room.price = price
+    }
+    if (req.body?.status !== undefined) {
+      if (!['available', 'reserved', 'occupied'].includes(req.body.status)) {
+        return res.status(400).json({ error: 'status must be available, reserved or occupied' })
+      }
+      room.status = req.body.status
+    }
+    if (req.body?.roomType !== undefined) {
+      if (!['single', 'sharing'].includes(req.body.roomType)) {
+        return res.status(400).json({ error: 'roomType must be single or sharing' })
+      }
+      room.roomType = req.body.roomType
+      if (req.body?.beds === undefined) {
+        room.beds = normalizeBedsInput(room.beds, room.roomType)
+      }
+    }
+    if (req.body?.acType !== undefined) {
+      if (!['ac', 'non-ac'].includes(req.body.acType)) {
+        return res.status(400).json({ error: 'acType must be ac or non-ac' })
+      }
+      room.acType = req.body.acType
+    }
+    if (req.body?.bathType !== undefined) {
+      if (!['attached', 'common'].includes(req.body.bathType)) {
+        return res.status(400).json({ error: 'bathType must be attached or common' })
+      }
+      room.bathType = req.body.bathType
+      room.hasAttachedBath = req.body.bathType === 'attached'
+    }
+    if (req.body?.hasBalcony !== undefined) room.hasBalcony = Boolean(req.body.hasBalcony)
+    if (req.body?.hasAttachedBath !== undefined) room.hasAttachedBath = Boolean(req.body.hasAttachedBath)
+    if (req.body?.hasKitchen !== undefined) room.hasKitchen = Boolean(req.body.hasKitchen)
+    if (req.body?.furnishedLevel !== undefined) {
+      if (!['basic', 'semi', 'fully'].includes(req.body.furnishedLevel)) {
+        return res.status(400).json({ error: 'furnishedLevel must be basic, semi or fully' })
+      }
+      room.furnishedLevel = req.body.furnishedLevel
+    }
+    if (req.body?.securityDeposit !== undefined) {
+      const securityDeposit = Number(req.body.securityDeposit)
+      if (!Number.isFinite(securityDeposit) || securityDeposit < 0) {
+        return res.status(400).json({ error: 'securityDeposit must be a positive number' })
+      }
+      room.securityDeposit = securityDeposit
+    }
+
+    // Optional bed structure update, occupancy remains derived from `Booking`.
+    if (req.body?.beds !== undefined) room.beds = normalizeBedsInput(req.body.beds, room.roomType)
 
     await room.save()
 

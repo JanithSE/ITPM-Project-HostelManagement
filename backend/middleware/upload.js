@@ -9,11 +9,19 @@ const __dirname = path.dirname(__filename)
 const backendRoot = path.join(__dirname, '..')
 const paymentsDir = path.join(backendRoot, 'uploads', 'payments')
 const latepassDir = path.join(backendRoot, 'uploads', 'latepass')
+<<<<<<< HEAD
 const hostelsDir = path.join(backendRoot, 'uploads', 'hostels')
 
 fs.mkdirSync(paymentsDir, { recursive: true })
 fs.mkdirSync(latepassDir, { recursive: true })
 fs.mkdirSync(hostelsDir, { recursive: true })
+=======
+const bookingsDir = path.join(backendRoot, 'uploads', 'bookings')
+
+fs.mkdirSync(paymentsDir, { recursive: true })
+fs.mkdirSync(latepassDir, { recursive: true })
+fs.mkdirSync(bookingsDir, { recursive: true })
+>>>>>>> recovery-work
 
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf'])
 const ALLOWED_MIME = new Set([
@@ -71,10 +79,17 @@ const latepassMulter = multer({
   fileFilter: imageOrPdfFilter,
 })
 
+<<<<<<< HEAD
 const hostelImageMulter = multer({
   storage: makeStorage(hostelsDir),
   limits: { fileSize: 8 * 1024 * 1024 },
   fileFilter: hostelImageFilter,
+=======
+const bookingMulter = multer({
+  storage: makeStorage(bookingsDir),
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: imageOrPdfFilter,
+>>>>>>> recovery-work
 })
 
 export function paymentProofUploadMiddleware(req, res, next) {
@@ -101,6 +116,7 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
   })
 }
 
+<<<<<<< HEAD
 export function hostelImageUploadMiddleware(req, res, next) {
   hostelImageMulter.single('image')(req, res, (err) => {
     if (err) {
@@ -108,11 +124,28 @@ export function hostelImageUploadMiddleware(req, res, next) {
         return res.status(400).json({ error: 'Hostel image must be 8 MB or smaller' })
       }
       return res.status(400).json({ error: err.message || 'Image upload failed' })
+=======
+export function bookingDocumentsUploadMiddleware(req, res, next) {
+  bookingMulter.fields([
+    { name: 'nic', maxCount: 1 },
+    { name: 'studentId', maxCount: 1 },
+    { name: 'medicalReport', maxCount: 1 },
+    { name: 'policeReport', maxCount: 1 },
+    { name: 'guardianLetter', maxCount: 1 },
+    { name: 'recommendationLetter', maxCount: 1 },
+  ])(req, res, (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({ error: 'Each document must be 10 MB or smaller' })
+      }
+      return res.status(400).json({ error: err.message || 'File upload failed' })
+>>>>>>> recovery-work
     }
     next()
   })
 }
 
+<<<<<<< HEAD
 /** Use multipart parsing only when the client sends multipart/form-data (optional image). */
 export function conditionalHostelImageUpload(req, res, next) {
   const ct = String(req.headers['content-type'] || '')
@@ -122,5 +155,7 @@ export function conditionalHostelImageUpload(req, res, next) {
   next()
 }
 
+=======
+>>>>>>> recovery-work
 /** @deprecated use paymentProofUploadMiddleware */
 export const proofUploadMiddleware = paymentProofUploadMiddleware
