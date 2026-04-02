@@ -304,13 +304,12 @@ export const patchPaymentStatus = async (req, res) => {
     const nextStatus = normalizePaymentStatus(req.body.status)
     if (!nextStatus) return res.status(400).json({ error: 'Invalid status' })
 
-    const hasRemarks = req.body.adminRemarks !== undefined
-    if (nextStatus !== 'rejected' && hasRemarks) {
-      return res.status(400).json({ error: 'adminRemarks allowed only when status is rejected' })
-    }
+    const remarksRaw = req.body.adminRemarks
+    const hasRemarks = remarksRaw !== undefined
+    const normalizedRemarks = hasRemarks ? String(remarksRaw ?? '').trim() : undefined
 
     const $set = { status: nextStatus }
-    if (nextStatus === 'rejected') $set.adminRemarks = req.body.adminRemarks
+    if (hasRemarks) $set.adminRemarks = normalizedRemarks
 
     await Payment.updateOne({ _id: req.params.id }, { $set }, { runValidators: true })
 

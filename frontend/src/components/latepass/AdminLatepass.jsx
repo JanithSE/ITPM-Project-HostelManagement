@@ -100,6 +100,7 @@ export default function AdminLatepass() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updatingId, setUpdatingId] = useState(null)
+  const [bulkSaving, setBulkSaving] = useState(false)
   const [rowState, setRowState] = useState({})
 
   const load = useCallback(async () => {
@@ -129,30 +130,53 @@ export default function AdminLatepass() {
     load()
   }, [load])
 
-  async function saveStatus(id) {
+  function isRowDirty(row) {
+    const st = rowState[row._id]
+    if (!st) return false
+    const currentStatus = latepassSelectStatus(row.status)
+    const currentRemarks = String(row.adminRemarks || '').trim()
+    const nextRemarks = String(st.remarks || '').trim()
+    return st.status !== currentStatus || nextRemarks !== currentRemarks
+  }
+
+  async function persistStatus(id, { silent = false, reloadAfter = true } = {}) {
     const st = rowState[id]
     if (!st) return
     const status = st.status
-    const adminRemarks = status === 'rejected' ? (st.remarks || '').trim() : undefined
+    const adminRemarks = (st.remarks || '').trim()
 
-    if (status === 'rejected' && !adminRemarks) {
-      toast.error('Add admin remarks when rejecting.')
-      return
-    }
-
-    setUpdatingId(id)
+    if (!silent) setUpdatingId(id)
     try {
-      const body = { status }
-      if (status === 'rejected') body.adminRemarks = adminRemarks
+      const body = { status, adminRemarks }
 
       await axiosClient.patch(`/latepass/${id}/status`, body)
-      toast.success('Late pass updated')
-      await load()
+      if (!silent) toast.success('Late pass updated')
+      if (reloadAfter) await load()
+      return true
     } catch (err) {
-      toast.error(getAxiosErrorMessage(err))
+      if (!silent) toast.error(getAxiosErrorMessage(err))
+      return false
     } finally {
-      setUpdatingId(null)
+      if (!silent) setUpdatingId(null)
     }
+  }
+
+  async function saveAllStatusUpdates() {
+    const dirtyRows = list.filter((row) => isRowDirty(row))
+    if (dirtyRows.length === 0) {
+      toast('No status updates to save.')
+      return
+    }
+    setBulkSaving(true)
+    let okCount = 0
+    for (const row of dirtyRows) {
+      const ok = await persistStatus(row._id, { silent: true, reloadAfter: false })
+      if (ok) okCount += 1
+    }
+    await load()
+    setBulkSaving(false)
+    if (okCount === dirtyRows.length) toast.success(`Saved ${okCount} updates.`)
+    else toast.error(`Saved ${okCount}/${dirtyRows.length}. Please retry failed rows.`)
   }
 
   async function deleteLatepass(id) {
@@ -231,25 +255,37 @@ export default function AdminLatepass() {
             {error}
           </div>
         )}
-        <div className="overflow-x-auto p-4 sm:p-6">
+        <div className="p-4 pb-0 sm:p-6 sm:pb-0">
+          <div className="mb-3 flex justify-end">
+            <button
+              type="button"
+              onClick={saveAllStatusUpdates}
+              disabled={loading || bulkSaving}
+              className="rounded-full bg-primary-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm shadow-primary-600/20 hover:bg-primary-700 disabled:opacity-50"
+            >
+              {bulkSaving ? 'Saving updates…' : 'Save Status Updates'}
+            </button>
+          </div>
+        </div>
+        <div className="overflow-x-auto p-4 pt-3 sm:p-6 sm:pt-3">
           {loading ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">Loading…</p>
           ) : list.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">No late pass requests.</p>
           ) : (
-            <table className="admin-latepass__table table-admin-compact w-full min-w-[68rem] table-fixed">
+            <table className="admin-latepass__table table-admin-compact w-full min-w-[92rem] table-fixed">
               <thead>
                 <tr>
-                  <th className="w-[10%] whitespace-nowrap">Date</th>
-                  <th className="w-[8%] whitespace-nowrap">Arriving</th>
-                  <th className="w-[10%] whitespace-nowrap">Guardian</th>
-                  <th className="w-[7%] whitespace-nowrap">Document</th>
-                  <th className="min-w-0 w-[20%]">Reason</th>
-                  <th className="min-w-0 w-[16%]">Students</th>
+                  <th className="w-[8%] whitespace-nowrap">Date</th>
+                  <th className="w-[7%] whitespace-nowrap">Arriving</th>
+                  <th className="w-[9%] whitespace-nowrap">Guardian</th>
+                  <th className="w-[6%] whitespace-nowrap">Document</th>
+                  <th className="min-w-0 w-[17%]">Reason</th>
+                  <th className="min-w-0 w-[14%]">Students</th>
                   <th className="w-[8%] whitespace-nowrap">Status</th>
-                  <th className="min-w-0 w-[12%]">Admin remarks</th>
-                  <th className="w-[10%] whitespace-nowrap">Submitted</th>
-                  <th className="w-[19%] min-w-[13rem] whitespace-nowrap">Update</th>
+                  <th className="w-[8%] whitespace-nowrap">Submitted</th>
+                  <th className="w-[15%] min-w-[11rem] whitespace-nowrap">Update status</th>
+                  <th className="w-[16%] min-w-[12rem] whitespace-nowrap">Admin remark</th>
                 </tr>
               </thead>
               <tbody>
@@ -263,14 +299,14 @@ export default function AdminLatepass() {
                   const students = row.students?.length ? row.students : []
                   return (
                     <tr key={row._id}>
-                      <td className="align-top whitespace-nowrap px-2 py-3 text-xs font-medium">
+                      <td className="align-top whitespace-nowrap px-2 py-2 text-xs font-medium">
                         {formatDateShort(row.date)}
                       </td>
-                      <td className="align-top whitespace-nowrap px-2 py-3 text-xs">{arrivingLabel(row)}</td>
-                      <td className="align-top break-all px-2 py-3 font-mono text-xs">
+                      <td className="align-top whitespace-nowrap px-2 py-2 text-xs">{arrivingLabel(row)}</td>
+                      <td className="align-top break-all px-2 py-2 font-mono text-xs">
                         {row.guardianContactNo || '—'}
                       </td>
-                      <td className="align-top whitespace-nowrap px-2 py-3">
+                      <td className="align-top whitespace-nowrap px-2 py-2">
                         {href ? (
                           <a
                             href={href}
@@ -284,28 +320,25 @@ export default function AdminLatepass() {
                           '—'
                         )}
                       </td>
-                      <td className="min-w-0 align-top px-2 py-3">
+                      <td className="min-w-0 align-top px-2 py-2">
                         <WrappableCell>{row.reason}</WrappableCell>
                       </td>
-                      <td className="min-w-0 align-top px-2 py-3">
+                      <td className="min-w-0 align-top px-2 py-2">
                         <AdminStudentsList students={students} />
                       </td>
-                      <td className="align-top whitespace-nowrap px-2 py-3">
+                      <td className="align-top whitespace-nowrap px-2 py-2">
                         <StatusBadge status={row.status} />
                       </td>
-                      <td className="min-w-0 align-top px-2 py-3 text-slate-500 dark:text-slate-400">
-                        <WrappableCell>{row.adminRemarks}</WrappableCell>
-                      </td>
-                      <td className="align-top px-2 py-3 text-xs leading-snug text-slate-600 dark:text-slate-400">
+                      <td className="align-top px-2 py-2 text-xs leading-snug text-slate-600 dark:text-slate-400">
                         {formatSubmitted(row.createdAt)}
                       </td>
-                      <td className="align-top px-2 py-3">
-                        <div className="flex min-w-[13rem] flex-col gap-2 rounded-lg border border-slate-200 bg-slate-50/70 p-2 dark:border-slate-700 dark:bg-slate-800/40">
+                      <td className="align-top px-2 py-2">
+                        <div className="flex min-w-[11rem] flex-col gap-1">
                           <select
                             value={rs.status}
                             onChange={(e) => setRow(row._id, { status: e.target.value })}
                             className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                            disabled={updatingId === row._id}
+                            disabled={bulkSaving || updatingId === row._id}
                             aria-label="Update late pass status"
                           >
                             {STATUS_OPTIONS.map((o) => (
@@ -314,34 +347,28 @@ export default function AdminLatepass() {
                               </option>
                             ))}
                           </select>
-                          {rs.status === 'rejected' && (
-                            <textarea
-                              value={rs.remarks}
-                              onChange={(e) => setRow(row._id, { remarks: e.target.value })}
-                              placeholder="Remarks (required if rejected)"
-                              rows={2}
-                              className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                              disabled={updatingId === row._id}
-                              aria-label="Admin remarks for rejection"
-                            />
-                          )}
-                          <button
-                            type="button"
-                            onClick={() => saveStatus(row._id)}
-                            disabled={updatingId === row._id}
-                            className="rounded-full bg-primary-600 px-3 py-2 text-xs font-semibold text-white shadow-sm shadow-primary-600/20 hover:bg-primary-700 disabled:opacity-50"
-                          >
-                            {updatingId === row._id ? 'Saving…' : 'Save'}
-                          </button>
                           <button
                             type="button"
                             onClick={() => deleteLatepass(row._id)}
-                            disabled={updatingId === row._id || !allowDelete}
+                            disabled={bulkSaving || updatingId === row._id || !allowDelete}
                             title={!allowDelete ? 'Delete allowed only for rejected or invalid/test records' : 'Delete request'}
-                            className="rounded-full border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                            className="rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
                           >
                             Delete
                           </button>
+                        </div>
+                      </td>
+                      <td className="align-top px-2 py-2">
+                        <div>
+                          <textarea
+                            value={rs.remarks}
+                            onChange={(e) => setRow(row._id, { remarks: e.target.value })}
+                            placeholder="Add context for this status update"
+                            rows={2}
+                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                            disabled={bulkSaving || updatingId === row._id}
+                            aria-label="Admin remark for late pass"
+                          />
                         </div>
                       </td>
                     </tr>
