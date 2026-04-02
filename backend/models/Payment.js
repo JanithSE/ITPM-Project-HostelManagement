@@ -28,8 +28,6 @@ const paymentSchema = new mongoose.Schema(
       default: 'pending',
     },
     adminRemarks: { type: String, trim: true },
-    /** Set when an admin updates status/remarks */
-    updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   },
   { timestamps: true }
 )

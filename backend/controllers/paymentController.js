@@ -298,40 +298,23 @@ export const createPayment = async (req, res) => {
 
 export const patchPaymentStatus = async (req, res) => {
   try {
-    const payment = await Payment.findById(req.params.id)
-    if (!payment) return res.status(404).json({ error: 'Payment not found' })
+    const exists = await Payment.exists({ _id: req.params.id })
+    if (!exists) return res.status(404).json({ error: 'Payment not found' })
 
     const nextStatus = normalizePaymentStatus(req.body.status)
     if (!nextStatus) return res.status(400).json({ error: 'Invalid status' })
 
-    const hasRemarks = req.body.adminRemarks !== undefined
+    const remarksRaw = req.body.adminRemarks
+    const hasRemarks = remarksRaw !== undefined
+    const normalizedRemarks = hasRemarks ? String(remarksRaw ?? '').trim() : undefined
 
-    let adminRemarksTrim = undefined
-    if (hasRemarks) {
-      if (req.body.adminRemarks === null) {
-        adminRemarksTrim = ''
-      } else if (typeof req.body.adminRemarks === 'string') {
-        adminRemarksTrim = req.body.adminRemarks.trim()
-      } else {
-        return res.status(400).json({ error: 'adminRemarks must be a string' })
-      }
-    }
-
-    // Business rule: remarks must exist when rejecting; for other statuses remarks are optional.
-    if (nextStatus === 'rejected') {
-      const candidate = hasRemarks ? adminRemarksTrim : String(payment.adminRemarks || '').trim()
-      if (!candidate) {
-        return res.status(400).json({ error: 'Add admin remarks when rejecting.' })
-      }
-    }
-
-    const $set = { status: nextStatus, updatedBy: req.user._id, updatedAt: new Date() }
-    if (hasRemarks) $set.adminRemarks = adminRemarksTrim
+    const $set = { status: nextStatus }
+    if (hasRemarks) $set.adminRemarks = normalizedRemarks
 
     await Payment.updateOne({ _id: req.params.id }, { $set }, { runValidators: true })
 
-    const updatedPayment = await Payment.findById(req.params.id).populate('student', 'name email universityId')
-    res.json(serializePayment(updatedPayment))
+    const payment = await Payment.findById(req.params.id).populate('student', 'name email universityId')
+    res.json(serializePayment(payment))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

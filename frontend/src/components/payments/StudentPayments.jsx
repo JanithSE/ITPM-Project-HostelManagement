@@ -13,6 +13,19 @@ function proofHref(p) {
   return p.proofFile || p.proofUrl || ''
 }
 
+function WrappableText({ children, empty = '—' }) {
+  const text = children == null || children === '' ? null : String(children)
+  if (!text) return <span className="text-slate-400 dark:text-slate-500">{empty}</span>
+  return (
+    <span
+      className="block max-w-full break-words [overflow-wrap:anywhere] text-xs leading-relaxed text-slate-700 dark:text-slate-200"
+      title={text.length > 120 ? text : undefined}
+    >
+      {text}
+    </span>
+  )
+}
+
 export default function StudentPayments() {
   const [list, setList] = useState([])
   const [error, setError] = useState('')
@@ -34,9 +47,6 @@ export default function StudentPayments() {
 
   useEffect(() => {
     load()
-    // Keep user view in sync with admin updates.
-    const t = setInterval(load, 10000)
-    return () => clearInterval(t)
   }, [load])
 
   async function handleDelete(paymentId) {
@@ -86,20 +96,20 @@ export default function StudentPayments() {
               </Link>
             </p>
           ) : (
-            <table className="table-dashboard">
+            <table className="table-dashboard w-full min-w-[70rem] table-fixed">
               <thead>
                 <tr>
-                  <th className="whitespace-nowrap">Student name</th>
+                  <th className="w-[11%]">Student name</th>
                   <th className="whitespace-nowrap">Room no.</th>
                   <th className="whitespace-nowrap">Month</th>
                   <th className="whitespace-nowrap">Room type</th>
                   <th className="whitespace-nowrap">Facility</th>
                   <th className="whitespace-nowrap">Amount</th>
-                  <th className="whitespace-nowrap">Transaction type</th>
+                  <th className="min-w-0 w-[11%]">Transaction type</th>
                   <th className="whitespace-nowrap">Proof</th>
                   <th className="whitespace-nowrap">Status</th>
-                  <th className="min-w-[8rem]">Admin remarks</th>
-                  <th className="whitespace-nowrap">Last updated</th>
+                  <th className="min-w-0 w-[13%]">Admin remarks</th>
+                  <th className="whitespace-nowrap">Submitted</th>
                   <th className="whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
@@ -115,7 +125,9 @@ export default function StudentPayments() {
                       <td className="capitalize px-3 py-3">{p.roomType || '—'}</td>
                       <td className="uppercase px-3 py-3">{p.facilityType || '—'}</td>
                       <td className="whitespace-nowrap px-3 py-3 font-medium">{formatMoney(p.amount)}</td>
-                      <td className="px-3 py-3">{p.transactionType || p.transactionReference || '—'}</td>
+                      <td className="min-w-0 px-3 py-3">
+                        <WrappableText>{p.transactionType || p.transactionReference}</WrappableText>
+                      </td>
                       <td className="whitespace-nowrap px-3 py-3">
                         {href ? (
                           <a
@@ -133,14 +145,11 @@ export default function StudentPayments() {
                       <td className="whitespace-nowrap px-3 py-3">
                         <StatusBadge status={p.status} />
                       </td>
-                      <td
-                        className="max-w-[10rem] px-3 py-3 text-xs"
-                        title={p.adminRemarks ? String(p.adminRemarks) : ''}
-                      >
-                        {p.adminRemarks || 'No admin remarks yet'}
+                      <td className="min-w-0 px-3 py-3">
+                        <WrappableText empty="—">{p.adminRemarks}</WrappableText>
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-xs">
-                        {p.updatedAt ? new Date(p.updatedAt).toLocaleString() : p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
+                        {p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3">
                         {isPending ? (
