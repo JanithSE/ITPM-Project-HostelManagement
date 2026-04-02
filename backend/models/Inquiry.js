@@ -12,6 +12,7 @@ const inquiryCommentSchema = new mongoose.Schema(
 const inquirySchema = new mongoose.Schema(
   {
     from: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    campusId: { type: String, trim: true, uppercase: true, default: '' },
     subject: { type: String, required: true, trim: true },
     message: { type: String, required: true },
     status: { type: String, enum: ['open', 'replied', 'closed'], default: 'open' },

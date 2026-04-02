@@ -33,7 +33,11 @@ export const listMyMaintenance = async (req, res) => {
 
 export const createMaintenance = async (req, res) => {
   try {
-    const { title, description, location, priority } = req.body
+    const { studentId, title, description, location, priority } = req.body
+    const studentIdTrim = String(studentId || '').trim().toUpperCase()
+    if (!/^[A-Z]{2}\d{8}$/.test(studentIdTrim)) {
+      return res.status(400).json({ error: 'Student ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
+    }
 
     if (!title || !String(title).trim()) {
       return res.status(400).json({ error: 'Title is required' })
@@ -46,6 +50,7 @@ export const createMaintenance = async (req, res) => {
     }
 
     const item = await MaintenanceRequest.create({
+      studentId: studentIdTrim,
       title: String(title).trim(),
       description: String(description).trim(),
       location: location != null ? String(location).trim() : '',
@@ -80,6 +85,65 @@ export const updateMaintenanceStatus = async (req, res) => {
     await item.save()
     const populated = await MaintenanceRequest.findById(item._id).populate('reportedBy', 'name email')
     res.json(populated)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+export const updateMyMaintenance = async (req, res) => {
+  try {
+    const { studentId, title, description, location, priority } = req.body || {}
+    const studentIdTrim = String(studentId || '').trim().toUpperCase()
+
+    const item = await MaintenanceRequest.findById(req.params.id)
+    if (!item) return res.status(404).json({ error: 'Request not found' })
+    if (String(item.reportedBy) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (item.status !== 'open') {
+      return res.status(400).json({ error: 'Only open requests can be updated' })
+    }
+
+    if (!title || !String(title).trim()) {
+      return res.status(400).json({ error: 'Title is required' })
+    }
+    if (!/^[A-Z]{2}\d{8}$/.test(studentIdTrim)) {
+      return res.status(400).json({ error: 'Student ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
+    }
+    if (!description || !String(description).trim()) {
+      return res.status(400).json({ error: 'Description is required' })
+    }
+    if (!priority || !PRIORITIES.includes(priority)) {
+      return res.status(400).json({ error: 'Priority is required (low, medium, or high)' })
+    }
+
+    item.studentId = studentIdTrim
+    item.title = String(title).trim()
+    item.description = String(description).trim()
+    item.location = location != null ? String(location).trim() : ''
+    item.priority = priority
+    await item.save()
+
+    const populated = await MaintenanceRequest.findById(item._id).populate('reportedBy', 'name email')
+    res.json(populated)
+  } catch (err) {
+    res.status(500).json({ error: err.message })
+  }
+}
+
+export const deleteMyMaintenance = async (req, res) => {
+  try {
+    const item = await MaintenanceRequest.findById(req.params.id)
+    if (!item) return res.status(404).json({ error: 'Request not found' })
+    if (String(item.reportedBy) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
+    if (item.status !== 'open') {
+      return res.status(400).json({ error: 'Only open requests can be deleted' })
+    }
+
+    await item.deleteOne()
+    res.json({ ok: true })
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
