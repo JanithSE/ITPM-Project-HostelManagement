@@ -422,19 +422,35 @@ export const createLatepass = async (req, res) => {
 
 export const patchLatepassStatus = async (req, res) => {
   try {
-    const exists = await LatePass.exists({ _id: req.params.id })
-    if (!exists) return res.status(404).json({ error: 'Late pass not found' })
+    const pass = await LatePass.findById(req.params.id)
+    if (!pass) return res.status(404).json({ error: 'Late pass not found' })
 
     const nextStatus = normalizeLatepassStatus(req.body.status)
     if (!nextStatus) return res.status(400).json({ error: 'Invalid status' })
 
     const hasRemarks = req.body.adminRemarks !== undefined
-    if (nextStatus !== 'rejected' && hasRemarks) {
-      return res.status(400).json({ error: 'adminRemarks allowed only when status is rejected' })
+
+    let adminRemarksTrim = undefined
+    if (hasRemarks) {
+      if (req.body.adminRemarks === null) {
+        adminRemarksTrim = ''
+      } else if (typeof req.body.adminRemarks === 'string') {
+        adminRemarksTrim = req.body.adminRemarks.trim()
+      } else {
+        return res.status(400).json({ error: 'adminRemarks must be a string' })
+      }
     }
 
-    const $set = { status: nextStatus }
-    if (nextStatus === 'rejected') $set.adminRemarks = req.body.adminRemarks
+    // Business rule: remarks must exist when rejecting; for other statuses remarks are optional.
+    if (nextStatus === 'rejected') {
+      const candidate = hasRemarks ? adminRemarksTrim : String(pass.adminRemarks || '').trim()
+      if (!candidate) {
+        return res.status(400).json({ error: 'Add admin remarks when rejecting.' })
+      }
+    }
+
+    const $set = { status: nextStatus, updatedBy: req.user._id, updatedAt: new Date() }
+    if (hasRemarks) $set.adminRemarks = adminRemarksTrim
 
     await LatePass.updateOne({ _id: req.params.id }, { $set }, { runValidators: true })
 

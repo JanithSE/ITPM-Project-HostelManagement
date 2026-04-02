@@ -8,6 +8,13 @@ function arrivingLabel(row) {
   return row.arrivingTime || row.returnTime || '—'
 }
 
+function latepassStatusForBadge(status) {
+  const s = String(status || '').toLowerCase()
+  // In this app, late pass "completed" is treated as "approved" (green).
+  if (s === 'completed') return 'approved'
+  return status
+}
+
 function docHref(row) {
   return row.documentFile || ''
 }
@@ -79,7 +86,7 @@ function LatepassCard({ row, onDelete }) {
           <p className="text-base font-semibold text-slate-900 dark:text-slate-50">{formatDate(row.date)}</p>
           <p className="text-sm text-slate-600 dark:text-slate-300">Arriving: {arrivingLabel(row)}</p>
         </div>
-        <StatusBadge status={row.status} />
+        <StatusBadge status={latepassStatusForBadge(row.status)} />
       </div>
 
       <dl className="space-y-3 text-sm">
@@ -131,14 +138,16 @@ function LatepassCard({ row, onDelete }) {
             Admin remarks
           </dt>
           <dd className="mt-0.5">
-            <WrappableText empty="No remarks yet">{row.adminRemarks}</WrappableText>
+            <WrappableText empty="No admin remarks yet">{row.adminRemarks}</WrappableText>
           </dd>
         </div>
         <div className="border-t border-slate-100 pt-2 dark:border-slate-700">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-            Submitted
+            Last updated
           </dt>
-          <dd className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">{formatSubmitted(row.createdAt)}</dd>
+          <dd className="mt-0.5 text-xs text-slate-600 dark:text-slate-400">
+            {formatSubmitted(row.updatedAt || row.createdAt)}
+          </dd>
         </div>
         <div className="border-t border-slate-100 pt-2 dark:border-slate-700">
           <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -192,6 +201,9 @@ export default function StudentLatepass() {
 
   useEffect(() => {
     load()
+    // Keep user view in sync with admin updates.
+    const t = setInterval(load, 10000)
+    return () => clearInterval(t)
   }, [load])
 
   async function handleDelete(id) {
@@ -268,7 +280,7 @@ export default function StudentLatepass() {
                       <th className="min-w-0 w-[18%] align-bottom">Students</th>
                       <th className="w-[9%] align-bottom">Status</th>
                       <th className="min-w-0 w-[10%] align-bottom">Admin remarks</th>
-                      <th className="w-[14%] align-bottom">Submitted</th>
+                      <th className="w-[14%] align-bottom">Last updated</th>
                       <th className="w-[12%] align-bottom">Actions</th>
                     </tr>
                   </thead>
@@ -302,13 +314,13 @@ export default function StudentLatepass() {
                             <StudentsList students={row.students} />
                           </td>
                           <td className="align-top whitespace-nowrap">
-                            <StatusBadge status={row.status} />
+                            <StatusBadge status={latepassStatusForBadge(row.status)} />
                           </td>
                           <td className="min-w-0 align-top">
-                            <WrappableText empty="—">{row.adminRemarks}</WrappableText>
+                            <WrappableText empty="No admin remarks yet">{row.adminRemarks}</WrappableText>
                           </td>
                           <td className="align-top text-xs leading-snug text-slate-600 dark:text-slate-400">
-                            {formatSubmitted(row.createdAt)}
+                            {formatSubmitted(row.updatedAt || row.createdAt)}
                           </td>
                           <td className="align-top whitespace-nowrap">
                             {isPending ? (

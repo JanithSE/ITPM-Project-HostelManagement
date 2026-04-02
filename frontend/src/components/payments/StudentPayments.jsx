@@ -34,6 +34,9 @@ export default function StudentPayments() {
 
   useEffect(() => {
     load()
+    // Keep user view in sync with admin updates.
+    const t = setInterval(load, 10000)
+    return () => clearInterval(t)
   }, [load])
 
   async function handleDelete(paymentId) {
@@ -96,7 +99,7 @@ export default function StudentPayments() {
                   <th className="whitespace-nowrap">Proof</th>
                   <th className="whitespace-nowrap">Status</th>
                   <th className="min-w-[8rem]">Admin remarks</th>
-                  <th className="whitespace-nowrap">Submitted</th>
+                  <th className="whitespace-nowrap">Last updated</th>
                   <th className="whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
@@ -130,11 +133,14 @@ export default function StudentPayments() {
                       <td className="whitespace-nowrap px-3 py-3">
                         <StatusBadge status={p.status} />
                       </td>
-                      <td className="max-w-[10rem] px-3 py-3 text-xs" title={p.adminRemarks || ''}>
-                        {p.adminRemarks || '—'}
+                      <td
+                        className="max-w-[10rem] px-3 py-3 text-xs"
+                        title={p.adminRemarks ? String(p.adminRemarks) : ''}
+                      >
+                        {p.adminRemarks || 'No admin remarks yet'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3 text-xs">
-                        {p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
+                        {p.updatedAt ? new Date(p.updatedAt).toLocaleString() : p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
                       </td>
                       <td className="whitespace-nowrap px-3 py-3">
                         {isPending ? (
