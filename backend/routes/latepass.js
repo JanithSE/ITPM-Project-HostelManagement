@@ -17,13 +17,13 @@ const router = express.Router()
 router.use(authMiddleware)
 
 router.get('/my', requireRole('student'), getMyLatepass)
-router.get('/admin', requireRole('admin'), getAdminLatepass)
+router.get('/admin', requireRole('admin', 'warden'), getAdminLatepass)
 router.get('/:id', getLatepassById)
 
 router.post('/', requireRole('student'), latepassDocumentUploadMiddleware, createLatepass)
 router.put('/:id/edit-by-student', requireRole('student'), latepassDocumentUploadOptionalMiddleware, editLatepassByStudent)
 router.delete('/:id/delete-by-student', requireRole('student'), deleteLatepassByStudent)
-router.delete('/:id/delete-by-admin', requireRole('admin'), deleteLatepassByAdmin)
-router.patch('/:id/status', requireRole('admin'), patchLatepassStatus)
+router.delete('/:id/delete-by-admin', requireRole('admin', 'warden'), deleteLatepassByAdmin)
+router.patch('/:id/status', requireRole('admin', 'warden'), patchLatepassStatus)
 
 export default router
