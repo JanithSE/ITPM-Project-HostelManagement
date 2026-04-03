@@ -13,6 +13,7 @@ function signToken(user) {
 }
 
 const OTP_VALIDITY_MS = 5 * 60 * 1000
+const PASSWORD_RESET_TOKEN_VALIDITY_MS = 15 * 60 * 1000
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase()
@@ -24,6 +25,16 @@ function generateOtpCode() {
 
 function hashOtp(otpCode) {
   return crypto.createHash('sha256').update(String(otpCode)).digest('hex')
+}
+
+function hashPasswordResetToken(rawToken) {
+  // Store only the hash, never the raw token.
+  return crypto.createHash('sha256').update(String(rawToken), 'utf8').digest('hex')
+}
+
+function generatePasswordResetToken() {
+  // 32 bytes => 64 hex chars. Good enough as an opaque one-time secret.
+  return crypto.randomBytes(32).toString('hex')
 }
 
 function createTransport() {
@@ -66,6 +77,11 @@ async function issueOtpForUser(user, purpose) {
   user.otpCode = hashOtp(otpCode)
   user.otpPurpose = purpose
   user.otpExpiresAt = new Date(Date.now() + OTP_VALIDITY_MS)
+  if (purpose === 'password_reset') {
+    // Invalidate any previous reset session for safety.
+    user.passwordResetTokenHash = ''
+    user.passwordResetExpiresAt = null
+  }
   await user.save()
   await sendOtpEmail({ to: user.email, otpCode, purpose })
 }
@@ -322,17 +338,27 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ error: 'Invalid OTP' })
     }
 
+    let resetToken = null
+
     if (otpPurpose === 'registration') {
       user.isVerified = true
+      // Registration OTP is single-use: clear it immediately after verification.
+      user.otpCode = ''
+      user.otpPurpose = ''
+      user.otpExpiresAt = null
+    } else {
+      // Password reset OTP: do NOT delete otpCode/otpExpiresAt here.
+      // Instead, issue a separate one-time resetToken for the reset step.
+      resetToken = generatePasswordResetToken()
+      user.passwordResetTokenHash = hashPasswordResetToken(resetToken)
+      user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_VALIDITY_MS)
     }
 
-    user.otpCode = ''
-    user.otpPurpose = ''
-    user.otpExpiresAt = null
     await user.save()
 
     return res.json({
       message: otpPurpose === 'registration' ? 'Account verified successfully' : 'OTP verified successfully',
+      ...(resetToken ? { resetToken } : {}),
     })
   } catch (err) {
     return res.status(500).json({ error: err.message || 'OTP verification failed' })
@@ -360,10 +386,11 @@ export const forgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
   try {
-    const { email, otp, password } = req.body || {}
+    const { email, resetToken, password } = req.body || {}
     const emailNorm = normalizeEmail(email)
-    if (!emailNorm || !otp || !password) {
-      return res.status(400).json({ error: 'Email, OTP and new password are required' })
+    const tokenRaw = String(resetToken || '').trim()
+    if (!emailNorm || !tokenRaw || !password) {
+      return res.status(400).json({ error: 'Email, reset token and new password are required' })
     }
     if (String(password).length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' })
@@ -372,17 +399,20 @@ export const resetPassword = async (req, res) => {
     const user = await User.findOne({ email: emailNorm, role: 'student' })
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    if (!user.otpCode || !user.otpExpiresAt || user.otpPurpose !== 'password_reset') {
-      return res.status(400).json({ error: 'No valid password reset OTP found' })
+    if (!user.passwordResetTokenHash || !user.passwordResetExpiresAt) {
+      return res.status(400).json({ error: 'No valid password reset session. Verify OTP first.' })
     }
-    if (user.otpExpiresAt.getTime() < Date.now()) {
-      return res.status(400).json({ error: 'OTP expired' })
+    if (user.passwordResetExpiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Reset session expired. Verify OTP again.' })
     }
-    if (hashOtp(otp) !== user.otpCode) {
-      return res.status(400).json({ error: 'Invalid OTP' })
+    if (hashPasswordResetToken(tokenRaw) !== user.passwordResetTokenHash) {
+      return res.status(400).json({ error: 'Invalid reset token' })
     }
 
     user.password = String(password)
+    // Clear both the reset token and OTP (OTP is no longer needed once password is updated).
+    user.passwordResetTokenHash = ''
+    user.passwordResetExpiresAt = null
     user.otpCode = ''
     user.otpPurpose = ''
     user.otpExpiresAt = null
