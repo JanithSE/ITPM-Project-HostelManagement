@@ -6,15 +6,21 @@ export default function ResetPassword() {
   const navigate = useNavigate()
   const location = useLocation()
   const [email, setEmail] = useState(location.state?.email || '')
-  const [otp, setOtp] = useState(location.state?.otp || '')
+  const [resetToken] = useState(location.state?.resetToken || '')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [error, setError] = useState('')
+  const [error, setError] = useState(() =>
+    resetToken ? '' : 'Verify your OTP first (use the Forgot Password flow).'
+  )
   const [loading, setLoading] = useState(false)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
+    if (!resetToken) {
+      setError('Your reset session is missing. Start again from Forgot Password.')
+      return
+    }
     if (password.length < 6) {
       setError('Password must be at least 6 characters')
       return
@@ -25,7 +31,7 @@ export default function ResetPassword() {
     }
     setLoading(true)
     try {
-      await authApi.resetPassword(email, otp, password)
+      await authApi.resetPassword(email, resetToken, password)
       navigate('/student/login', { replace: true })
     } catch (err) {
       setError(err.message || 'Failed to reset password')
@@ -42,27 +48,25 @@ export default function ResetPassword() {
             <span className="auth-pro-panel-mark">UH</span>
             <div>
               <h1 className="auth-pro-heading">Reset Password</h1>
-              <p className="auth-pro-subheading !mt-0">Enter email, OTP, and your new password.</p>
+              <p className="auth-pro-subheading !mt-0">Set your new password. OTP was already verified.</p>
             </div>
           </div>
           {error && <p className="auth-pro-error">{error}</p>}
           <form onSubmit={handleSubmit} className="auth-pro-form">
             <div>
               <label htmlFor="reset-email" className="auth-pro-label">Email</label>
-              <input id="reset-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="auth-pro-input" required />
+              <input
+                id="reset-email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="auth-pro-input"
+                required
+                disabled={Boolean(resetToken)}
+              />
             </div>
             <div>
-              <label htmlFor="reset-otp" className="auth-pro-label">OTP</label>
-              <input
-                id="reset-otp"
-                type="text"
-                value={otp}
-                onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                className="auth-pro-input"
-                minLength={6}
-                maxLength={6}
-                required
-              />
+              <p className="auth-pro-subheading !mt-0">OTP verified. You can set a new password now.</p>
             </div>
             <div>
               <label htmlFor="reset-password" className="auth-pro-label">New Password</label>
@@ -88,7 +92,7 @@ export default function ResetPassword() {
                 required
               />
             </div>
-            <button type="submit" disabled={loading} className="auth-pro-submit">
+            <button type="submit" disabled={loading || !resetToken} className="auth-pro-submit">
               {loading ? 'Resetting...' : 'Reset Password'}
             </button>
           </form>
