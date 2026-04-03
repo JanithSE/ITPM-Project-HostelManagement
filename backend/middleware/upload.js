@@ -101,6 +101,15 @@ export function paymentProofUploadMiddleware(req, res, next) {
   })
 }
 
+/** Optional proof on edit: parse multipart only when client sends multipart/form-data */
+export function paymentProofUploadOptionalMiddleware(req, res, next) {
+  const ct = String(req.headers['content-type'] || '')
+  if (ct.includes('multipart/form-data')) {
+    return paymentProofUploadMiddleware(req, res, next)
+  }
+  next()
+}
+
 export function latepassDocumentUploadMiddleware(req, res, next) {
   latepassMulter.single('document')(req, res, (err) => {
     if (err) {
@@ -111,6 +120,15 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
     }
     next()
   })
+}
+
+/** Optional document on edit: multipart only when client sends multipart/form-data */
+export function latepassDocumentUploadOptionalMiddleware(req, res, next) {
+  const ct = String(req.headers['content-type'] || '')
+  if (ct.includes('multipart/form-data')) {
+    return latepassDocumentUploadMiddleware(req, res, next)
+  }
+  next()
 }
 
 export function hostelImageUploadMiddleware(req, res, next) {
