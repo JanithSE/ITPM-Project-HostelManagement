@@ -13,6 +13,8 @@ function signToken(user) {
 }
 
 const OTP_VALIDITY_MS = 5 * 60 * 1000
+/** Window after OTP verification during which the user may submit a new password (opaque token, not email OTP). */
+const PASSWORD_RESET_TOKEN_VALIDITY_MS = 15 * 60 * 1000
 
 function normalizeEmail(email) {
   return String(email || '').trim().toLowerCase()
@@ -26,20 +28,42 @@ function hashOtp(otpCode) {
   return crypto.createHash('sha256').update(String(otpCode)).digest('hex')
 }
 
-function createTransport() {
-  const emailUser = process.env.EMAIL_USER
-  const emailPass = process.env.EMAIL_PASS
-  if (!emailUser || !emailPass) {
-    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASS in backend/.env')
-  }
+function hashPasswordResetToken(rawToken) {
+  return crypto.createHash('sha256').update(String(rawToken), 'utf8').digest('hex')
+}
 
+function generatePasswordResetToken() {
+  return crypto.randomBytes(32).toString('hex')
+}
+
+function isDevOtpConsoleEnabled() {
+  const v = String(process.env.DEV_OTP_TO_CONSOLE || '').trim().toLowerCase()
+  return v === '1' || v === 'true' || v === 'yes'
+}
+
+function createTransport() {
   return nodemailer.createTransport({
     service: 'gmail',
-    auth: { user: emailUser, pass: emailPass },
+    auth: { user: process.env.EMAIL_USER, pass: process.env.EMAIL_PASS },
   })
 }
 
 async function sendOtpEmail({ to, otpCode, purpose }) {
+  const emailUser = process.env.EMAIL_USER
+  const emailPass = process.env.EMAIL_PASS
+
+  if (!emailUser || !emailPass) {
+    if (isDevOtpConsoleEnabled()) {
+      console.warn(
+        `[DEV_OTP_TO_CONSOLE] OTP for ${to} (${purpose}): ${otpCode} — no email sent (set EMAIL_USER + EMAIL_PASS for real mail).`
+      )
+      return
+    }
+    throw new Error(
+      'Email is not configured. In backend/.env set EMAIL_USER (your Gmail) and EMAIL_PASS (Gmail App Password, not your normal password). For local testing only you can set DEV_OTP_TO_CONSOLE=1 to print the OTP in the server terminal.'
+    )
+  }
+
   const transporter = createTransport()
   const subject =
     purpose === 'password_reset' ? 'UniHostel Password Reset OTP' : 'UniHostel Email Verification OTP'
@@ -53,12 +77,20 @@ async function sendOtpEmail({ to, otpCode, purpose }) {
       <p>If you did not request this, you can ignore this email.</p>
     </div>
   `
-  await transporter.sendMail({
-    from: process.env.EMAIL_USER,
-    to,
-    subject,
-    html,
-  })
+  try {
+    await transporter.sendMail({
+      from: emailUser,
+      to,
+      subject,
+      html,
+    })
+  } catch (err) {
+    console.error('[sendOtpEmail]', err)
+    const detail = err?.response || err?.message || 'send failed'
+    throw new Error(
+      `Failed to send email (${detail}). Use a Gmail App Password for EMAIL_PASS, enable 2-Step Verification on the Google account, and ensure EMAIL_USER matches that Gmail address.`
+    )
+  }
 }
 
 async function issueOtpForUser(user, purpose) {
@@ -66,6 +98,10 @@ async function issueOtpForUser(user, purpose) {
   user.otpCode = hashOtp(otpCode)
   user.otpPurpose = purpose
   user.otpExpiresAt = new Date(Date.now() + OTP_VALIDITY_MS)
+  if (purpose === 'password_reset') {
+    user.passwordResetTokenHash = ''
+    user.passwordResetExpiresAt = null
+  }
   await user.save()
   await sendOtpEmail({ to: user.email, otpCode, purpose })
 }
@@ -322,17 +358,25 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ error: 'Invalid OTP' })
     }
 
+    let resetToken = null
     if (otpPurpose === 'registration') {
       user.isVerified = true
+      user.otpCode = ''
+      user.otpPurpose = ''
+      user.otpExpiresAt = null
+    } else {
+      resetToken = generatePasswordResetToken()
+      user.passwordResetTokenHash = hashPasswordResetToken(resetToken)
+      user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_VALIDITY_MS)
+      user.otpCode = ''
+      user.otpPurpose = ''
+      user.otpExpiresAt = null
     }
-
-    user.otpCode = ''
-    user.otpPurpose = ''
-    user.otpExpiresAt = null
     await user.save()
 
     return res.json({
       message: otpPurpose === 'registration' ? 'Account verified successfully' : 'OTP verified successfully',
+      ...(resetToken ? { resetToken } : {}),
     })
   } catch (err) {
     return res.status(500).json({ error: err.message || 'OTP verification failed' })
@@ -354,16 +398,22 @@ export const forgotPassword = async (req, res) => {
 
     return res.json({ message: 'If the account exists, OTP has been sent to the email' })
   } catch (err) {
-    return res.status(500).json({ error: err.message || 'Failed to process forgot password request' })
+    const msg = err?.message || 'Failed to process forgot password request'
+    const isEmail =
+      msg.includes('Email is not configured') ||
+      msg.includes('Failed to send email') ||
+      msg.includes('Gmail App Password')
+    return res.status(isEmail ? 503 : 500).json({ error: msg })
   }
 }
 
 export const resetPassword = async (req, res) => {
   try {
-    const { email, otp, password } = req.body || {}
+    const { email, resetToken, password } = req.body || {}
     const emailNorm = normalizeEmail(email)
-    if (!emailNorm || !otp || !password) {
-      return res.status(400).json({ error: 'Email, OTP and new password are required' })
+    const tokenRaw = String(resetToken || '').trim()
+    if (!emailNorm || !tokenRaw || !password) {
+      return res.status(400).json({ error: 'Email, reset token and new password are required' })
     }
     if (String(password).length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' })
@@ -372,17 +422,19 @@ export const resetPassword = async (req, res) => {
     const user = await User.findOne({ email: emailNorm, role: 'student' })
     if (!user) return res.status(404).json({ error: 'User not found' })
 
-    if (!user.otpCode || !user.otpExpiresAt || user.otpPurpose !== 'password_reset') {
-      return res.status(400).json({ error: 'No valid password reset OTP found' })
+    if (!user.passwordResetTokenHash || !user.passwordResetExpiresAt) {
+      return res.status(400).json({ error: 'No valid password reset session. Verify your OTP again.' })
     }
-    if (user.otpExpiresAt.getTime() < Date.now()) {
-      return res.status(400).json({ error: 'OTP expired' })
+    if (user.passwordResetExpiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Password reset session expired. Request a new OTP.' })
     }
-    if (hashOtp(otp) !== user.otpCode) {
-      return res.status(400).json({ error: 'Invalid OTP' })
+    if (hashPasswordResetToken(tokenRaw) !== user.passwordResetTokenHash) {
+      return res.status(400).json({ error: 'Invalid reset token' })
     }
 
     user.password = String(password)
+    user.passwordResetTokenHash = ''
+    user.passwordResetExpiresAt = null
     user.otpCode = ''
     user.otpPurpose = ''
     user.otpExpiresAt = null

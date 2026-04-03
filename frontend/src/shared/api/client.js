@@ -40,7 +40,13 @@ export async function apiFetch(path, options = {}) {
   }
 
   if (!res.ok) {
-    throw new Error(data?.error || data?.message || res.statusText)
+    const fromJson = data?.error || data?.message
+    if (fromJson) throw new Error(fromJson)
+    const trimmed = (text || '').trim()
+    if (trimmed && trimmed.length < 1000 && !trimmed.startsWith('<')) {
+      throw new Error(trimmed)
+    }
+    throw new Error(res.statusText || `Request failed (${res.status})`)
   }
 
   return data
@@ -98,8 +104,8 @@ export const authApi = {
     apiFetch('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp, purpose }) }),
   forgotPassword: (email) =>
     apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
-  resetPassword: (email, otp, password) =>
-    apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, otp, password }) }),
+  resetPassword: (email, resetToken, password) =>
+    apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, resetToken, password }) }),
 
   // Backward-compatible aliases used by some auth screens.
   login: (email, password) =>
