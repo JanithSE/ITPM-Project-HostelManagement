@@ -2,6 +2,10 @@ import Booking from '../models/Booking.js'
 import Room from '../models/RoomSchema.js'
 import Notification from '../models/Notification.js'
 import { sendBookingRejectedEmail, sendDocumentRejectedEmail } from '../services/emailService.js'
+import {
+  assertInventoryIssuanceAvailable,
+  applyInventoryIssuanceForConfirmedBooking,
+} from '../services/bookingInventoryIssuance.js'
 
 const DOCUMENT_KEYS = ['nic', 'studentId', 'medicalReport', 'policeReport', 'guardianLetter', 'recommendationLetter']
 const REQUIRED_DOCUMENT_KEYS = ['nic', 'studentId', 'medicalReport', 'policeReport', 'guardianLetter']
@@ -70,7 +74,7 @@ function getAvailableBedNumber(room, activeBookings) {
 
 export const listBookings = async (req, res) => {
   try {
-    const query = req.user.role === 'admin' ? {} : { student: req.user._id }
+    const query = ['admin', 'warden'].includes(req.user.role) ? {} : { student: req.user._id }
     const bookings = await Booking.find(query)
       .populate('student', 'name email')
       .populate('hostel', 'name location')
@@ -267,12 +271,32 @@ export const approveBooking = async (req, res) => {
       booking.bedNumber = freeBed
     }
 
+    const invCheck = await assertInventoryIssuanceAvailable()
+    if (!invCheck.ok) {
+      return res.status(409).json({
+        error: 'Insufficient inventory to confirm booking. Restock or reduce issuePerBooking on items.',
+        missing: invCheck.missing,
+      })
+    }
+
     booking.status = 'confirmed'
     booking.rejectionReason = ''
     booking.missingDocuments = []
     booking.reviewedAt = new Date()
     booking.reviewedBy = req.user._id
     await booking.save()
+
+    try {
+      await applyInventoryIssuanceForConfirmedBooking(booking._id, req.user._id)
+    } catch (issueErr) {
+      console.error('Inventory issuance after approve:', issueErr.message)
+      return res.status(500).json({
+        error:
+          issueErr?.message ||
+          'Booking was confirmed but issuing inventory failed. Check stock and issuance logs.',
+      })
+    }
+
     const populated = await Booking.findById(booking._id)
       .populate('student', 'name email')
       .populate('hostel', 'name location')
@@ -369,6 +393,8 @@ export const reviewBookingDocument = async (req, res) => {
       return res.status(400).json({ error: 'Document not uploaded for this booking' })
     }
 
+    const prevStatus = booking.status
+
     if (!booking.documentReviews) booking.documentReviews = {}
     booking.documentReviews[documentKey] = {
       ...(booking.documentReviews?.[documentKey] || {}),
@@ -391,7 +417,30 @@ export const reviewBookingDocument = async (req, res) => {
       booking.rejectionReason = ''
     }
 
+    if (evaluation.status === 'confirmed' && prevStatus !== 'confirmed') {
+      const invCheck = await assertInventoryIssuanceAvailable()
+      if (!invCheck.ok) {
+        return res.status(409).json({
+          error: 'Insufficient inventory to confirm booking. Restock or reduce issuePerBooking on items.',
+          missing: invCheck.missing,
+        })
+      }
+    }
+
     await booking.save()
+
+    if (evaluation.status === 'confirmed' && prevStatus !== 'confirmed') {
+      try {
+        await applyInventoryIssuanceForConfirmedBooking(booking._id, req.user._id)
+      } catch (issueErr) {
+        console.error('Inventory issuance after document confirmation:', issueErr.message)
+        return res.status(500).json({
+          error:
+            issueErr?.message ||
+            'Booking was confirmed but issuing inventory failed. Check stock and issuance logs.',
+        })
+      }
+    }
 
     if (status === 'rejected') {
       const documentLabel = DOCUMENT_LABELS[documentKey] || documentKey

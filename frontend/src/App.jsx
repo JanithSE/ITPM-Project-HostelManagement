@@ -2,8 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import ProtectedRoute from './shared/components/ProtectedRoute'
 import StudentLayout from './shared/layouts/StudentLayout'
 import AdminLayout from './shared/layouts/AdminLayout'
-import WardenLayout from './shared/layouts/WardenLayout'
-
 import Home from './components/auth/Home'
 import StudentAuth from './components/auth/StudentAuth'
 import RoleSelectLogin from './components/auth/RoleSelectLogin'
@@ -86,17 +84,15 @@ export default function App() {
           <Route path="booking" element={<StudentBooking />} />
         </Route>
 
-        {/* Warden */}
+        {/* Warden: splat + descendant <Routes> inside WardenDashboard so /warden and /warden/inventory always render */}
         <Route
-          path="/warden"
+          path="/warden/*"
           element={
             <ProtectedRoute allowedRole="warden">
-              <WardenLayout />
+              <WardenDashboard />
             </ProtectedRoute>
           }
-        >
-          <Route index element={<WardenDashboard />} />
-        </Route>
+        />
 
         {/* Admin */}
         <Route
