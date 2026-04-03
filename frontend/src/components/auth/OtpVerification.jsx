@@ -7,6 +7,7 @@ export default function OtpVerification() {
   const location = useLocation()
   const presetEmail = location.state?.email || ''
   const presetPurpose = location.state?.purpose || 'registration'
+  const purposeLocked = Boolean(location.state?.purpose)
 
   const [email, setEmail] = useState(presetEmail)
   const [otp, setOtp] = useState('')
@@ -19,11 +20,16 @@ export default function OtpVerification() {
     setError('')
     setLoading(true)
     try {
-      await authApi.verifyOtp(email, otp, purpose)
+      const data = await authApi.verifyOtp(email, otp, purpose)
       if (purpose === 'registration') {
         navigate('/student/login', { replace: true })
       } else {
-        navigate('/reset-password', { replace: true, state: { email, otp } })
+        const resetToken = data?.resetToken
+        if (!resetToken) {
+          setError('Server did not return a reset token. Try again.')
+          return
+        }
+        navigate('/reset-password', { replace: true, state: { email, resetToken } })
       }
     } catch (err) {
       setError(err.message || 'OTP verification failed')
@@ -52,6 +58,7 @@ export default function OtpVerification() {
                 value={purpose}
                 onChange={(e) => setPurpose(e.target.value)}
                 className="auth-pro-input"
+                disabled={purposeLocked}
               >
                 <option value="registration">Registration</option>
                 <option value="password_reset">Password Reset</option>

@@ -98,8 +98,11 @@ export const authApi = {
     apiFetch('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ email, otp, purpose }) }),
   forgotPassword: (email) =>
     apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
-  resetPassword: (email, otp, password) =>
-    apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, otp, password }) }),
+  resetPassword: (email, resetToken, password) =>
+    apiFetch('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, resetToken, password }),
+    }),
 
   // Backward-compatible aliases used by some auth screens.
   login: (email, password) =>
