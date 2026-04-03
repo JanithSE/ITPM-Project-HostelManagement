@@ -14,11 +14,11 @@ router.use(authMiddleware)
 // GET /api/inventory
 router.get('/', requireRole('admin', 'warden'), listInventory)
 
-// POST /api/inventory
-router.post('/', requireRole('admin'), createInventoryItem)
+// POST /api/inventory — warden can add stock for their operations
+router.post('/', requireRole('admin', 'warden'), createInventoryItem)
 
 // PATCH /api/inventory/:id
-router.patch('/:id', requireRole('admin'), updateInventoryItem)
+router.patch('/:id', requireRole('admin', 'warden'), updateInventoryItem)
 
 // DELETE /api/inventory/:id
 router.delete('/:id', requireRole('admin'), deleteInventoryItem)

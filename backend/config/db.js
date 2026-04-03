@@ -1,34 +1,76 @@
 import dns from 'dns'
 import mongoose from 'mongoose'
 
+function applySrvDns(uri) {
+  if (!uri.startsWith('mongodb+srv://')) return
+  if (process.env.MONGODB_SKIP_DNS_FIX === '1') return
+
+  const explicit = process.env.MONGODB_DNS_SERVERS
+  if (explicit) {
+    const servers = explicit.split(',').map(s => s.trim()).filter(Boolean)
+    if (servers.length) dns.setServers(servers)
+    return
+  }
+
+  // Node on some Windows/corporate networks fails SRV lookups with the default resolver.
+  dns.setServers(['8.8.8.8', '1.1.1.1'])
+  console.log(
+    '📡 Using public DNS for MongoDB SRV (8.8.8.8, 1.1.1.1). Override with MONGODB_DNS_SERVERS or set MONGODB_SKIP_DNS_FIX=1.'
+  )
+}
+
+function isDnsOrSrvFailure(err) {
+  const msg = err?.message || ''
+  return (
+    err?.code === 'ENOTFOUND' ||
+    msg.includes('ENOTFOUND') ||
+    msg.includes('querySrv') ||
+    msg.includes('getaddrinfo')
+  )
+}
+
+const connectOptions = {
+  serverSelectionTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  connectTimeoutMS: 10000,
+  retryWrites: true,
+  w: 'majority',
+}
+
+async function connectWithUri(uri) {
+  applySrvDns(uri)
+  await mongoose.connect(uri, connectOptions)
+}
+
 export async function connectDB() {
   const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/unihostel'
-  
+  const fallbackUri = process.env.MONGODB_FALLBACK_URI?.trim()
+
   try {
     if (!uri) {
       throw new Error('MongoDB URI is not defined. Please set MONGODB_URI in .env file')
     }
 
-    // On some networks, Node's SRV/DNS lookups can fail even when Windows PowerShell works.
-    // If `MONGODB_DNS_SERVERS` is provided, force Node's DNS resolver to those servers.
-    // Example: `MONGODB_DNS_SERVERS=8.8.8.8,8.8.4.4`
-    if (uri.startsWith('mongodb+srv://') && process.env.MONGODB_DNS_SERVERS) {
-      const servers = process.env.MONGODB_DNS_SERVERS
-        .split(',')
-        .map(s => s.trim())
-        .filter(Boolean)
-      if (servers.length) dns.setServers(servers)
+    try {
+      await connectWithUri(uri)
+    } catch (primaryErr) {
+      if (
+        fallbackUri &&
+        fallbackUri !== uri &&
+        isDnsOrSrvFailure(primaryErr)
+      ) {
+        console.warn(
+          '⚠️ Primary MongoDB URI failed (DNS/network). Retrying MONGODB_FALLBACK_URI...'
+        )
+        if (mongoose.connection.readyState !== 0) {
+          await mongoose.disconnect().catch(() => {})
+        }
+        await connectWithUri(fallbackUri)
+      } else {
+        throw primaryErr
+      }
     }
 
-    const options = {
-      serverSelectionTimeoutMS: 10000, // Timeout after 10s
-      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-      connectTimeoutMS: 10000, // Connection timeout
-      retryWrites: true,
-      w: 'majority',
-    }
-
-    await mongoose.connect(uri, options)
     console.log('✅ MongoDB connected successfully')
     console.log(`📊 Database: ${mongoose.connection.name}`)
   } catch (err) {
@@ -57,10 +99,14 @@ export async function connectDB() {
       console.error('   2. Check your internet connection')
       console.error('   3. Verify the cluster exists in MongoDB Atlas')
       console.error('   4. Try getting a fresh connection string from Atlas')
+      console.error(
+        '   5. For local dev: set MONGODB_FALLBACK_URI=mongodb://127.0.0.1:27017/unihostel and run MongoDB locally'
+      )
     }
-    
-    const redactedUri = uri ? uri.replace(/:[^:@]+@/, ':****@') : '<missing MONGODB_URI>'
-    console.error(`\n🔗 Connection URI: ${redactedUri}`)
+
+    const redact = (u) => (u ? u.replace(/:[^:@]+@/, ':****@') : '<missing>')
+    console.error(`\n🔗 Primary URI: ${redact(uri)}`)
+    if (fallbackUri) console.error(`🔗 Fallback URI: ${redact(fallbackUri)}`)
     process.exit(1)
   }
 }

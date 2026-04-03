@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { inquiryApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 function statusBadgeClass(status) {
   const s = (status || '').toLowerCase()
   if (s === 'open') return 'bg-primary-100 text-primary-800 ring-1 ring-primary-200'
@@ -21,13 +23,16 @@ export default function AdminInquiries() {
   const [list, setList] = useState([])
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
+  const [success, setSuccess] = useState('')
   const [drafts, setDrafts] = useState({})
-  const [replyErrors, setReplyErrors] = useState({})
   const [pending, setPending] = useState({})
+  const [activityLog, setActivityLog] = useState([])
 
+  // Load all inquiries for admin review.
   const load = useCallback(async () => {
     setLoading(true)
     setMsg('')
+    setSuccess('')
     try {
       const data = await inquiryApi.listAll()
       setList(Array.isArray(data) ? data : [])
@@ -44,25 +49,47 @@ export default function AdminInquiries() {
 
   function setDraft(id, text) {
     setDrafts((d) => ({ ...d, [id]: text }))
-    setReplyErrors((e) => ({ ...e, [id]: '' }))
   }
 
+  // Validate and submit a reply for a single inquiry row.
   async function submitReply(id) {
     const reply = (drafts[id] || '').trim()
+    const inquiry = list.find((x) => String(x._id) === String(id))
+    const canReply = inquiry && inquiry.status === 'open' && !inquiry.reply
+    const studentEmail = String(inquiry?.from?.email || '').trim().toLowerCase()
+    const emailValid = EMAIL_REGEX.test(studentEmail)
+    const replyValid = reply.length >= 10
+
+    if (!canReply) {
+      setMsg('This inquiry has already been replied.')
+      return
+    }
+    if (!emailValid) {
+      setMsg('Student email is invalid or missing.')
+      return
+    }
+    if (!replyValid) {
+      setMsg('Reply must be at least 10 characters.')
+      return
+    }
+
+    const ok = window.confirm('Send this reply to the student?')
+    if (!ok) return
+
     if (!reply) {
-      setReplyErrors((e) => ({ ...e, [id]: 'Reply is required.' }))
       return
     }
-    if (reply.length < 10) {
-      setReplyErrors((e) => ({ ...e, [id]: 'Reply must be at least 10 characters.' }))
-      return
-    }
-    setReplyErrors((e) => ({ ...e, [id]: '' }))
     setMsg('')
+    setSuccess('')
     setPending((p) => ({ ...p, [id]: true }))
     try {
       await inquiryApi.reply(id, reply)
       setDrafts((d) => ({ ...d, [id]: '' }))
+      setSuccess('Reply sent successfully.')
+      setActivityLog((log) => [
+        { id, at: new Date().toLocaleString() },
+        ...log,
+      ].slice(0, 8))
       await load()
     } catch (e) {
       setMsg(e.message || 'Reply failed')
@@ -91,16 +118,16 @@ export default function AdminInquiries() {
         }}
       />
       <div className="content-card !p-0 overflow-hidden shadow-md border-gray-200/80" style={{ position: 'relative', zIndex: 1 }}>
-      {/* Page header */}
-      <div className="px-6 pt-6 pb-5 border-b border-gray-100 bg-gradient-to-b from-white to-gray-50/80">
+      {/* Admin inquiries header and quick refresh */}
+      <div className="px-6 pt-6 pb-5 border-b border-primary-300/30 bg-gradient-to-r from-slate-900 via-blue-900 to-blue-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="page-title mb-1 !mb-1">All inquiries</h1>
-           
+            <h1 className="page-title mb-1 !mb-1 !text-white">All Inquiries</h1>
+            <p className="text-primary-100 text-sm">Review student messages and send validated replies.</p>
           </div>
           <button
             type="button"
-            className="btn-table-primary inline-flex items-center justify-center gap-2 shrink-0 shadow-sm"
+            className="inline-flex items-center justify-center gap-2 shrink-0 shadow-sm rounded-lg px-4 py-2 text-sm font-semibold text-primary-700 bg-white hover:bg-primary-50 disabled:opacity-60"
             onClick={load}
             disabled={loading}
           >
@@ -111,7 +138,7 @@ export default function AdminInquiries() {
           </button>
         </div>
         {list.length > 0 && (
-          <p className="mt-3 text-xs font-medium text-primary-700 bg-primary-50/80 inline-block px-2.5 py-1 rounded-md">
+          <p className="mt-3 text-xs font-medium text-primary-700 bg-white/90 inline-block px-2.5 py-1 rounded-md">
             {list.length} {list.length === 1 ? 'inquiry' : 'inquiries'}
           </p>
         )}
@@ -124,6 +151,24 @@ export default function AdminInquiries() {
             role="alert"
           >
             {msg}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 text-sm text-green-700 bg-green-50 border border-green-100 px-4 py-3 rounded-lg" role="alert">
+            {success}
+          </div>
+        )}
+
+        {activityLog.length > 0 && (
+          <div className="mb-4 rounded-xl border border-gray-200 bg-white p-4">
+            <p className="text-sm font-semibold text-gray-800 mb-2">Activity Log</p>
+            <ul className="space-y-2">
+              {activityLog.map((a, idx) => (
+                <li key={`${a.id}-${a.at}-${idx}`} className="text-xs text-gray-600">
+                  Reply sent at {a.at}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -139,11 +184,38 @@ export default function AdminInquiries() {
         )}
 
         <ul className="space-y-5 list-none m-0 p-0">
-          {list.map((row) => (
-            <li
-              key={row._id}
-              className="rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-primary-100/60 transition-shadow duration-200 overflow-hidden"
-            >
+          {/* List is already sorted by newest first from backend using createdAt descending */}
+          {list.map((row) => {
+            const replyText = drafts[row._id] ?? ''
+            const replyTrim = replyText.trim()
+            const canReply = row.status === 'open' && !row.reply
+            const studentEmail = String(row.from?.email || '').trim().toLowerCase()
+            const emailValid = EMAIL_REGEX.test(studentEmail)
+            const replyValid = replyTrim.length >= 10
+            const canSend = canReply && emailValid && replyValid && !pending[row._id]
+            const errorText = !canReply
+              ? ''
+              : !emailValid
+                ? 'Student email is invalid or missing.'
+                : !replyTrim
+                  ? 'Reply is required.'
+                  : !replyValid
+                    ? 'Reply must be at least 10 characters.'
+                    : ''
+
+            const borderColor = !canReply
+              ? '#e5e7eb'
+              : canSend
+                ? '#22c55e'
+                : errorText
+                  ? '#dc2626'
+                  : '#e5e7eb'
+
+            return (
+              <li
+                key={row._id}
+                className="rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-primary-100/60 transition-shadow duration-200 overflow-hidden"
+              >
               <div className="p-5 sm:p-6">
                 <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                   <div className="flex items-center gap-3 min-w-0">
@@ -201,18 +273,19 @@ export default function AdminInquiries() {
                     placeholder="Type reply…"
                     value={drafts[row._id] ?? ''}
                     onChange={(e) => setDraft(row._id, e.target.value)}
-                    disabled={pending[row._id]}
+                    disabled={!canReply || pending[row._id]}
+                    style={{ borderColor }}
                     maxLength={1000}
                   />
                   <div className="mt-1 flex items-center justify-between">
-                    <p className="text-xs text-red-600">{replyErrors[row._id] || ''}</p>
+                    <p className="text-xs text-red-600">{errorText}</p>
                     <p className="text-xs text-gray-500">{(drafts[row._id] || '').length}/1000</p>
                   </div>
                   <div className="mt-3 flex justify-end">
                     <button
                       type="button"
                       className="btn-table-primary shadow-sm disabled:opacity-60 disabled:cursor-not-allowed"
-                      disabled={pending[row._id]}
+                      disabled={!canReply || !emailValid || !replyValid || pending[row._id]}
                       onClick={() => submitReply(row._id)}
                     >
                       {pending[row._id] ? 'Sending…' : 'Submit reply'}
@@ -221,7 +294,8 @@ export default function AdminInquiries() {
                 </div>
               </div>
             </li>
-          ))}
+            )
+          })}
         </ul>
       </div>
     </div>

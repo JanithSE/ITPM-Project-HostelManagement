@@ -3,6 +3,7 @@ import { maintenanceApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 
 function statusOptions(current) {
+  // Enforce forward-only status transitions in the admin UI.
   if (current === 'open') return ['open', 'in_progress']
   if (current === 'in_progress') return ['in_progress', 'resolved']
   return ['resolved']
@@ -29,6 +30,14 @@ function formatStatusLabel(value) {
   return (value || '').replace(/_/g, ' ')
 }
 
+function statusPillClass(status) {
+  const s = (status || '').toLowerCase()
+  if (s === 'open') return 'bg-amber-50 text-amber-700 ring-1 ring-amber-200'
+  if (s === 'in_progress') return 'bg-blue-50 text-blue-700 ring-1 ring-blue-200'
+  if (s === 'resolved') return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+  return 'bg-gray-100 text-gray-600 ring-1 ring-gray-200'
+}
+
 function initials(name, email) {
   const n = (name || email || '?').trim()
   const parts = n.split(/\s+/)
@@ -41,7 +50,9 @@ export default function AdminMaintenance() {
   const [loading, setLoading] = useState(false)
   const [msg, setMsg] = useState('')
   const [pending, setPending] = useState({})
+  const [activityLog, setActivityLog] = useState([])
 
+  // Load all maintenance requests for admin monitoring.
   const load = useCallback(async () => {
     setLoading(true)
     setMsg('')
@@ -59,11 +70,48 @@ export default function AdminMaintenance() {
     load()
   }, [load])
 
-  async function applyStatus(id, status) {
+  // Apply status update and refresh list to reflect backend truth.
+  async function applyStatus(id, prevStatus, status, meta = {}) {
+    // Frontend guard rails (backend currently stores only `status`).
+    if (prevStatus === 'resolved') {
+      setMsg('This request is already completed.')
+      return
+    }
+    if (status === prevStatus) {
+      return
+    }
+    // Enforce forward-only workflow in the UI/guard rails.
+    const allowed =
+      (prevStatus === 'open' && status === 'in_progress') ||
+      (prevStatus === 'in_progress' && status === 'resolved')
+    if (!allowed) {
+      setMsg('Invalid status transition.')
+      return
+    }
+    if (status === 'in_progress' && !String(meta.staff || '').trim()) {
+      setMsg('Assign a staff member before setting to In Progress.')
+      return
+    }
+    if (status === 'resolved' && !String(meta.note || '').trim()) {
+      setMsg('Add a completion note before setting to Completed.')
+      return
+    }
+
     setMsg('')
     setPending((p) => ({ ...p, [id]: true }))
     try {
       await maintenanceApi.updateStatus(id, status)
+      setActivityLog((log) => [
+        {
+          id,
+          from: prevStatus,
+          to: status,
+          staff: String(meta.staff || '').trim(),
+          note: String(meta.note || '').trim(),
+          at: new Date().toLocaleString(),
+        },
+        ...log,
+      ].slice(0, 8))
       await load()
     } catch (e) {
       setMsg(e.message || 'Update failed')
@@ -92,15 +140,15 @@ export default function AdminMaintenance() {
         }}
       />
       <div className="content-card !p-0 overflow-hidden shadow-md border-gray-200/80" style={{ position: 'relative', zIndex: 1 }}>
-      <div className="px-6 pt-6 pb-5 border-b border-gray-100 bg-gradient-to-b from-white to-gray-50/80">
+      <div className="px-6 pt-6 pb-5 border-b border-primary-300/30 bg-gradient-to-r from-slate-900 via-blue-900 to-blue-800">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="page-title mb-1 !mb-1">All maintenance requests</h1>
-           
+            <h1 className="page-title mb-1 !mb-1 !text-white">All Maintenance Requests</h1>
+            <p className="text-primary-100 text-sm">Track, validate, and update student maintenance issues.</p>
           </div>
           <button
             type="button"
-            className="btn-table-primary inline-flex items-center justify-center gap-2 shrink-0 shadow-sm"
+            className="inline-flex items-center justify-center gap-2 shrink-0 shadow-sm rounded-lg px-4 py-2 text-sm font-semibold text-primary-700 bg-white hover:bg-primary-50 disabled:opacity-60"
             onClick={load}
             disabled={loading}
           >
@@ -111,13 +159,46 @@ export default function AdminMaintenance() {
           </button>
         </div>
         {list.length > 0 && (
-          <p className="mt-3 text-xs font-medium text-primary-700 bg-primary-50/80 inline-block px-2.5 py-1 rounded-md">
+          <p className="mt-3 text-xs font-medium text-primary-700 bg-white/90 inline-block px-2.5 py-1 rounded-md">
             {list.length} {list.length === 1 ? 'request' : 'requests'}
           </p>
         )}
       </div>
 
       <div className="p-6 bg-gray-50/50">
+        {activityLog.length > 0 && (
+          <div className="mb-4 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-slate-50 to-white flex items-center justify-between">
+              <p className="text-sm font-semibold text-gray-800">Activity Log</p>
+              <span className="text-xs font-medium text-gray-500">{activityLog.length} recent updates</span>
+            </div>
+            <ul className="p-4 space-y-3">
+              {activityLog.map((a) => (
+                <li
+                  key={`${a.id}-${a.at}`}
+                  className="rounded-xl border border-gray-100 bg-gray-50/70 px-3 py-2.5"
+                >
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClass(a.from)}`}>
+                      {formatStatusLabel(a.from)}
+                    </span>
+                    <span className="text-xs text-gray-400">→</span>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ${statusPillClass(a.to)}`}>
+                      {formatStatusLabel(a.to)}
+                    </span>
+                    <span className="ml-auto text-xs text-gray-500">{a.at}</span>
+                  </div>
+                  {(a.staff || a.note) && (
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs text-gray-600">
+                      {a.staff && <span className="rounded-md bg-white px-2 py-1 ring-1 ring-gray-200">Staff: {a.staff}</span>}
+                      {a.note && <span className="rounded-md bg-white px-2 py-1 ring-1 ring-gray-200">Note: {a.note}</span>}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         {msg && (
           <div
             className="mb-4 text-sm text-red-700 bg-red-50 border border-red-100 px-4 py-3 rounded-lg"
@@ -175,6 +256,7 @@ export default function AdminMaintenance() {
                   <div>
                     <p className="text-xs font-medium text-gray-400 mb-0.5">Reported</p>
                     <p className="text-gray-500 text-xs">
+                      {/* createdAt is auto-generated when request is inserted - shown here in local date/time */}
                       {row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}
                     </p>
                   </div>
@@ -201,7 +283,7 @@ export default function AdminMaintenance() {
                   <StatusRow
                     row={row}
                     busy={pending[row._id]}
-                    onApply={(s) => applyStatus(row._id, s)}
+                    onApply={(nextStatus, meta) => applyStatus(row._id, row.status, nextStatus, meta)}
                   />
                 </div>
               </div>
@@ -215,46 +297,106 @@ export default function AdminMaintenance() {
 }
 
 function StatusRow({ row, busy, onApply }) {
+  // Options depend on current status to prevent invalid jumps.
   const opts = statusOptions(row.status)
   const [sel, setSel] = useState(row.status)
+  const [staff, setStaff] = useState('')
+  const [note, setNote] = useState('')
 
   useEffect(() => {
     setSel(row.status)
   }, [row.status])
 
   const resolved = row.status === 'resolved'
-  const canApply = !busy && !resolved && sel !== row.status
+  const needsStaff = sel === 'in_progress'
+  const needsNote = sel === 'resolved'
+  const staffTrim = String(staff || '').trim()
+  const noteTrim = String(note || '').trim()
+
+  const staffValid = !needsStaff || staffTrim.length > 0
+  const noteValid = !needsNote || noteTrim.length > 0
+
+  // Button enabled only when there is a real change and request is not locked.
+  const canApply = !busy && !resolved && sel !== row.status && staffValid && noteValid
 
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-      <div className="flex-1 min-w-0">
-        <label htmlFor={`status-${row._id}`} className="sr-only">
-          Select new status
-        </label>
-        <select
-          id={`status-${row._id}`}
-          value={sel}
-          onChange={(e) => setSel(e.target.value)}
-          disabled={busy || resolved}
-          className="w-full sm:max-w-xs rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+    <div className="w-full rounded-xl border border-gray-200 bg-white p-4 sm:p-5">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+        <div className="md:col-span-2">
+          <label htmlFor={`status-${row._id}`} className="block text-xs font-medium text-gray-500 mb-1">
+            Status
+          </label>
+          <select
+            id={`status-${row._id}`}
+            value={sel}
+            onChange={(e) => setSel(e.target.value)}
+            disabled={busy || resolved}
+            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 disabled:bg-gray-50 disabled:text-gray-500"
+          >
+            {opts.map((o) => (
+              <option key={o} value={o}>
+                {formatStatusLabel(o)}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="button"
+          className="btn-table-primary px-5 py-2.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed w-full"
+          disabled={!canApply}
+          onClick={() => {
+            if (!canApply) return
+            if (sel === 'resolved') {
+              const ok = window.confirm('Are you sure you want to mark this request as Completed?')
+              if (!ok) return
+            }
+            onApply(sel, { staff: staffTrim, note: noteTrim })
+          }}
         >
-          {opts.map((o) => (
-            <option key={o} value={o}>
-              {formatStatusLabel(o)}
-            </option>
-          ))}
-        </select>
+          {busy ? 'Applying…' : 'Apply Changes'}
+        </button>
       </div>
-      <button
-        type="button"
-        className="btn-table-primary px-5 py-2.5 shadow-sm shrink-0 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
-        disabled={!canApply}
-        onClick={() => onApply(sel)}
-      >
-        {busy ? 'Applying…' : 'Apply'}
-      </button>
+
       {resolved && (
-        <p className="text-xs text-gray-500 sm:ml-1">This request is resolved.</p>
+        <p className="text-xs text-gray-500 mt-3">This request is resolved.</p>
+      )}
+
+      {/* Extra admin validations (UI-level; backend currently stores only `status`) */}
+      {row.status !== 'resolved' && (
+        <div className="w-full mt-4 space-y-3">
+          {needsStaff && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Assign staff</label>
+              <input
+                type="text"
+                value={staff}
+                onChange={(e) => setStaff(e.target.value)}
+                placeholder="Type staff name"
+                className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                style={{ borderColor: staffValid ? '#22c55e' : '#dc2626' }}
+                disabled={busy}
+              />
+              {!staffValid && <p className="text-xs text-red-600 mt-1">Staff is required before setting In Progress.</p>}
+            </div>
+          )}
+
+          {needsNote && (
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Completion note</label>
+              <textarea
+                value={note}
+                onChange={(e) => setNote(e.target.value)}
+                placeholder="Write a short completion note..."
+                className="w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-gray-800 min-h-[90px] focus:outline-none focus:ring-2 focus:ring-primary-500"
+                style={{ borderColor: noteValid ? '#22c55e' : '#dc2626' }}
+                disabled={busy}
+                maxLength={600}
+              />
+              {!noteValid && <p className="text-xs text-red-600 mt-1">Completion note is required before marking as Completed.</p>}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

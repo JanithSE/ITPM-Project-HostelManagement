@@ -9,13 +9,6 @@ Full-stack hostel management: React (Vite) frontend + Node (Express) + MongoDB b
 
 ## Environment
 
-**Backend** – optional `backend/.env` (app defaults to MongoDB Atlas):
-
-```
-PORT=5001
-MONGODB_URI=mongodb+srv://hosteladmin:1234@cluster0.ykd60i8.mongodb.net/unihostel
-JWT_SECRET=your-super-secret-jwt-key-change-in-production
-```
 
 **Frontend** – optional. Create `frontend/.env` to override API URL:
 
