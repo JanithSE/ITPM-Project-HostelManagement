@@ -767,8 +767,17 @@ export default function StudentBooking() {
                   ) : null}
                   {String(b.status || '').toLowerCase() === 'confirmed' || String(b.status || '').toLowerCase() === 'approved' ? (
                     <Link
-                      to="/student/payments"
-                      className="rounded-full border border-indigo-200 bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 dark:border-indigo-900/40"
+                      to="/student/payments/new"
+                      state={{
+                        booking: {
+                          roomNumber: b.roomNumber,
+                          roomType: b.roomType,
+                          facilityType: b.facilityType,
+                          studentName: b.studentName,
+                          hostel: b.hostel
+                        }
+                      }}
+                      className="rounded-full bg-indigo-600 px-4 py-1 text-[10px] font-bold text-white hover:bg-indigo-700"
                     >
                       Pay Now
                     </Link>
