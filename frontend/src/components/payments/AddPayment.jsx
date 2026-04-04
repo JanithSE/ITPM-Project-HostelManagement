@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import {
@@ -216,8 +216,7 @@ function liveValidateProof(file, { blur = false } = {}) {
 export default function AddPayment() {
   const navigate = useNavigate()
   const [pricing, setPricing] = useState(DEFAULT_PRICING)
-  const location = useLocation()
-  const [studentName, setStudentName] = useState(() => localStorage.getItem('studentName') || '')
+  const [studentName, setStudentName] = useState('')
   const [roomNo, setRoomNo] = useState('')
   const [month, setMonth] = useState('')
   const [roomType, setRoomType] = useState('')
@@ -232,17 +231,6 @@ export default function AddPayment() {
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
   const [viewYear, setViewYear] = useState(() => Number(paymentMonthBoundsUtc().current.slice(0, 4)))
   const monthPickerRef = useRef(null)
-
-  useEffect(() => {
-    const booking = location.state?.booking
-    if (booking) {
-      if (booking.studentName) setStudentName(booking.studentName)
-      if (booking.roomNumber) setRoomNo(booking.roomNumber)
-      if (booking.roomType) setRoomType(booking.roomType)
-      if (booking.facilityType) setFacilityType(booking.facilityType)
-      // If roomType/facilityType are set, the other useEffect will update the amount
-    }
-  }, [location.state])
 
   const paidMonths = useMemo(() => new Set(paidMonthKeys), [paidMonthKeys])
 

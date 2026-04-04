@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
-import { bookingApi } from '../../shared/api/client'
 import {
   getPersonNameError,
   normalizePersonNameInput,
@@ -301,36 +300,6 @@ export default function AddLatepass() {
 
   const todayYmd = localYmd()
   const maxDateYmd = addDaysToYmd(todayYmd, MAX_DAYS_AHEAD)
-
-  useEffect(() => {
-    let cancelled = false
-    async function loadDefaultInfo() {
-      try {
-        const name = localStorage.getItem('studentName') || ''
-        const bookingData = await bookingApi.list().catch(() => [])
-        if (cancelled) return
-        
-        const active = (Array.isArray(bookingData) ? bookingData : [])
-          .find((b) => b.status === 'confirmed' || b.status === 'pending')
-
-        setStudents((prev) => {
-          const next = [...prev]
-          if (next[0]) {
-            next[0] = {
-              ...next[0],
-              studentName: name || next[0].studentName,
-              roomNo: active?.roomNumber || next[0].roomNo,
-            }
-          }
-          return next
-        })
-      } catch {
-        // silent fail
-      }
-    }
-    loadDefaultInfo()
-    return () => { cancelled = true }
-  }, [])
 
   const minMonthDate = useMemo(() => {
     const [y, m] = todayYmd.split('-').map(Number)
