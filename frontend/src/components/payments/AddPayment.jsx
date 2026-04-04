@@ -236,7 +236,6 @@ export default function AddPayment() {
   useEffect(() => {
     const booking = location.state?.booking
     if (booking) {
-      if (booking.studentName) setStudentName(booking.studentName)
       if (booking.roomNumber) setRoomNo(booking.roomNumber)
       if (booking.roomType) setRoomType(booking.roomType)
       if (booking.facilityType) setFacilityType(booking.facilityType)
