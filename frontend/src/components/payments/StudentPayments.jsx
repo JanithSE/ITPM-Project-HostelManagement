@@ -96,21 +96,21 @@ export default function StudentPayments() {
               </Link>
             </p>
           ) : (
-            <table className="table-dashboard w-full min-w-[80rem]">
+            <table className="table-dashboard w-full min-w-[70rem] table-fixed">
               <thead>
                 <tr>
-                  <th className="w-[120px] text-left">Student name</th>
-                  <th className="w-[80px] text-left">Room no.</th>
-                  <th className="w-[100px] text-left">Month</th>
-                  <th className="w-[100px] text-left">Room type</th>
-                  <th className="w-[80px] text-left">Facility</th>
-                  <th className="w-[140px] text-left">Amount</th>
-                  <th className="w-[140px] text-left">Transaction type</th>
-                  <th className="w-[80px] text-left">Proof</th>
-                  <th className="w-[100px] text-left">Status</th>
-                  <th className="w-[160px] text-left">Admin remarks</th>
-                  <th className="w-[160px] text-left">Submitted</th>
-                  <th className="w-[120px] text-left">Actions</th>
+                  <th className="w-[11%]">Student name</th>
+                  <th className="whitespace-nowrap">Room no.</th>
+                  <th className="whitespace-nowrap">Month</th>
+                  <th className="whitespace-nowrap">Room type</th>
+                  <th className="whitespace-nowrap">Facility</th>
+                  <th className="whitespace-nowrap">Amount</th>
+                  <th className="min-w-0 w-[11%]">Transaction type</th>
+                  <th className="whitespace-nowrap">Proof</th>
+                  <th className="whitespace-nowrap">Status</th>
+                  <th className="min-w-0 w-[13%]">Admin remarks</th>
+                  <th className="whitespace-nowrap">Submitted</th>
+                  <th className="whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
