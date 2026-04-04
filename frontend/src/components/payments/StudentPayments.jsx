@@ -70,6 +70,14 @@ export default function StudentPayments() {
         </div>
         <Link
           to="/student/payments/new"
+          state={{
+            booking: list.length > 0 ? {
+              roomNumber: list[0].roomNo,
+              roomType: list[0].roomType,
+              facilityType: list[0].facilityType,
+              studentName: list[0].studentName
+            } : undefined
+          }}
           className="inline-flex items-center justify-center rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
         >
           Add payment
