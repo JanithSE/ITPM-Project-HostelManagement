@@ -32,8 +32,6 @@ function sanitizeDashboardSearchInput(value) {
 }
 
 import { apiFetch } from "../../shared/api/client";
-import AdminPayments from "../payments/AdminPayments";
-import AdminLatepass from "../latepass/AdminLatepass";
 
 const stats = [
   { label: "Total Students", value: 248, sub: "+4 this week", icon: "🎓", grad: "135deg, #60a5fa, #818cf8", glow: "rgba(99,102,241,0.45)", accent: "#818cf8" },
@@ -79,8 +77,6 @@ const nav = [
   { label: "Rooms", icon: "⬡" },
   { label: "Complaints", icon: "◎" },
   { label: "Leave", icon: "◫" },
-  { label: "Payment", icon: "💳" },
-  { label: "Latepass", icon: "🕒" },
   { label: "Notices", icon: "◳" },
   { label: "Reports", icon: "◰" },
   { label: "Settings", icon: "◍" },
@@ -1742,9 +1738,9 @@ export default function App() {
         {/* Brand */}
         <div style={{ padding: "18px 16px", borderBottom: `1px solid ${T.sidebarBorder}` }}>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <div style={{ width: "44px", height: "44px", borderRadius: "14px", background: "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "20px", color: "#fff", boxShadow: "0 6px 24px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.15) inset", flexShrink: 0 }}>UH</div>
+            <div style={{ width: "44px", height: "44px", borderRadius: "14px", background: "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #ec4899 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "20px", color: "#fff", boxShadow: "0 6px 24px rgba(99,102,241,0.45), 0 0 0 1px rgba(255,255,255,0.15) inset", flexShrink: 0 }}>H</div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: "17px", letterSpacing: "-0.03em", color: T.textPrimary }}>UniHostel</div>
+              <div style={{ fontWeight: 800, fontSize: "17px", letterSpacing: "-0.03em", color: T.textPrimary }}>HostelOS</div>
               <div style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase", color: "#818cf8", marginTop: "3px" }}>Warden · Command</div>
             </div>
           </div>
@@ -1894,10 +1890,6 @@ export default function App() {
             />
           ) : active === "Complaints" ? (
             <ComplaintsPanel T={T} s={s} complaintsLoading={complaintsLoading} complaintsError={complaintsError} filteredComplaints={filteredComplaints} complaintsSearch={complaintsSearch} setComplaintsSearch={setComplaintsSearch} />
-          ) : active === "Payment" ? (
-            <AdminPayments />
-          ) : active === "Latepass" ? (
-            <AdminLatepass />
           ) : active === "Students" ? (
             <div style={{ ...s.card, padding: "20px", display: "flex", flexDirection: "column", gap: "0" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>

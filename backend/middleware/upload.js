@@ -153,23 +153,5 @@ export function conditionalHostelImageUpload(req, res, next) {
   next()
 }
 
-/** Optional payment proof upload */
-export function paymentProofUploadOptionalMiddleware(req, res, next) {
-  const ct = String(req.headers['content-type'] || '')
-  if (ct.includes('multipart/form-data')) {
-    return paymentProofUploadMiddleware(req, res, next)
-  }
-  next()
-}
-
-/** Optional latepass document upload */
-export function latepassDocumentUploadOptionalMiddleware(req, res, next) {
-  const ct = String(req.headers['content-type'] || '')
-  if (ct.includes('multipart/form-data')) {
-    return latepassDocumentUploadMiddleware(req, res, next)
-  }
-  next()
-}
-
 /** @deprecated */
 export const proofUploadMiddleware = paymentProofUploadMiddleware
