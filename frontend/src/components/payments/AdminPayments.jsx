@@ -60,8 +60,24 @@ function SubmittedCell({ value }) {
 
 export default function AdminPayments() {
   const [list, setList] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  const filteredList = list.filter((p) => {
+    if (!searchQuery) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      (p.studentName || p.student?.name || '').toLowerCase().includes(q) ||
+      (p.roomNo || '').toLowerCase().includes(q) ||
+      (p.roomType || '').toLowerCase().includes(q) ||
+      (p.facilityType || '').toLowerCase().includes(q) ||
+      (p.month || '').toLowerCase().includes(q) ||
+      (p.status || '').toLowerCase().includes(q) ||
+      (p.transactionType || '').toLowerCase().includes(q) ||
+      (p.adminRemarks || '').toLowerCase().includes(q)
+    )
+  })
 
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState({ status: 'pending', remarks: '' })
@@ -182,14 +198,23 @@ export default function AdminPayments() {
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Payment Records</h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">All student submissions.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => load()}
-          disabled={loading}
-          className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search payments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-400"
+          />
+          <button
+            type="button"
+            onClick={() => load()}
+            disabled={loading}
+            className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="panel-surface overflow-hidden rounded-2xl shadow-card">
@@ -205,8 +230,10 @@ export default function AdminPayments() {
         <div className="overflow-x-auto p-4 sm:p-6">
           {loading ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">Loading…</p>
-          ) : list.length === 0 ? (
-            <p className="text-sm text-slate-600 dark:text-slate-400">No payment records.</p>
+          ) : filteredList.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {searchQuery ? "No matching payment records found." : "No payment records."}
+            </p>
           ) : (
             <table className="table-admin-compact w-full min-w-[90rem] table-fixed">
               <thead>
@@ -226,7 +253,7 @@ export default function AdminPayments() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((p) => {
+                {filteredList.map((p) => {
                   const href = proofHref(p)
                   return (
                     <tr key={p._id} className="align-top">
