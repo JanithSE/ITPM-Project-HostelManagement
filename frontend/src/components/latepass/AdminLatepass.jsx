@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import StatusBadge from '../../shared/components/StatusBadge'
 
@@ -48,6 +50,99 @@ function formatDateShort(d) {
 function formatSubmitted(d) {
   if (!d) return '—'
   return new Date(d).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+}
+
+function buildStudentsPdfLine(students) {
+  if (!students?.length) return '—'
+  return students
+    .map((s) => {
+      const name = String(s.studentName || '').trim()
+      const id = s.studentId || ''
+      const room = s.roomNo != null && String(s.roomNo).trim() !== '' ? `Rm ${s.roomNo}` : ''
+      return [name, id, room].filter(Boolean).join(' · ')
+    })
+    .join(' | ')
+}
+
+function latepassRowMatchesQuery(row, query) {
+  const q = query.trim().toLowerCase()
+  if (!q) return true
+  const statusNorm = latepassSelectStatus(row.status)
+  const statusLabel = STATUS_OPTIONS.find((o) => o.value === statusNorm)?.label || ''
+  const studentsBits = (row.students || [])
+    .map((s) => [s.studentName, s.studentId, s.roomNo].map((x) => String(x ?? '').toLowerCase()).join(' '))
+    .join(' ')
+  const haystack = [
+    formatDateShort(row.date),
+    arrivingLabel(row),
+    row.guardianContactNo,
+    row.reason,
+    row.status,
+    statusNorm,
+    statusLabel,
+    formatSubmitted(row.createdAt),
+    row.adminRemarks,
+    studentsBits,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  const words = q.split(/\s+/).filter(Boolean)
+  return words.every((w) => haystack.includes(w))
+}
+
+function downloadLatepassPdfReport(rows, rowState) {
+  if (!rows.length) {
+    toast.error('No late pass data to download.')
+    return
+  }
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  doc.setFontSize(14)
+  doc.text('Late pass report', 14, 16)
+  doc.setFontSize(9)
+  doc.setTextColor(100)
+  doc.text(`Generated ${new Date().toLocaleString()} · ${rows.length} record(s)`, 14, 22)
+
+  const head = [['Date', 'Arriving', 'Guardian', 'Reason', 'Students', 'Status', 'Submitted', 'Admin remark']]
+  const body = rows.map((row) => {
+    const rs = rowState[row._id] || {
+      status: latepassSelectStatus(row.status),
+      remarks: row.adminRemarks || '',
+    }
+    const opt = STATUS_OPTIONS.find((o) => o.value === rs.status)
+    return [
+      formatDateShort(row.date),
+      arrivingLabel(row),
+      row.guardianContactNo || '—',
+      String(row.reason || '—').replace(/\s+/g, ' '),
+      buildStudentsPdfLine(row.students),
+      opt?.label || rs.status,
+      formatSubmitted(row.createdAt),
+      String(rs.remarks || '—').replace(/\s+/g, ' '),
+    ]
+  })
+
+  autoTable(doc, {
+    startY: 26,
+    head,
+    body,
+    styles: { fontSize: 7, cellPadding: 1.5, overflow: 'linebreak' },
+    headStyles: { fillColor: [67, 56, 202], textColor: 255 },
+    columnStyles: {
+      0: { cellWidth: 22 },
+      1: { cellWidth: 18 },
+      2: { cellWidth: 28 },
+      3: { cellWidth: 42 },
+      4: { cellWidth: 48 },
+      5: { cellWidth: 22 },
+      6: { cellWidth: 32 },
+      7: { cellWidth: 36 },
+    },
+    margin: { left: 14, right: 14 },
+  })
+
+  doc.save(`late-pass-${new Date().toISOString().slice(0, 10)}.pdf`)
+  toast.success('PDF downloaded')
 }
 
 /** One clear block per student so names/IDs don’t break across lines mid-record. */
@@ -102,6 +197,12 @@ export default function AdminLatepass() {
   const [updatingId, setUpdatingId] = useState(null)
   const [bulkSaving, setBulkSaving] = useState(false)
   const [rowState, setRowState] = useState({})
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const filteredList = useMemo(
+    () => list.filter((row) => latepassRowMatchesQuery(row, searchQuery)),
+    [list, searchQuery],
+  )
 
   const load = useCallback(async () => {
     setError('')
@@ -209,19 +310,41 @@ export default function AdminLatepass() {
   return (
     <div className="admin-latepass space-y-6">
       <div className="rounded-2xl border border-slate-200 bg-gradient-to-r from-indigo-50 via-white to-blue-50 px-5 py-5 shadow-sm dark:border-slate-700 dark:from-slate-900 dark:via-slate-900 dark:to-indigo-900/30">
-        <div className="admin-latepass__header flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="admin-latepass__header flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h1 className="text-3xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">Late pass</h1>
             <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">All student requests with admin review controls.</p>
           </div>
-          <button
-            type="button"
-            onClick={() => load()}
-            disabled={loading}
-            className="rounded-full bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-500/25 hover:bg-blue-600 disabled:opacity-50"
-          >
-            {loading ? 'Refreshing…' : 'Refresh'}
-          </button>
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-end lg:max-w-2xl lg:flex-1">
+            <label className="sr-only" htmlFor="admin-latepass-search">
+              Search late pass requests
+            </label>
+            <input
+              id="admin-latepass-search"
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search name, ID, room, reason, guardian, status…"
+              className="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 sm:min-w-[16rem]"
+              autoComplete="off"
+            />
+            <button
+              type="button"
+              onClick={() => downloadLatepassPdfReport(filteredList, rowState)}
+              disabled={loading || filteredList.length === 0}
+              className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+            >
+              Download PDF
+            </button>
+            <button
+              type="button"
+              onClick={() => load()}
+              disabled={loading}
+              className="rounded-full bg-blue-500 px-5 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-500/25 hover:bg-blue-600 disabled:opacity-50"
+            >
+              {loading ? 'Refreshing…' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -272,6 +395,10 @@ export default function AdminLatepass() {
             <p className="text-sm text-slate-600 dark:text-slate-400">Loading…</p>
           ) : list.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">No late pass requests.</p>
+          ) : filteredList.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              No requests match your search. Try different keywords or clear the search box.
+            </p>
           ) : (
             <table className="admin-latepass__table table-admin-compact w-full min-w-[92rem] table-fixed">
               <thead>
@@ -289,7 +416,7 @@ export default function AdminLatepass() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((row) => {
+                {filteredList.map((row) => {
                   const rs = rowState[row._id] || {
                     status: latepassSelectStatus(row.status),
                     remarks: row.adminRemarks || '',

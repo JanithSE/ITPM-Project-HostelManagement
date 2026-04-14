@@ -767,7 +767,22 @@ export default function StudentBooking() {
                   ) : null}
                   {String(b.status || '').toLowerCase() === 'confirmed' || String(b.status || '').toLowerCase() === 'approved' ? (
                     <Link
-                      to="/student/payments"
+                      to="/student/payments/new"
+                      state={{
+                        studentName: b.studentName || b.student?.name || studentName,
+                        roomNo: b.roomNumber,
+                        roomType: String(b.roomType || '').toLowerCase(),
+                        facilityType: (function() {
+                          const r = rooms.find(
+                            (rm) =>
+                              String(rm.hostel?._id) === String(b.hostel?._id) &&
+                              String(rm.roomNumber) === String(b.roomNumber)
+                          )
+                          return String(r?.acType || 'fan').toLowerCase()
+                        })(),
+                        hostelName: b.hostel?.name,
+                        bookingId: b._id
+                      }}
                       className="rounded-full border border-indigo-200 bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 dark:border-indigo-900/40"
                     >
                       Pay Now
