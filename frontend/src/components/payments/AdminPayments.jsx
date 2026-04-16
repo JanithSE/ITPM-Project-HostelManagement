@@ -83,11 +83,7 @@ export default function AdminPayments() {
   const [editDraft, setEditDraft] = useState({ status: 'pending', remarks: '' })
   const [editSaving, setEditSaving] = useState(false)
 
-  const totalDue = list.reduce((s, p) => s + (Number(p?.amount) || 0), 0)
-  const collected = list
-    .filter((p) => paymentSelectStatus(p?.status) === 'completed')
-    .reduce((s, p) => s + (Number(p?.amount) || 0), 0)
-  const outstanding = Math.max(0, totalDue - collected)
+
 
   const load = useCallback(async () => {
     setError('')
@@ -163,35 +159,7 @@ export default function AdminPayments() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-violet-50/90 p-5 dark:border-indigo-900/70 dark:from-slate-900 dark:to-indigo-950/40">
-          <div className="flex items-start justify-between">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Total Due</div>
-            <span className="text-lg text-indigo-500">◈</span>
-          </div>
-          <div className="mt-3 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-            {formatMoneyCompact(totalDue)}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-cyan-50/90 p-5 dark:border-emerald-900/70 dark:from-slate-900 dark:to-emerald-950/40">
-          <div className="flex items-start justify-between">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Collected</div>
-            <span className="text-lg text-emerald-500">✓</span>
-          </div>
-          <div className="mt-3 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-            {formatMoneyCompact(collected)}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/90 to-pink-50/90 p-5 dark:border-rose-900/70 dark:from-slate-900 dark:to-rose-950/40">
-          <div className="flex items-start justify-between">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Outstanding</div>
-            <span className="text-lg text-rose-500">⚠</span>
-          </div>
-          <div className="mt-3 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-            {formatMoneyCompact(outstanding)}
-          </div>
-        </div>
-      </div>
+
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>

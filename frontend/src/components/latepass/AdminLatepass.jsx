@@ -91,7 +91,7 @@ function latepassRowMatchesQuery(row, query) {
   return words.every((w) => haystack.includes(w))
 }
 
-function downloadLatepassPdfReport(rows, rowState) {
+function downloadLatepassPdfReport(rows) {
   if (!rows.length) {
     toast.error('No late pass data to download.')
     return
@@ -105,20 +105,17 @@ function downloadLatepassPdfReport(rows, rowState) {
 
   const head = [['Date', 'Arriving', 'Guardian', 'Reason', 'Students', 'Status', 'Submitted', 'Admin remark']]
   const body = rows.map((row) => {
-    const rs = rowState[row._id] || {
-      status: latepassSelectStatus(row.status),
-      remarks: row.adminRemarks || '',
-    }
-    const opt = STATUS_OPTIONS.find((o) => o.value === rs.status)
+    const status = latepassSelectStatus(row.status)
+    const opt = STATUS_OPTIONS.find((o) => o.value === status)
     return [
       formatDateShort(row.date),
       arrivingLabel(row),
       row.guardianContactNo || '—',
       String(row.reason || '—').replace(/\s+/g, ' '),
       buildStudentsPdfLine(row.students),
-      opt?.label || rs.status,
+      opt?.label || status,
       formatSubmitted(row.createdAt),
-      String(rs.remarks || '—').replace(/\s+/g, ' '),
+      String(row.adminRemarks || '—').replace(/\s+/g, ' '),
     ]
   })
 
@@ -195,9 +192,11 @@ export default function AdminLatepass() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updatingId, setUpdatingId] = useState(null)
-  const [bulkSaving, setBulkSaving] = useState(false)
-  const [rowState, setRowState] = useState({})
   const [searchQuery, setSearchQuery] = useState('')
+
+  const [editingId, setEditingId] = useState(null)
+  const [editDraft, setEditDraft] = useState({ status: 'pending', remarks: '' })
+  const [editSaving, setEditSaving] = useState(false)
 
   const filteredList = useMemo(
     () => list.filter((row) => latepassRowMatchesQuery(row, searchQuery)),
@@ -211,14 +210,6 @@ export default function AdminLatepass() {
       const { data } = await axiosClient.get('/latepass/admin')
       const rows = Array.isArray(data) ? data : []
       setList(rows)
-      const next = {}
-      rows.forEach((row) => {
-        next[row._id] = {
-          status: latepassSelectStatus(row.status),
-          remarks: row.adminRemarks || '',
-        }
-      })
-      setRowState(next)
     } catch (err) {
       setError(getAxiosErrorMessage(err))
       setList([])
@@ -231,54 +222,34 @@ export default function AdminLatepass() {
     load()
   }, [load])
 
-  function isRowDirty(row) {
-    const st = rowState[row._id]
-    if (!st) return false
-    const currentStatus = latepassSelectStatus(row.status)
-    const currentRemarks = String(row.adminRemarks || '').trim()
-    const nextRemarks = String(st.remarks || '').trim()
-    return st.status !== currentStatus || nextRemarks !== currentRemarks
+  function openEdit(row) {
+    setEditingId(row._id)
+    setEditDraft({
+      status: latepassSelectStatus(row.status),
+      remarks: row.adminRemarks || '',
+    })
   }
 
-  async function persistStatus(id, { silent = false, reloadAfter = true } = {}) {
-    const st = rowState[id]
-    if (!st) return
-    const status = st.status
-    const adminRemarks = (st.remarks || '').trim()
-
-    if (!silent) setUpdatingId(id)
+  async function submitEdit(e) {
+    e.preventDefault()
+    if (!editingId) return
+    setEditSaving(true)
     try {
-      const body = { status, adminRemarks }
-
-      await axiosClient.patch(`/latepass/${id}/status`, body)
-      if (!silent) toast.success('Late pass updated')
-      if (reloadAfter) await load()
-      return true
+      await axiosClient.patch(`/latepass/${editingId}/status`, {
+        status: editDraft.status,
+        adminRemarks: String(editDraft.remarks || '').trim(),
+      })
+      toast.success('Late pass updated')
+      setEditingId(null)
+      await load()
     } catch (err) {
-      if (!silent) toast.error(getAxiosErrorMessage(err))
-      return false
+      toast.error(getAxiosErrorMessage(err))
     } finally {
-      if (!silent) setUpdatingId(null)
+      setEditSaving(false)
     }
   }
 
-  async function saveAllStatusUpdates() {
-    const dirtyRows = list.filter((row) => isRowDirty(row))
-    if (dirtyRows.length === 0) {
-      toast('No status updates to save.')
-      return
-    }
-    setBulkSaving(true)
-    let okCount = 0
-    for (const row of dirtyRows) {
-      const ok = await persistStatus(row._id, { silent: true, reloadAfter: false })
-      if (ok) okCount += 1
-    }
-    await load()
-    setBulkSaving(false)
-    if (okCount === dirtyRows.length) toast.success(`Saved ${okCount} updates.`)
-    else toast.error(`Saved ${okCount}/${dirtyRows.length}. Please retry failed rows.`)
-  }
+
 
   async function deleteLatepass(id) {
     const ok = window.confirm('Delete this late pass request? This action cannot be undone.')
@@ -295,12 +266,7 @@ export default function AdminLatepass() {
     }
   }
 
-  function setRow(id, patch) {
-    setRowState((prev) => ({
-      ...prev,
-      [id]: { ...(prev[id] || {}), ...patch },
-    }))
-  }
+
 
   const pendingCount = list.filter((r) => latepassSelectStatus(r?.status) === 'pending').length
   const processingCount = list.filter((r) => latepassSelectStatus(r?.status) === 'processing').length
@@ -330,7 +296,7 @@ export default function AdminLatepass() {
             />
             <button
               type="button"
-              onClick={() => downloadLatepassPdfReport(filteredList, rowState)}
+              onClick={() => downloadLatepassPdfReport(filteredList)}
               disabled={loading || filteredList.length === 0}
               className="rounded-full border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-800 shadow-sm hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
             >
@@ -380,14 +346,7 @@ export default function AdminLatepass() {
         )}
         <div className="p-4 pb-0 sm:p-6 sm:pb-0">
           <div className="mb-3 flex justify-end">
-            <button
-              type="button"
-              onClick={saveAllStatusUpdates}
-              disabled={loading || bulkSaving}
-              className="rounded-full bg-primary-600 px-4 py-1.5 text-xs font-semibold text-white shadow-sm shadow-primary-600/20 hover:bg-primary-700 disabled:opacity-50"
-            >
-              {bulkSaving ? 'Saving updates…' : 'Save Status Updates'}
-            </button>
+            {/* Bulk save button removed */}
           </div>
         </div>
         <div className="overflow-x-auto p-4 pt-3 sm:p-6 sm:pt-3">
@@ -411,16 +370,12 @@ export default function AdminLatepass() {
                   <th className="min-w-0 w-[14%]">Students</th>
                   <th className="w-[8%] whitespace-nowrap">Status</th>
                   <th className="w-[8%] whitespace-nowrap">Submitted</th>
-                  <th className="w-[15%] min-w-[11rem] whitespace-nowrap">Update status</th>
-                  <th className="w-[16%] min-w-[12rem] whitespace-nowrap">Admin remark</th>
+                  <th className="w-[15%] min-w-[14rem] whitespace-nowrap">Admin remarks</th>
+                  <th className="w-[9%] min-w-[9rem] whitespace-nowrap">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredList.map((row) => {
-                  const rs = rowState[row._id] || {
-                    status: latepassSelectStatus(row.status),
-                    remarks: row.adminRemarks || '',
-                  }
                   const allowDelete = canAdminDeleteLatepass(row)
                   const href = row.documentFile || ''
                   const students = row.students?.length ? row.students : []
@@ -459,43 +414,28 @@ export default function AdminLatepass() {
                       <td className="align-top px-2 py-2 text-xs leading-snug text-slate-600 dark:text-slate-400">
                         {formatSubmitted(row.createdAt)}
                       </td>
+                      <td className="min-w-0 align-top px-2 py-2">
+                        <WrappableCell empty="—">{row.adminRemarks}</WrappableCell>
+                      </td>
                       <td className="align-top px-2 py-2">
-                        <div className="flex min-w-[11rem] flex-col gap-1">
-                          <select
-                            value={rs.status}
-                            onChange={(e) => setRow(row._id, { status: e.target.value })}
-                            className="rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs font-medium dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                            disabled={bulkSaving || updatingId === row._id}
-                            aria-label="Update late pass status"
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openEdit(row)}
+                            disabled={updatingId === row._id}
+                            className="flex-1 rounded-full bg-primary-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm shadow-primary-600/20 hover:bg-primary-700 disabled:opacity-50"
                           >
-                            {STATUS_OPTIONS.map((o) => (
-                              <option key={o.value} value={o.value}>
-                                {o.label}
-                              </option>
-                            ))}
-                          </select>
+                            Edit
+                          </button>
                           <button
                             type="button"
                             onClick={() => deleteLatepass(row._id)}
-                            disabled={bulkSaving || updatingId === row._id || !allowDelete}
+                            disabled={updatingId === row._id || !allowDelete}
                             title={!allowDelete ? 'Delete allowed only for rejected or invalid/test records' : 'Delete request'}
-                            className="rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                            className="flex-1 rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
                           >
                             Delete
                           </button>
-                        </div>
-                      </td>
-                      <td className="align-top px-2 py-2">
-                        <div>
-                          <textarea
-                            value={rs.remarks}
-                            onChange={(e) => setRow(row._id, { remarks: e.target.value })}
-                            placeholder="Add context for this status update"
-                            rows={2}
-                            className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-                            disabled={bulkSaving || updatingId === row._id}
-                            aria-label="Admin remark for late pass"
-                          />
                         </div>
                       </td>
                     </tr>
@@ -506,6 +446,80 @@ export default function AdminLatepass() {
           )}
         </div>
       </div>
+
+      {editingId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-card dark:border-slate-700 dark:bg-slate-900">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-50">Update status</h3>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Edit status and admin remark</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingId(null)}
+                className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                aria-label="Close"
+                disabled={editSaving}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={submitEdit} className="mt-4 space-y-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                  Status
+                </label>
+                <select
+                  value={editDraft.status}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, status: e.target.value }))}
+                  className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  disabled={editSaving}
+                >
+                  {STATUS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
+                  Admin remark
+                </label>
+                <textarea
+                  value={editDraft.remarks}
+                  onChange={(e) => setEditDraft((d) => ({ ...d, remarks: e.target.value }))}
+                  placeholder="Add context for this status update"
+                  rows={4}
+                  className="w-full resize-y rounded-md border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                  disabled={editSaving}
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setEditingId(null)}
+                  disabled={editSaving}
+                  className="rounded-full border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editSaving}
+                  className="rounded-full bg-primary-600 px-5 py-2 text-xs font-semibold text-white shadow-sm shadow-primary-600/20 hover:bg-primary-700 disabled:opacity-50"
+                >
+                  {editSaving ? 'Updating…' : 'Update'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
