@@ -424,24 +424,40 @@
     @apply overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900;
   }
 
+  .panel-surface {
+    @apply rounded-2xl border border-slate-200/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900;
+  }
+
+  .table-admin-compact {
+    @apply table-admin text-xs;
+  }
+
+  .table-admin-compact th {
+    @apply px-3 py-2 text-[10px];
+  }
+
+  .table-admin-compact td {
+    @apply px-3 py-2;
+  }
+
   .table-admin {
     @apply min-w-full divide-y divide-slate-200 dark:divide-slate-700;
   }
 
   .table-admin th {
-    @apply bg-slate-50 px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:bg-slate-800 dark:text-slate-400;
+    @apply bg-slate-50/50 border-b border-slate-200 px-4 py-3 text-left text-xs font-bold uppercase tracking-wider text-slate-500 dark:bg-slate-800/50 dark:border-slate-700 dark:text-slate-400;
   }
 
   .table-admin tbody tr {
-    @apply transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/70;
+    @apply transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-800/50;
   }
 
-  .table-admin tbody tr + tr {
-    @apply border-t border-slate-100 dark:border-slate-800;
+  .table-admin tbody tr:nth-child(even) {
+    @apply bg-slate-50/30 dark:bg-slate-800/20;
   }
 
   .table-admin td {
-    @apply px-4 py-3 text-sm text-slate-700 dark:text-slate-200;
+    @apply border-b border-slate-100 px-4 py-3 text-sm text-slate-700 dark:border-slate-800 dark:text-slate-300;
   }
 
   .table-action-link {

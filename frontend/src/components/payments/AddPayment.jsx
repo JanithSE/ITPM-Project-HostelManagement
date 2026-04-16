@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import {
@@ -215,8 +215,12 @@ function liveValidateProof(file, { blur = false } = {}) {
 
 export default function AddPayment() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const { id } = useParams()
+  const isEditMode = Boolean(id)
   const [pricing, setPricing] = useState(DEFAULT_PRICING)
   const [studentName, setStudentName] = useState('')
+  const [hostelName, setHostelName] = useState('')
   const [roomNo, setRoomNo] = useState('')
   const [month, setMonth] = useState('')
   const [roomType, setRoomType] = useState('')
@@ -230,6 +234,76 @@ export default function AddPayment() {
   const [paidMonthKeys, setPaidMonthKeys] = useState([])
   const [monthPickerOpen, setMonthPickerOpen] = useState(false)
   const [viewYear, setViewYear] = useState(() => Number(paymentMonthBoundsUtc().current.slice(0, 4)))
+
+  useEffect(() => {
+    if (!isEditMode) return
+    let cancelled = false
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get(`/payments/${id}`)
+          if (cancelled) return
+          setStudentName(data.studentName || '')
+          setRoomNo(data.roomNo || '')
+          setMonth(data.month || '')
+          setRoomType(data.roomType || '')
+          setFacilityType(data.facilityType || '')
+          setAmount(formatAmountTwoDecimals(data.amount))
+          setTransactionType(data.transactionType || '')
+          setProofFileName(data.proofFile ? 'Already uploaded (click browse to replace)' : '')
+        } catch (err) {
+          if (!cancelled) {
+            toast.error('Failed to load payment details')
+            navigate('/student/payments')
+          }
+        }
+      })()
+    return () => {
+      cancelled = true
+    }
+  }, [id, isEditMode, navigate])
+
+  useEffect(() => {
+    const s = location.state
+    if (s) {
+      if (s.studentName) setStudentName(s.studentName)
+      if (s.roomNo) setRoomNo(s.roomNo)
+      if (s.roomType) setRoomType(s.roomType)
+      if (s.facilityType) setFacilityType(s.facilityType)
+      if (s.hostelName) setHostelName(s.hostelName)
+      return
+    }
+
+    if (isEditMode) return
+
+    // If no state and not editing, try to fetch the active booking from DB
+    let cancelled = false
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get('/bookings')
+          if (cancelled) return
+          const list = Array.isArray(data) ? data : []
+          const active = list.find((b) => {
+            const st = String(b.status || '').toLowerCase()
+            return st === 'confirmed' || st === 'approved'
+          })
+          if (active) {
+            setStudentName(active.studentName || active.student?.name || localStorage.getItem('studentName') || '')
+            setRoomNo(active.roomNumber || '')
+            setRoomType(String(active.roomType || 'single').toLowerCase())
+            setHostelName(active.hostel?.name || '')
+            // facilityType needs to be derived from the room, but we might not have the full room object here.
+            // However, if the roomType was passed as part of the booking, we set it.
+            // DEFAULT_PRICING uses 'fan' by default if not specified.
+            setFacilityType('fan')
+          }
+        } catch (err) {
+          console.error('Failed to auto-fetch booking:', err)
+        }
+      })()
+    return () => {
+      cancelled = true
+    }
+  }, [location.state, isEditMode])
   const monthPickerRef = useRef(null)
 
   const paidMonths = useMemo(() => new Set(paidMonthKeys), [paidMonthKeys])
@@ -288,14 +362,14 @@ export default function AddPayment() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await axiosClient.get('/payments/pricing')
-        if (!cancelled && data?.pricing) setPricing(data.pricing)
-      } catch {
-        if (!cancelled) setPricing(DEFAULT_PRICING)
-      }
-    })()
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get('/payments/pricing')
+          if (!cancelled && data?.pricing) setPricing(data.pricing)
+        } catch {
+          if (!cancelled) setPricing(DEFAULT_PRICING)
+        }
+      })()
     return () => {
       cancelled = true
     }
@@ -303,16 +377,16 @@ export default function AddPayment() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await axiosClient.get('/payments/my')
-        if (cancelled) return
-        const list = Array.isArray(data) ? data : []
-        setPaidMonthKeys(monthKeysAlreadyPaid(list))
-      } catch {
-        if (!cancelled) setPaidMonthKeys([])
-      }
-    })()
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get('/payments/my')
+          if (cancelled) return
+          const list = Array.isArray(data) ? data : []
+          setPaidMonthKeys(monthKeysAlreadyPaid(list))
+        } catch {
+          if (!cancelled) setPaidMonthKeys([])
+        }
+      })()
     return () => {
       cancelled = true
     }
@@ -320,6 +394,7 @@ export default function AddPayment() {
 
   /** Prefer first allowed month that does not already have a payment */
   useEffect(() => {
+    if (isEditMode) return // Don't auto-set month in edit mode
     const paid = new Set(paidMonthKeys)
     const { previous, current, next } = paymentMonthBoundsUtc()
     const order = [previous, current, next]
@@ -331,9 +406,10 @@ export default function AddPayment() {
       }
       return ''
     })
-  }, [paidMonthKeys])
+  }, [paidMonthKeys, isEditMode])
 
   useEffect(() => {
+    if (isEditMode && amount) return // Don't auto-update amount in edit mode if already loaded
     const expected = getExpectedAmount(pricing, roomType, facilityType)
     if (expected != null) {
       const next = expected.toFixed(2)
@@ -343,7 +419,7 @@ export default function AddPayment() {
         amount: liveValidateAmount(next, roomType, facilityType, pricing),
       }))
     }
-  }, [pricing, roomType, facilityType])
+  }, [pricing, roomType, facilityType, isEditMode])
 
   function validate() {
     const err = {}
@@ -405,9 +481,9 @@ export default function AddPayment() {
       err.transactionType = 'Select a transaction type.'
     }
 
-    if (!proofFile) {
+    if (!isEditMode && !proofFile) {
       err.proof = 'Upload a payment slip or proof.'
-    } else if (!proofFileLooksValid(proofFile)) {
+    } else if (proofFile && !proofFileLooksValid(proofFile)) {
       err.proof =
         proofFile.size > PROOF_MAX_BYTES
           ? 'File size must be less than 5MB.'
@@ -438,8 +514,13 @@ export default function AddPayment() {
       fd.append('transactionType', transactionType)
       fd.append('proof', proofFile)
 
-      await axiosClient.post('/payments', fd)
-      toast.success('Payment submitted successfully')
+      if (isEditMode) {
+        await axiosClient.put(`/payments/${id}/edit-by-student`, fd)
+        toast.success('Payment updated successfully')
+      } else {
+        await axiosClient.post('/payments', fd)
+        toast.success('Payment submitted successfully')
+      }
       navigate('/student/payments')
     } catch (errAxios) {
       const data = errAxios.response?.data
@@ -466,7 +547,9 @@ export default function AddPayment() {
     <div className="mx-auto w-full max-w-2xl">
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Add payment</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">
+            {isEditMode ? 'Edit payment' : 'Add payment'}
+          </h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
             All fields marked * are required. You can pay for the previous month, this month, or next month only. The
             month list shows if a payment is already on file. Amount follows room type + facility (LKR).
@@ -482,6 +565,17 @@ export default function AddPayment() {
 
       <div className="panel-surface rounded-2xl p-6 shadow-card sm:p-8">
         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          {hostelName && (
+            <div>
+              <label className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+                Hostel
+              </label>
+              <div className="rounded-xl border border-slate-200 bg-slate-100/80 px-3.5 py-2.5 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
+                {hostelName}
+              </div>
+            </div>
+          )}
+
           <div>
             <label htmlFor="ap-name" className="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
               Student name <span className="text-red-500">*</span>
@@ -564,11 +658,10 @@ export default function AddPayment() {
                 aria-expanded={monthPickerOpen}
                 aria-haspopup="dialog"
                 aria-controls="ap-month-calendar"
-                className={`relative flex w-full items-center rounded-xl border py-2.5 pl-3.5 pr-10 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-100 ${
-                  fieldErrors.month
+                className={`relative flex w-full items-center rounded-xl border py-2.5 pl-3.5 pr-10 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-100 ${fieldErrors.month
                     ? `${invalidInputRing} border-red-500 bg-slate-50/50 dark:border-red-500/80 dark:bg-slate-800/50`
                     : 'border-slate-200 bg-slate-50/50 focus:border-primary-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800/50 dark:focus:border-primary-400 dark:focus:bg-slate-900'
-                }`}
+                  }`}
                 aria-invalid={Boolean(fieldErrors.month)}
               >
                 <span className="min-w-0 flex-1 truncate font-mono text-[15px] tracking-wide">
@@ -647,13 +740,12 @@ export default function AddPayment() {
                           title={title || undefined}
                           disabled={!clickable}
                           onClick={() => selectPaymentMonthYm(ym)}
-                          className={`rounded-md py-2 text-center text-xs font-semibold transition-colors sm:text-sm ${
-                            isSelected && clickable
+                          className={`rounded-md py-2 text-center text-xs font-semibold transition-colors sm:text-sm ${isSelected && clickable
                               ? 'bg-slate-200 text-slate-900 ring-1 ring-slate-300 dark:bg-slate-600 dark:text-white dark:ring-slate-500'
                               : !clickable
                                 ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
                                 : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80'
-                          }`}
+                            }`}
                         >
                           {label}
                         </button>
@@ -841,9 +933,8 @@ export default function AddPayment() {
                   proof: liveValidateProof(proofFile, { blur: true }),
                 }))
               }
-              className={`block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 dark:text-slate-400 dark:file:bg-primary-900/40 dark:file:text-primary-300 ${
-                fieldErrors.proof ? invalidInputRing : ''
-              }`}
+              className={`block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 dark:text-slate-400 dark:file:bg-primary-900/40 dark:file:text-primary-300 ${fieldErrors.proof ? invalidInputRing : ''
+                }`}
             />
             {proofFileName && (
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
@@ -853,14 +944,16 @@ export default function AddPayment() {
             {fieldErrors.proof && <p className="mt-1 text-sm text-red-600 dark:text-red-400">{fieldErrors.proof}</p>}
           </div>
 
-          <div className="flex flex-wrap gap-3 pt-2">
+          <div className="pt-2">
             <button
               type="submit"
               disabled={submitting || allAllowedMonthsPaid}
-              className="rounded-full bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700 disabled:opacity-50"
+              className="w-full rounded-xl bg-primary-600 py-3 text-sm font-bold text-white shadow-lg shadow-primary-600/25 transition-all hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {submitting ? 'Submitting…' : 'Submit Payment'}
+              {submitting ? 'Please wait...' : isEditMode ? 'Update payment' : 'Submit payment'}
             </button>
+          </div>
+          <div className="flex flex-wrap gap-3 pt-2">
             <Link
               to="/student/payments"
               className="inline-flex items-center rounded-full border border-slate-200 bg-white px-6 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"

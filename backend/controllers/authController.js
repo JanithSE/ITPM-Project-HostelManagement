@@ -260,7 +260,7 @@ export const studentLogin = async (req, res) => {
     const token = signToken(user)
     res.json({ token, role: 'student', user: { id: user._id, name: user.name, email: user.email } })
   } catch (err) {
-    console.error('[studentLogin]', err)
+    console.error('[studentLogin] Full error:', err)
     const msg =
       err?.name === 'MongoServerSelectionError' || err?.name === 'MongooseError'
         ? 'Database unavailable. Try again in a moment.'
@@ -294,7 +294,7 @@ export const adminLogin = async (req, res) => {
     const token = signToken(user)
     res.json({ token, role: 'admin', user: { id: user._id, name: 'Admin', email: usernameNorm } })
   } catch (err) {
-    console.error('[adminLogin]', err)
+    console.error('[adminLogin] Full error:', err)
     const msg =
       err?.name === 'MongoServerSelectionError' || err?.name === 'MongooseError'
         ? 'Database unavailable. Try again in a moment.'

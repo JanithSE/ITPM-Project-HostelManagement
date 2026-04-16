@@ -76,9 +76,11 @@ export default function App() {
           <Route path="hostels" element={<Hostels />} />
           <Route path="payments" element={<StudentPayments />} />
           <Route path="payments/new" element={<AddPayment />} />
+          <Route path="payments/:id/edit" element={<AddPayment />} />
           <Route path="inquiries" element={<StudentInquiries />} />
           <Route path="latepass" element={<StudentLatepass />} />
           <Route path="latepass/new" element={<AddLatepass />} />
+          <Route path="latepass/:id/edit" element={<AddLatepass />} />
           <Route path="complains" element={<Complains />} />
           <Route path="maintenance" element={<StudentMaintenance />} />
           <Route path="booking" element={<StudentBooking />} />

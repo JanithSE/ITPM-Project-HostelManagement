@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import StatusBadge from '../../shared/components/StatusBadge'
 
@@ -58,20 +60,90 @@ function SubmittedCell({ value }) {
   )
 }
 
+function downloadPaymentPdfReport(rows) {
+  if (!rows.length) {
+    toast.error('No payment data to download.')
+    return
+  }
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  doc.setFontSize(14)
+  doc.text('Payment Records Report', 14, 16)
+  doc.setFontSize(9)
+  doc.setTextColor(100)
+  doc.text(`Generated ${new Date().toLocaleString()} · ${rows.length} record(s)`, 14, 22)
+
+  const head = [['Student Name', 'Room', 'Month', 'Type', 'Facility', 'Amount', 'Transaction', 'Status', 'Submitted']]
+  const body = rows.map((p) => [
+    p.studentName || p.student?.name || '—',
+    p.roomNo || '—',
+    p.month || '—',
+    p.roomType || '—',
+    p.facilityType || '—',
+    formatMoney(p.amount),
+    p.transactionType || '—',
+    p.status || 'pending',
+    new Date(p.createdAt).toLocaleDateString(),
+  ])
+
+  autoTable(doc, {
+    startY: 26,
+    head,
+    body,
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+    margin: { left: 14, right: 14 },
+  })
+
+  doc.save(`payments-${new Date().toISOString().slice(0, 10)}.pdf`)
+  toast.success('PDF downloaded')
+}
+
 export default function AdminPayments() {
   const [list, setList] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState({ status: 'pending', remarks: '' })
   const [editSaving, setEditSaving] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [monthFilter, setMonthFilter] = useState('')
 
-  const totalDue = list.reduce((s, p) => s + (Number(p?.amount) || 0), 0)
-  const collected = list
-    .filter((p) => paymentSelectStatus(p?.status) === 'completed')
-    .reduce((s, p) => s + (Number(p?.amount) || 0), 0)
-  const outstanding = Math.max(0, totalDue - collected)
+  const availableMonths = useMemo(() => {
+    const months = new Set()
+    list.forEach((p) => {
+      if (p.month) months.add(p.month)
+    })
+    return Array.from(months).sort().reverse()
+  }, [list])
+
+  const filteredList = useMemo(() => {
+    return list.filter((p) => {
+      // Search Query Filter
+      const q = searchQuery.toLowerCase().trim()
+      const matchesSearch = !q || [
+        p.studentName,
+        p.student?.name,
+        p.roomNo,
+        p.roomType,
+        p.facilityType,
+        p.month,
+        p.status,
+        p.transactionType,
+        p.adminRemarks
+      ].some(val => String(val || '').toLowerCase().includes(q))
+
+      // Status Filter
+      const matchesStatus = !statusFilter || paymentSelectStatus(p.status) === statusFilter
+
+      // Month Filter
+      const matchesMonth = !monthFilter || p.month === monthFilter
+
+      return matchesSearch && matchesStatus && matchesMonth
+    })
+  }, [list, searchQuery, statusFilter, monthFilter])
+
+
 
   const load = useCallback(async () => {
     setError('')
@@ -135,9 +207,6 @@ export default function AdminPayments() {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-lg font-semibold text-slate-600 shadow-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200">
-              <span className="mr-2 text-amber-500">●</span>Live
-            </div>
             <button
               type="button"
               onClick={() => load()}
@@ -150,49 +219,56 @@ export default function AdminPayments() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <div className="rounded-2xl border border-indigo-200 bg-gradient-to-br from-indigo-50/90 to-violet-50/90 p-5 dark:border-indigo-900/70 dark:from-slate-900 dark:to-indigo-950/40">
-          <div className="flex items-start justify-between">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Total Due</div>
-            <span className="text-lg text-indigo-500">◈</span>
-          </div>
-          <div className="mt-3 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-            {formatMoneyCompact(totalDue)}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50/90 to-cyan-50/90 p-5 dark:border-emerald-900/70 dark:from-slate-900 dark:to-emerald-950/40">
-          <div className="flex items-start justify-between">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Collected</div>
-            <span className="text-lg text-emerald-500">✓</span>
-          </div>
-          <div className="mt-3 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-            {formatMoneyCompact(collected)}
-          </div>
-        </div>
-        <div className="rounded-2xl border border-rose-200 bg-gradient-to-br from-rose-50/90 to-pink-50/90 p-5 dark:border-rose-900/70 dark:from-slate-900 dark:to-rose-950/40">
-          <div className="flex items-start justify-between">
-            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Outstanding</div>
-            <span className="text-lg text-rose-500">⚠</span>
-          </div>
-          <div className="mt-3 text-4xl font-extrabold tracking-tight text-slate-900 dark:text-slate-50">
-            {formatMoneyCompact(outstanding)}
-          </div>
-        </div>
-      </div>
+
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Payment Records</h2>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">All student submissions.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => load()}
-          disabled={loading}
-          className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
-        >
-          Refresh
-        </button>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:w-32 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="">All Statuses</option>
+              {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="w-full sm:w-32 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="">All Months</option>
+              {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+          <input
+            type="text"
+            placeholder="Search payments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-400"
+          />
+          <button
+            type="button"
+            onClick={() => downloadPaymentPdfReport(filteredList)}
+            disabled={loading || filteredList.length === 0}
+            className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Download PDF
+          </button>
+          <button
+            type="button"
+            onClick={() => load()}
+            disabled={loading}
+            className="rounded-full border border-slate-200 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Refresh
+          </button>
+        </div>
       </div>
 
       <div className="panel-surface overflow-hidden rounded-2xl shadow-card">
@@ -208,8 +284,10 @@ export default function AdminPayments() {
         <div className="overflow-x-auto p-4 sm:p-6">
           {loading ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">Loading…</p>
-          ) : list.length === 0 ? (
-            <p className="text-sm text-slate-600 dark:text-slate-400">No payment records.</p>
+          ) : filteredList.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              {searchQuery ? "No matching payment records found." : "No payment records."}
+            </p>
           ) : (
             <table className="table-admin-compact w-full min-w-[90rem] table-fixed">
               <thead>
@@ -229,7 +307,7 @@ export default function AdminPayments() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((p) => {
+                {filteredList.map((p) => {
                   const href = proofHref(p)
                   return (
                     <tr key={p._id} className="align-top">
