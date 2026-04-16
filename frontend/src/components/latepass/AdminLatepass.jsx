@@ -152,7 +152,7 @@ function AdminStudentsList({ students }) {
       {students.map((s, i) => (
         <li
           key={`${String(s.studentId ?? '')}-${i}`}
-          className="rounded-md border border-slate-200/90 bg-white/50 px-2 py-1.5 dark:border-slate-600 dark:bg-slate-800/60"
+          className="rounded-lg border border-slate-200 bg-white/60 px-2.5 py-2 shadow-sm dark:border-slate-800 dark:bg-slate-900/80"
         >
           <span className="block text-xs font-semibold leading-snug text-slate-900 dark:text-slate-50">
             {String(s.studentName || '').trim() || '—'}
