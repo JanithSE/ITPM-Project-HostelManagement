@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
@@ -173,8 +173,35 @@ function LatepassCard({ row, onDelete }) {
 
 export default function StudentLatepass() {
   const [list, setList] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const filteredList = useMemo(() => {
+    if (!searchQuery) return list
+    const q = searchQuery.toLowerCase()
+    return list.filter((row) => {
+      const status = String(row?.status || '').toLowerCase()
+      const reason = String(row?.reason || '').toLowerCase()
+      const guardian = String(row?.guardianContactNo || '').toLowerCase()
+      const remarks = String(row?.adminRemarks || '').toLowerCase()
+      const studentsStr = (row.students || [])
+        .map((s) => `${s.studentName} ${s.studentId}`)
+        .join(' ')
+        .toLowerCase()
+
+      const haystack = [
+        reason,
+        guardian,
+        status,
+        remarks,
+        studentsStr
+      ].join(' ')
+
+      const words = q.split(/\s+/).filter(Boolean)
+      return words.every((w) => haystack.includes(w))
+    })
+  }, [list, searchQuery])
 
   const load = useCallback(async () => {
     setError('')
@@ -216,12 +243,21 @@ export default function StudentLatepass() {
             a card; on larger screens you get a full table.
           </p>
         </div>
-        <Link
-          to="/student/latepass/new"
-          className="inline-flex shrink-0 items-center justify-center rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
-        >
-          Add late pass
-        </Link>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search requests..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-400"
+          />
+          <Link
+            to="/student/latepass/new"
+            className="inline-flex shrink-0 items-center justify-center rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+          >
+            Add late pass
+          </Link>
+        </div>
       </div>
 
       <div className="panel-surface overflow-hidden rounded-2xl shadow-card">
@@ -246,89 +282,107 @@ export default function StudentLatepass() {
                 Add late pass
               </Link>
             </p>
+          ) : filteredList.length === 0 ? (
+            <p className="text-sm text-slate-600 dark:text-slate-400">
+              No requests match your search.
+            </p>
           ) : (
             <>
               {/* Mobile: one card per request */}
               <div className="space-y-4 md:hidden">
-                {list.map((row) => (
+                {filteredList.map((row) => (
                   <LatepassCard key={row._id} row={row} onDelete={handleDelete} />
                 ))}
               </div>
 
-              {/* md+: table with wrapping cells */}
+              {/* md+: table with premium styling */}
               <div className="hidden overflow-x-auto md:block">
-                <table className="table-dashboard w-full min-w-[56rem] table-fixed">
+                <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr>
-                      <th className="w-[9%] align-bottom">Date</th>
-                      <th className="w-[8%] align-bottom">Arriving</th>
-                      <th className="min-w-0 w-[22%] align-bottom">Reason</th>
-                      <th className="w-[11%] align-bottom">Guardian</th>
-                      <th className="w-[7%] align-bottom">Document</th>
-                      <th className="min-w-0 w-[18%] align-bottom">Students</th>
-                      <th className="w-[9%] align-bottom">Status</th>
-                      <th className="min-w-0 w-[10%] align-bottom">Admin remarks</th>
-                      <th className="w-[14%] align-bottom">Submitted</th>
-                      <th className="w-[12%] align-bottom">Actions</th>
+                    <tr className="border-b border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Date</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Arriving</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 min-w-[12rem]">Reason</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Guardian</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Document</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 min-w-[12rem]">Students</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Status</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 min-w-[10rem]">Admin remarks</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Submitted</th>
+                      <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {list.map((row) => {
+                    {filteredList.map((row) => {
                       const href = docHref(row)
                       const isPending = String(row?.status || '').toLowerCase() === 'pending'
                       return (
-                        <tr key={row._id}>
-                          <td className="align-top whitespace-nowrap text-xs">{formatDate(row.date)}</td>
-                          <td className="align-top whitespace-nowrap text-xs">{arrivingLabel(row)}</td>
-                          <td className="min-w-0 align-top">
+                        <tr
+                          key={row._id}
+                          className="group border-b border-slate-100 last:border-0 hover:bg-slate-50/50 dark:border-slate-800/50 dark:hover:bg-slate-900/40 transition-colors"
+                        >
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top whitespace-nowrap text-xs font-medium">
+                            {formatDate(row.date)}
+                          </td>
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top whitespace-nowrap text-xs text-slate-600 dark:text-slate-400">
+                            {arrivingLabel(row)}
+                          </td>
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top">
                             <WrappableText empty="—">{row.reason}</WrappableText>
                           </td>
-                          <td className="align-top break-all font-mono text-xs">{row.guardianContactNo || '—'}</td>
-                          <td className="align-top whitespace-nowrap">
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top break-all font-mono text-xs text-slate-600 dark:text-slate-400">
+                            {row.guardianContactNo || '—'}
+                          </td>
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top whitespace-nowrap">
                             {href ? (
                               <a
                                 href={href}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                                className="inline-flex h-8 items-center rounded-lg bg-indigo-50 px-3 text-xs font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 transition-colors"
                               >
                                 View
                               </a>
                             ) : (
-                              '—'
+                              <span className="text-slate-400">—</span>
                             )}
                           </td>
-                          <td className="min-w-0 align-top">
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top">
                             <StudentsList students={row.students} />
                           </td>
-                          <td className="align-top whitespace-nowrap">
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top whitespace-nowrap">
                             <StatusBadge status={row.status} />
                           </td>
-                          <td className="min-w-0 align-top">
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top">
                             <WrappableText empty="—">{row.adminRemarks}</WrappableText>
                           </td>
-                          <td className="align-top text-xs leading-snug text-slate-600 dark:text-slate-400">
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top whitespace-nowrap text-[11px] font-medium text-slate-500 dark:text-slate-500">
                             {formatSubmitted(row.createdAt)}
                           </td>
-                          <td className="align-top whitespace-nowrap">
+                          <td className="px-5 py-4 first:pl-6 last:pr-6 align-top text-right whitespace-nowrap">
                             {isPending ? (
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center justify-end gap-2">
                                 <Link
                                   to={`/student/latepass/${row._id}/edit`}
-                                  className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                                  className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-sm transition-all"
                                 >
                                   Edit
                                 </Link>
                                 <button
                                   type="button"
                                   onClick={() => handleDelete(row._id)}
-                                  className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+                                  className="inline-flex h-8 items-center rounded-lg bg-rose-50 px-3 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 transition-all"
                                 >
                                   Delete
                                 </button>
                               </div>
                             ) : (
-                              <span className="text-xs text-slate-500 dark:text-slate-400">Read only</span>
+                              <div className="flex justify-end">
+                                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                                  <span className="h-1 w-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                                  Read only
+                                </span>
+                              </div>
                             )}
                           </td>
                         </tr>

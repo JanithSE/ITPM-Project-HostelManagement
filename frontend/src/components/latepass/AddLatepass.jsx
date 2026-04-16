@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import {
@@ -279,6 +279,7 @@ function computeStudentRowsLiveErrors(students) {
 
 export default function AddLatepass() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { id } = useParams()
   const isEditMode = Boolean(id)
   const [date, setDate] = useState('')
@@ -303,27 +304,89 @@ export default function AddLatepass() {
   useEffect(() => {
     if (!isEditMode) return
     let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await axiosClient.get(`/latepass/${id}`)
-        if (cancelled) return
-        if (data.date) setDate(data.date.split('T')[0])
-        setArrivingTime(data.arrivingTime || '')
-        setReason(data.reason || '')
-        setGuardianContactNo(data.guardianContactNo || '')
-        setStudents(data.students || [emptyStudentRow()])
-        setDocumentName(data.documentFile ? 'Already uploaded (click browse to replace)' : '')
-      } catch (err) {
-        if (!cancelled) {
-          toast.error('Failed to load late pass details')
-          navigate('/student/latepass')
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get(`/latepass/${id}`)
+          if (cancelled) return
+          if (data.date) setDate(data.date.split('T')[0])
+          setArrivingTime(data.arrivingTime || '')
+          setReason(data.reason || '')
+          setGuardianContactNo(data.guardianContactNo || '')
+          setStudents(data.students || [emptyStudentRow()])
+          setDocumentName(data.documentFile ? 'Already uploaded (click browse to replace)' : '')
+        } catch (err) {
+          if (!cancelled) {
+            toast.error('Failed to load late pass details')
+            navigate('/student/latepass')
+          }
         }
-      }
-    })()
+      })()
     return () => {
       cancelled = true
     }
   }, [id, isEditMode, navigate])
+
+  useEffect(() => {
+    const s = location.state
+    if (s) {
+      setStudents((prev) => {
+        const next = [...prev]
+        if (next.length === 0) next.push(emptyStudentRow())
+        next[0] = {
+          ...next[0],
+          studentName: s.studentName || next[0].studentName,
+          studentId: s.studentId || next[0].studentId,
+          roomNo: s.roomNo || next[0].roomNo,
+        }
+        return next
+      })
+      return
+    }
+
+    if (isEditMode) return
+
+    // If no state and not editing, try to fetch the active booking from DB
+    let cancelled = false
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get('/bookings')
+          if (cancelled) return
+          const list = Array.isArray(data) ? data : []
+          const active = list.find((b) => {
+            const st = String(b.status || '').toLowerCase()
+            return st === 'confirmed' || st === 'approved'
+          })
+          if (active) {
+            setStudents((prev) => {
+              const next = [...prev]
+              if (next.length === 0) next.push(emptyStudentRow())
+
+              // Try to get student ID from profile if not in booking
+              let sid = active.studentId || ''
+              if (!sid) {
+                try {
+                  const p = JSON.parse(localStorage.getItem('studentProfile') || '{}')
+                  sid = p?.studentId || ''
+                } catch { }
+              }
+
+              next[0] = {
+                ...next[0],
+                studentName: active.studentName || active.student?.name || localStorage.getItem('studentName') || '',
+                studentId: sid,
+                roomNo: active.roomNumber || '',
+              }
+              return next
+            })
+          }
+        } catch (err) {
+          console.error('Failed to auto-fetch booking for late pass:', err)
+        }
+      })()
+    return () => {
+      cancelled = true
+    }
+  }, [location.state, isEditMode])
 
   const todayYmd = localYmd()
   const maxDateYmd = addDaysToYmd(todayYmd, MAX_DAYS_AHEAD)
@@ -642,25 +705,24 @@ export default function AddLatepass() {
             <div ref={datePickerRef} className="relative">
               <button
                 type="button"
-              id="al-date"
-              name="latePassDate"
+                id="al-date"
+                name="latePassDate"
                 onClick={() => (datePickerOpen ? setDatePickerOpen(false) : openDatePicker())}
-              onBlur={() =>
-                setFieldErrors((f) => ({
-                  ...f,
-                  date: liveValidateDateField(date, todayYmd, maxDateYmd, { blur: true }),
-                }))
-              }
+                onBlur={() =>
+                  setFieldErrors((f) => ({
+                    ...f,
+                    date: liveValidateDateField(date, todayYmd, maxDateYmd, { blur: true }),
+                  }))
+                }
                 aria-expanded={datePickerOpen}
                 aria-haspopup="dialog"
                 aria-controls="al-date-calendar"
-                className={`late-pass-form__input late-pass-form__input--date relative flex w-full items-center gap-2 rounded-xl border py-2.5 pl-10 pr-3.5 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:text-slate-100 ${
-                  fieldErrors.date
-                    ? `${invalidInputRing} border-red-500 bg-slate-50/50 dark:border-red-500/80 dark:bg-slate-800/50`
-                    : 'border-slate-200 bg-slate-50/50 focus:border-primary-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800/50 dark:focus:border-primary-400 dark:focus:bg-slate-900'
-                }`}
-              aria-invalid={Boolean(fieldErrors.date)}
-              aria-describedby={fieldErrors.date ? 'al-date-error' : undefined}
+                className={`late-pass-form__input late-pass-form__input--date relative flex w-full items-center gap-2 rounded-xl border py-2.5 pl-10 pr-3.5 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:text-slate-100 ${fieldErrors.date
+                  ? `${invalidInputRing} border-red-500 bg-slate-50/50 dark:border-red-500/80 dark:bg-slate-800/50`
+                  : 'border-slate-200 bg-slate-50/50 focus:border-primary-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800/50 dark:focus:border-primary-400 dark:focus:bg-slate-900'
+                  }`}
+                aria-invalid={Boolean(fieldErrors.date)}
+                aria-describedby={fieldErrors.date ? 'al-date-error' : undefined}
               >
                 <span
                   className="pointer-events-none absolute left-3 top-1/2 z-[1] -translate-y-1/2 text-slate-500 dark:text-slate-400"
@@ -733,13 +795,12 @@ export default function AddLatepass() {
                               type="button"
                               disabled={!enabled}
                               onClick={() => selectMonthTile(month0)}
-                              className={`rounded-lg py-2.5 text-center text-sm font-medium transition-colors ${
-                                isSelectedMonth && enabled
-                                  ? 'bg-primary-600 text-white shadow-sm dark:bg-primary-500'
-                                  : !enabled
-                                    ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
-                                    : 'text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
-                              }`}
+                              className={`rounded-lg py-2.5 text-center text-sm font-medium transition-colors ${isSelectedMonth && enabled
+                                ? 'bg-primary-600 text-white shadow-sm dark:bg-primary-500'
+                                : !enabled
+                                  ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
+                                  : 'text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
+                                }`}
                             >
                               {label}
                             </button>
@@ -814,13 +875,12 @@ export default function AddLatepass() {
                               type="button"
                               disabled={disabled}
                               onClick={() => selectCalendarDay(ymd)}
-                              className={`min-h-[2.25rem] rounded-lg text-sm font-medium transition-colors ${
-                                selected
-                                  ? 'bg-primary-600 text-white shadow-sm dark:bg-primary-500'
-                                  : disabled
-                                    ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
-                                    : 'text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
-                              }`}
+                              className={`min-h-[2.25rem] rounded-lg text-sm font-medium transition-colors ${selected
+                                ? 'bg-primary-600 text-white shadow-sm dark:bg-primary-500'
+                                : disabled
+                                  ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
+                                  : 'text-slate-800 hover:bg-slate-100 dark:text-slate-100 dark:hover:bg-slate-800'
+                                }`}
                             >
                               {dayNum}
                             </button>

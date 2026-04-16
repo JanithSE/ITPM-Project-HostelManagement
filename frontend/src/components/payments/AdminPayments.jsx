@@ -1,5 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
+import { jsPDF } from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import StatusBadge from '../../shared/components/StatusBadge'
 
@@ -58,30 +60,88 @@ function SubmittedCell({ value }) {
   )
 }
 
+function downloadPaymentPdfReport(rows) {
+  if (!rows.length) {
+    toast.error('No payment data to download.')
+    return
+  }
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  doc.setFontSize(14)
+  doc.text('Payment Records Report', 14, 16)
+  doc.setFontSize(9)
+  doc.setTextColor(100)
+  doc.text(`Generated ${new Date().toLocaleString()} · ${rows.length} record(s)`, 14, 22)
+
+  const head = [['Student Name', 'Room', 'Month', 'Type', 'Facility', 'Amount', 'Transaction', 'Status', 'Submitted']]
+  const body = rows.map((p) => [
+    p.studentName || p.student?.name || '—',
+    p.roomNo || '—',
+    p.month || '—',
+    p.roomType || '—',
+    p.facilityType || '—',
+    formatMoney(p.amount),
+    p.transactionType || '—',
+    p.status || 'pending',
+    new Date(p.createdAt).toLocaleDateString(),
+  ])
+
+  autoTable(doc, {
+    startY: 26,
+    head,
+    body,
+    styles: { fontSize: 7, cellPadding: 1.5 },
+    headStyles: { fillColor: [79, 70, 229], textColor: 255 },
+    margin: { left: 14, right: 14 },
+  })
+
+  doc.save(`payments-${new Date().toISOString().slice(0, 10)}.pdf`)
+  toast.success('PDF downloaded')
+}
+
 export default function AdminPayments() {
   const [list, setList] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-
-  const filteredList = list.filter((p) => {
-    if (!searchQuery) return true
-    const q = searchQuery.toLowerCase()
-    return (
-      (p.studentName || p.student?.name || '').toLowerCase().includes(q) ||
-      (p.roomNo || '').toLowerCase().includes(q) ||
-      (p.roomType || '').toLowerCase().includes(q) ||
-      (p.facilityType || '').toLowerCase().includes(q) ||
-      (p.month || '').toLowerCase().includes(q) ||
-      (p.status || '').toLowerCase().includes(q) ||
-      (p.transactionType || '').toLowerCase().includes(q) ||
-      (p.adminRemarks || '').toLowerCase().includes(q)
-    )
-  })
-
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState({ status: 'pending', remarks: '' })
   const [editSaving, setEditSaving] = useState(false)
+  const [statusFilter, setStatusFilter] = useState('')
+  const [monthFilter, setMonthFilter] = useState('')
+
+  const availableMonths = useMemo(() => {
+    const months = new Set()
+    list.forEach((p) => {
+      if (p.month) months.add(p.month)
+    })
+    return Array.from(months).sort().reverse()
+  }, [list])
+
+  const filteredList = useMemo(() => {
+    return list.filter((p) => {
+      // Search Query Filter
+      const q = searchQuery.toLowerCase().trim()
+      const matchesSearch = !q || [
+        p.studentName,
+        p.student?.name,
+        p.roomNo,
+        p.roomType,
+        p.facilityType,
+        p.month,
+        p.status,
+        p.transactionType,
+        p.adminRemarks
+      ].some(val => String(val || '').toLowerCase().includes(q))
+
+      // Status Filter
+      const matchesStatus = !statusFilter || paymentSelectStatus(p.status) === statusFilter
+
+      // Month Filter
+      const matchesMonth = !monthFilter || p.month === monthFilter
+
+      return matchesSearch && matchesStatus && matchesMonth
+    })
+  }, [list, searchQuery, statusFilter, monthFilter])
 
 
 
@@ -167,6 +227,24 @@ export default function AdminPayments() {
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">All student submissions.</p>
         </div>
         <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full sm:w-32 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="">All Statuses</option>
+              {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <select
+              value={monthFilter}
+              onChange={(e) => setMonthFilter(e.target.value)}
+              className="w-full sm:w-32 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs shadow-sm focus:border-primary-500 focus:outline-none dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+            >
+              <option value="">All Months</option>
+              {availableMonths.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
           <input
             type="text"
             placeholder="Search payments..."
@@ -174,6 +252,14 @@ export default function AdminPayments() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full sm:w-64 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-400"
           />
+          <button
+            type="button"
+            onClick={() => downloadPaymentPdfReport(filteredList)}
+            disabled={loading || filteredList.length === 0}
+            className="rounded-full border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+          >
+            Download PDF
+          </button>
           <button
             type="button"
             onClick={() => load()}

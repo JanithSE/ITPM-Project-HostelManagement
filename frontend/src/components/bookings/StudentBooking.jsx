@@ -743,15 +743,14 @@ export default function StudentBooking() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span
-                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      b.status === 'confirmed'
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${b.status === 'confirmed'
                         ? 'bg-emerald-100 text-emerald-700'
                         : b.status === 'pending'
                           ? 'bg-amber-100 text-amber-700'
                           : b.status === 'rejected'
                             ? 'bg-red-100 text-red-700'
-                          : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
-                    }`}
+                            : 'bg-slate-200 text-slate-700 dark:bg-slate-700 dark:text-slate-200'
+                      }`}
                   >
                     {b.status}
                   </span>
@@ -766,27 +765,47 @@ export default function StudentBooking() {
                     </button>
                   ) : null}
                   {String(b.status || '').toLowerCase() === 'confirmed' || String(b.status || '').toLowerCase() === 'approved' ? (
-                    <Link
-                      to="/student/payments/new"
-                      state={{
-                        studentName: b.studentName || b.student?.name || studentName,
-                        roomNo: b.roomNumber,
-                        roomType: String(b.roomType || '').toLowerCase(),
-                        facilityType: (function() {
-                          const r = rooms.find(
-                            (rm) =>
-                              String(rm.hostel?._id) === String(b.hostel?._id) &&
-                              String(rm.roomNumber) === String(b.roomNumber)
-                          )
-                          return String(r?.acType || 'fan').toLowerCase()
-                        })(),
-                        hostelName: b.hostel?.name,
-                        bookingId: b._id
-                      }}
-                      className="rounded-full border border-indigo-200 bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 dark:border-indigo-900/40"
-                    >
-                      Pay Now
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link
+                        to="/student/payments/new"
+                        state={{
+                          studentName: b.studentName || b.student?.name || studentName,
+                          roomNo: b.roomNumber,
+                          roomType: String(b.roomType || '').toLowerCase(),
+                          facilityType: (function () {
+                            const r = rooms.find(
+                              (rm) =>
+                                String(rm.hostel?._id) === String(b.hostel?._id) &&
+                                String(rm.roomNumber) === String(b.roomNumber)
+                            )
+                            return String(r?.acType || 'fan').toLowerCase()
+                          })(),
+                          hostelName: b.hostel?.name,
+                          bookingId: b._id
+                        }}
+                        className="rounded-full border border-indigo-200 bg-indigo-600 px-3 py-1 text-xs font-semibold text-white hover:bg-indigo-700 dark:border-indigo-900/40"
+                      >
+                        Pay Now
+                      </Link>
+                      <Link
+                        to="/student/latepass/new"
+                        state={{
+                          studentName: b.studentName || b.student?.name || studentName,
+                          // Student ID might not be in the booking, but we can try to get it from profile
+                          studentId: (function () {
+                            try {
+                              const p = JSON.parse(localStorage.getItem('studentProfile') || '{}')
+                              return p?.studentId || ''
+                            } catch { return '' }
+                          })(),
+                          roomNo: b.roomNumber,
+                          hostelName: b.hostel?.name,
+                        }}
+                        className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-sm"
+                      >
+                        Late Pass
+                      </Link>
+                    </div>
                   ) : null}
                   {b.status === 'rejected' ? (
                     <button
@@ -834,11 +853,10 @@ export default function StudentBooking() {
           <button
             key={c.id}
             type="button"
-              onClick={() => applyCategoryFilter(c.id)}
-              className={`rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-sm dark:bg-slate-900 ${
-                selectedCategory === c.id
-                  ? 'border-primary-400 ring-2 ring-primary-200 dark:border-primary-500 dark:ring-primary-900/50'
-                  : 'border-slate-200 dark:border-slate-700'
+            onClick={() => applyCategoryFilter(c.id)}
+            className={`rounded-xl border bg-white p-4 text-left transition hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-sm dark:bg-slate-900 ${selectedCategory === c.id
+                ? 'border-primary-400 ring-2 ring-primary-200 dark:border-primary-500 dark:ring-primary-900/50'
+                : 'border-slate-200 dark:border-slate-700'
               }`}
           >
             <p className="text-sm font-semibold text-slate-800 dark:text-slate-100">{c.label}</p>
@@ -851,135 +869,133 @@ export default function StudentBooking() {
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-900">
-      <div className="mb-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-        <input
-          type="search"
-          placeholder="Search room or hostel…"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="auth-input lg:col-span-1"
-          aria-label="Search rooms"
-        />
-        <select value={blockFilter} onChange={(e) => setBlockFilter(e.target.value)} className="auth-input">
-          <option value="all">All blocks</option>
-          {blocks.map((bl) => (
-            <option key={bl} value={bl}>
-              Block {bl}
-            </option>
-          ))}
-        </select>
-        <select value={capacityFilter} onChange={(e) => setCapacityFilter(e.target.value)} className="auth-input">
-          <option value="all">All capacities</option>
-          {capacities.map((c) => (
-            <option key={c} value={String(c)}>
-              {c} beds
-            </option>
-          ))}
-        </select>
-        <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="auth-input">
-          <option value="Available">Available only</option>
-          <option value="Full">Full only</option>
-          <option value="All">All rooms</option>
-        </select>
-      </div>
-      <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-        <select value={roomTypeFilter} onChange={(e) => setRoomTypeFilter(e.target.value)} className="auth-input">
-          <option value="all">All room types</option>
-          <option value="single">Single room</option>
-          <option value="sharing">Sharing room</option>
-        </select>
-        <select value={acTypeFilter} onChange={(e) => setAcTypeFilter(e.target.value)} className="auth-input">
-          <option value="all">A/C and Non A/C</option>
-          <option value="ac">A/C room</option>
-          <option value="non-ac">Non A/C room</option>
-        </select>
-        <select value={balconyFilter} onChange={(e) => setBalconyFilter(e.target.value)} className="auth-input">
-          <option value="all">Balcony: all</option>
-          <option value="yes">Balcony only</option>
-          <option value="no">No balcony</option>
-        </select>
-        <select value={bathFilter} onChange={(e) => setBathFilter(e.target.value)} className="auth-input">
-          <option value="all">Attached bath: all</option>
-          <option value="yes">With attached bath</option>
-          <option value="no">Without attached bath</option>
-        </select>
-        <select value={kitchenFilter} onChange={(e) => setKitchenFilter(e.target.value)} className="auth-input">
-          <option value="all">Kitchen: all</option>
-          <option value="yes">With kitchen</option>
-          <option value="no">Without kitchen</option>
-        </select>
-      </div>
-      <div className="mb-6 flex flex-wrap gap-2">
-        <button type="button" onClick={() => { setRoomTypeFilter('single'); setAcTypeFilter('ac'); setBathFilter('yes') }} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
-          Single + A/C + Attached bath
-        </button>
-        <button type="button" onClick={() => { setRoomTypeFilter('sharing'); setKitchenFilter('yes') }} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
-          Sharing + Kitchen
-        </button>
-        <button type="button" onClick={() => { setBlockFilter('C'); setBalconyFilter('yes') }} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
-          Block C + Balcony
-        </button>
-      </div>
+        <div className="mb-3 grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <input
+            type="search"
+            placeholder="Search room or hostel…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="auth-input lg:col-span-1"
+            aria-label="Search rooms"
+          />
+          <select value={blockFilter} onChange={(e) => setBlockFilter(e.target.value)} className="auth-input">
+            <option value="all">All blocks</option>
+            {blocks.map((bl) => (
+              <option key={bl} value={bl}>
+                Block {bl}
+              </option>
+            ))}
+          </select>
+          <select value={capacityFilter} onChange={(e) => setCapacityFilter(e.target.value)} className="auth-input">
+            <option value="all">All capacities</option>
+            {capacities.map((c) => (
+              <option key={c} value={String(c)}>
+                {c} beds
+              </option>
+            ))}
+          </select>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="auth-input">
+            <option value="Available">Available only</option>
+            <option value="Full">Full only</option>
+            <option value="All">All rooms</option>
+          </select>
+        </div>
+        <div className="mb-6 grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+          <select value={roomTypeFilter} onChange={(e) => setRoomTypeFilter(e.target.value)} className="auth-input">
+            <option value="all">All room types</option>
+            <option value="single">Single room</option>
+            <option value="sharing">Sharing room</option>
+          </select>
+          <select value={acTypeFilter} onChange={(e) => setAcTypeFilter(e.target.value)} className="auth-input">
+            <option value="all">A/C and Non A/C</option>
+            <option value="ac">A/C room</option>
+            <option value="non-ac">Non A/C room</option>
+          </select>
+          <select value={balconyFilter} onChange={(e) => setBalconyFilter(e.target.value)} className="auth-input">
+            <option value="all">Balcony: all</option>
+            <option value="yes">Balcony only</option>
+            <option value="no">No balcony</option>
+          </select>
+          <select value={bathFilter} onChange={(e) => setBathFilter(e.target.value)} className="auth-input">
+            <option value="all">Attached bath: all</option>
+            <option value="yes">With attached bath</option>
+            <option value="no">Without attached bath</option>
+          </select>
+          <select value={kitchenFilter} onChange={(e) => setKitchenFilter(e.target.value)} className="auth-input">
+            <option value="all">Kitchen: all</option>
+            <option value="yes">With kitchen</option>
+            <option value="no">Without kitchen</option>
+          </select>
+        </div>
+        <div className="mb-6 flex flex-wrap gap-2">
+          <button type="button" onClick={() => { setRoomTypeFilter('single'); setAcTypeFilter('ac'); setBathFilter('yes') }} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+            Single + A/C + Attached bath
+          </button>
+          <button type="button" onClick={() => { setRoomTypeFilter('sharing'); setKitchenFilter('yes') }} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+            Sharing + Kitchen
+          </button>
+          <button type="button" onClick={() => { setBlockFilter('C'); setBalconyFilter('yes') }} className="rounded-full border border-slate-300 px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800">
+            Block C + Balcony
+          </button>
+        </div>
       </section>
 
       <section ref={roomListRef}>
-      {loading ? (
-        <p className="page-description">Loading rooms…</p>
-      ) : filteredRooms.length === 0 ? (
-        <p className="page-description">No rooms match your filters.</p>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {filteredRooms.map((room) => (
-            <article
-              key={`${room.hostel?._id}-${room.roomNumber}`}
-              className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
-            >
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
-                  Room {formatRoomLabel(room)}
-                </h3>
-                <span
-                  className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                    room.available ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
-                  }`}
-                >
-                  {room.status}
-                </span>
-              </div>
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                {room.hostel?.name || 'Hostel'}
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-300">Block {room.block}</p>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Type: {room.roomType === 'single' ? 'Single room' : 'Sharing room'} · {room.acType === 'ac' ? 'A/C' : 'Non A/C'}
-              </p>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Occupancy: {room.occupied}/{room.capacity}
-              </p>
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {room.hasBalcony ? <span className="hostel-amenity-tag">Balcony</span> : null}
-                {room.hasAttachedBath ? <span className="hostel-amenity-tag">Attached bath</span> : null}
-                {room.hasKitchen ? <span className="hostel-amenity-tag">Kitchen facility</span> : null}
-              </div>
-              <p className="text-sm text-slate-600 dark:text-slate-300">
-                Rs.{Number(room.hostel?.pricePerBed || 0).toLocaleString()} / bed
-              </p>
-              <button
-                type="button"
-                disabled={!room.available}
-                onClick={() => openModal(room)}
-                className={`mt-3 w-full rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  room.available
-                    ? 'bg-primary-600 text-white hover:bg-primary-700'
-                    : 'cursor-not-allowed bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
-                }`}
+        {loading ? (
+          <p className="page-description">Loading rooms…</p>
+        ) : filteredRooms.length === 0 ? (
+          <p className="page-description">No rooms match your filters.</p>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {filteredRooms.map((room) => (
+              <article
+                key={`${room.hostel?._id}-${room.roomNumber}`}
+                className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-primary-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-900"
               >
-                {room.available ? 'Book now' : 'Full'}
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <h3 className="text-lg font-bold text-slate-900 dark:text-slate-100">
+                    Room {formatRoomLabel(room)}
+                  </h3>
+                  <span
+                    className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${room.available ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'
+                      }`}
+                  >
+                    {room.status}
+                  </span>
+                </div>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  {room.hostel?.name || 'Hostel'}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">Block {room.block}</p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Type: {room.roomType === 'single' ? 'Single room' : 'Sharing room'} · {room.acType === 'ac' ? 'A/C' : 'Non A/C'}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Occupancy: {room.occupied}/{room.capacity}
+                </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {room.hasBalcony ? <span className="hostel-amenity-tag">Balcony</span> : null}
+                  {room.hasAttachedBath ? <span className="hostel-amenity-tag">Attached bath</span> : null}
+                  {room.hasKitchen ? <span className="hostel-amenity-tag">Kitchen facility</span> : null}
+                </div>
+                <p className="text-sm text-slate-600 dark:text-slate-300">
+                  Rs.{Number(room.hostel?.pricePerBed || 0).toLocaleString()} / bed
+                </p>
+                <button
+                  type="button"
+                  disabled={!room.available}
+                  onClick={() => openModal(room)}
+                  className={`mt-3 w-full rounded-full px-4 py-2 text-sm font-semibold transition ${room.available
+                      ? 'bg-primary-600 text-white hover:bg-primary-700'
+                      : 'cursor-not-allowed bg-slate-200 text-slate-500 dark:bg-slate-700 dark:text-slate-400'
+                    }`}
+                >
+                  {room.available ? 'Book now' : 'Full'}
+                </button>
+              </article>
+            ))}
+          </div>
+        )}
       </section>
 
       {selectedRoom && (

@@ -238,25 +238,25 @@ export default function AddPayment() {
   useEffect(() => {
     if (!isEditMode) return
     let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await axiosClient.get(`/payments/${id}`)
-        if (cancelled) return
-        setStudentName(data.studentName || '')
-        setRoomNo(data.roomNo || '')
-        setMonth(data.month || '')
-        setRoomType(data.roomType || '')
-        setFacilityType(data.facilityType || '')
-        setAmount(formatAmountTwoDecimals(data.amount))
-        setTransactionType(data.transactionType || '')
-        setProofFileName(data.proofFile ? 'Already uploaded (click browse to replace)' : '')
-      } catch (err) {
-        if (!cancelled) {
-          toast.error('Failed to load payment details')
-          navigate('/student/payments')
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get(`/payments/${id}`)
+          if (cancelled) return
+          setStudentName(data.studentName || '')
+          setRoomNo(data.roomNo || '')
+          setMonth(data.month || '')
+          setRoomType(data.roomType || '')
+          setFacilityType(data.facilityType || '')
+          setAmount(formatAmountTwoDecimals(data.amount))
+          setTransactionType(data.transactionType || '')
+          setProofFileName(data.proofFile ? 'Already uploaded (click browse to replace)' : '')
+        } catch (err) {
+          if (!cancelled) {
+            toast.error('Failed to load payment details')
+            navigate('/student/payments')
+          }
         }
-      }
-    })()
+      })()
     return () => {
       cancelled = true
     }
@@ -264,13 +264,46 @@ export default function AddPayment() {
 
   useEffect(() => {
     const s = location.state
-    if (!s) return
-    if (s.studentName) setStudentName(s.studentName)
-    if (s.roomNo) setRoomNo(s.roomNo)
-    if (s.roomType) setRoomType(s.roomType)
-    if (s.facilityType) setFacilityType(s.facilityType)
-    if (s.hostelName) setHostelName(s.hostelName)
-  }, [location.state])
+    if (s) {
+      if (s.studentName) setStudentName(s.studentName)
+      if (s.roomNo) setRoomNo(s.roomNo)
+      if (s.roomType) setRoomType(s.roomType)
+      if (s.facilityType) setFacilityType(s.facilityType)
+      if (s.hostelName) setHostelName(s.hostelName)
+      return
+    }
+
+    if (isEditMode) return
+
+    // If no state and not editing, try to fetch the active booking from DB
+    let cancelled = false
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get('/bookings')
+          if (cancelled) return
+          const list = Array.isArray(data) ? data : []
+          const active = list.find((b) => {
+            const st = String(b.status || '').toLowerCase()
+            return st === 'confirmed' || st === 'approved'
+          })
+          if (active) {
+            setStudentName(active.studentName || active.student?.name || localStorage.getItem('studentName') || '')
+            setRoomNo(active.roomNumber || '')
+            setRoomType(String(active.roomType || 'single').toLowerCase())
+            setHostelName(active.hostel?.name || '')
+            // facilityType needs to be derived from the room, but we might not have the full room object here.
+            // However, if the roomType was passed as part of the booking, we set it.
+            // DEFAULT_PRICING uses 'fan' by default if not specified.
+            setFacilityType('fan')
+          }
+        } catch (err) {
+          console.error('Failed to auto-fetch booking:', err)
+        }
+      })()
+    return () => {
+      cancelled = true
+    }
+  }, [location.state, isEditMode])
   const monthPickerRef = useRef(null)
 
   const paidMonths = useMemo(() => new Set(paidMonthKeys), [paidMonthKeys])
@@ -329,14 +362,14 @@ export default function AddPayment() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await axiosClient.get('/payments/pricing')
-        if (!cancelled && data?.pricing) setPricing(data.pricing)
-      } catch {
-        if (!cancelled) setPricing(DEFAULT_PRICING)
-      }
-    })()
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get('/payments/pricing')
+          if (!cancelled && data?.pricing) setPricing(data.pricing)
+        } catch {
+          if (!cancelled) setPricing(DEFAULT_PRICING)
+        }
+      })()
     return () => {
       cancelled = true
     }
@@ -344,16 +377,16 @@ export default function AddPayment() {
 
   useEffect(() => {
     let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await axiosClient.get('/payments/my')
-        if (cancelled) return
-        const list = Array.isArray(data) ? data : []
-        setPaidMonthKeys(monthKeysAlreadyPaid(list))
-      } catch {
-        if (!cancelled) setPaidMonthKeys([])
-      }
-    })()
+      ; (async () => {
+        try {
+          const { data } = await axiosClient.get('/payments/my')
+          if (cancelled) return
+          const list = Array.isArray(data) ? data : []
+          setPaidMonthKeys(monthKeysAlreadyPaid(list))
+        } catch {
+          if (!cancelled) setPaidMonthKeys([])
+        }
+      })()
     return () => {
       cancelled = true
     }
@@ -625,11 +658,10 @@ export default function AddPayment() {
                 aria-expanded={monthPickerOpen}
                 aria-haspopup="dialog"
                 aria-controls="ap-month-calendar"
-                className={`relative flex w-full items-center rounded-xl border py-2.5 pl-3.5 pr-10 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-100 ${
-                  fieldErrors.month
+                className={`relative flex w-full items-center rounded-xl border py-2.5 pl-3.5 pr-10 text-left text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-100 ${fieldErrors.month
                     ? `${invalidInputRing} border-red-500 bg-slate-50/50 dark:border-red-500/80 dark:bg-slate-800/50`
                     : 'border-slate-200 bg-slate-50/50 focus:border-primary-500 focus:bg-white dark:border-slate-600 dark:bg-slate-800/50 dark:focus:border-primary-400 dark:focus:bg-slate-900'
-                }`}
+                  }`}
                 aria-invalid={Boolean(fieldErrors.month)}
               >
                 <span className="min-w-0 flex-1 truncate font-mono text-[15px] tracking-wide">
@@ -708,13 +740,12 @@ export default function AddPayment() {
                           title={title || undefined}
                           disabled={!clickable}
                           onClick={() => selectPaymentMonthYm(ym)}
-                          className={`rounded-md py-2 text-center text-xs font-semibold transition-colors sm:text-sm ${
-                            isSelected && clickable
+                          className={`rounded-md py-2 text-center text-xs font-semibold transition-colors sm:text-sm ${isSelected && clickable
                               ? 'bg-slate-200 text-slate-900 ring-1 ring-slate-300 dark:bg-slate-600 dark:text-white dark:ring-slate-500'
                               : !clickable
                                 ? 'cursor-not-allowed text-slate-300 dark:text-slate-600'
                                 : 'text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/80'
-                          }`}
+                            }`}
                         >
                           {label}
                         </button>
@@ -902,9 +933,8 @@ export default function AddPayment() {
                   proof: liveValidateProof(proofFile, { blur: true }),
                 }))
               }
-              className={`block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 dark:text-slate-400 dark:file:bg-primary-900/40 dark:file:text-primary-300 ${
-                fieldErrors.proof ? invalidInputRing : ''
-              }`}
+              className={`block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 dark:text-slate-400 dark:file:bg-primary-900/40 dark:file:text-primary-300 ${fieldErrors.proof ? invalidInputRing : ''
+                }`}
             />
             {proofFileName && (
               <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">
