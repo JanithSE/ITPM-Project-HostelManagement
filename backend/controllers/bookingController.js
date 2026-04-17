@@ -119,6 +119,163 @@ export const createBooking = async (req, res) => {
       return res.status(400).json({ error: `Missing required documents: ${missing.join(', ')}` })
     }
 
+    // Re-upload after rejection: update the same booking row instead of inserting a new one.
+    // (Avoids E11000 if the DB has a mistaken unique index on roomNumber, and keeps one record per request.)
+    if (previousBooking) {
+      if (String(previousBooking.hostel) !== String(hostelId)) {
+        return res.status(400).json({ error: 'Hostel does not match the rejected booking' })
+      }
+      const prevRoomNorm = normalizeRoomNumber(previousBooking.roomNumber)
+      if (String(prevRoomNorm || '') !== String(roomNumber)) {
+        return res.status(400).json({ error: 'Room does not match the rejected booking' })
+      }
+
+      const existingByStudent = await Booking.find({
+        student: studentId,
+        status: { $in: ['pending', 'confirmed'] },
+        fromDate: { $ne: null },
+        toDate: { $ne: null },
+        _id: { $ne: previousBooking._id },
+      })
+      const studentOverlap = existingByStudent.some((b) =>
+        rangesOverlap(fromDate, toDate, new Date(b.fromDate), new Date(b.toDate)),
+      )
+      if (studentOverlap) {
+        return res.status(409).json({ error: 'You already have an overlapping active booking request' })
+      }
+
+      const sameRoomActive = await Booking.find({
+        hostel: hostelId,
+        roomNumber,
+        status: { $in: ['pending', 'confirmed'] },
+        fromDate: { $ne: null },
+        toDate: { $ne: null },
+        _id: { $ne: previousBooking._id },
+      })
+      const roomOverlap = sameRoomActive.some((b) =>
+        rangesOverlap(fromDate, toDate, new Date(b.fromDate), new Date(b.toDate)),
+      )
+      if (roomOverlap) {
+        return res.status(409).json({ error: 'This room is already booked for selected dates' })
+      }
+
+      const { room, activeBookings } = await getRoomWithActiveBookings(hostelId, roomNumber)
+      if (!room) return res.status(404).json({ error: 'Room not found' })
+
+      const capacity = Array.isArray(room.beds) ? room.beds.length : 0
+      if (activeBookings.length >= capacity) {
+        return res.status(409).json({ error: 'Room Full' })
+      }
+
+      const bedList = (room.beds || []).map((b) => String(b.bedNumber))
+      const occupied = new Set(
+        activeBookings.map((b) => (b.bedNumber != null ? String(b.bedNumber) : null)).filter(Boolean),
+      )
+      let bedNumber = previousBooking.bedNumber != null ? String(previousBooking.bedNumber) : null
+      if (!bedNumber || !bedList.includes(bedNumber) || occupied.has(bedNumber)) {
+        bedNumber = getAvailableBedNumber(room, activeBookings)
+        if (!bedNumber) return res.status(409).json({ error: 'Room Full' })
+      }
+
+      const documents = {
+        nic: files.nic?.[0]
+          ? `/uploads/bookings/${files.nic[0].filename}`
+          : previousBooking.documents?.nic,
+        studentId: files.studentId?.[0]
+          ? `/uploads/bookings/${files.studentId[0].filename}`
+          : previousBooking.documents?.studentId,
+        medicalReport: files.medicalReport?.[0]
+          ? `/uploads/bookings/${files.medicalReport[0].filename}`
+          : previousBooking.documents?.medicalReport,
+        policeReport: files.policeReport?.[0]
+          ? `/uploads/bookings/${files.policeReport[0].filename}`
+          : previousBooking.documents?.policeReport,
+        guardianLetter: files.guardianLetter?.[0]
+          ? `/uploads/bookings/${files.guardianLetter[0].filename}`
+          : previousBooking.documents?.guardianLetter,
+        recommendationLetter: files.recommendationLetter?.[0]
+          ? `/uploads/bookings/${files.recommendationLetter[0].filename}`
+          : previousBooking.documents?.recommendationLetter,
+      }
+
+      const documentReviews = { ...(previousBooking.documentReviews || {}) }
+      const pendingReview = () => ({
+        status: 'pending',
+        note: '',
+        reviewedAt: null,
+        reviewedBy: null,
+      })
+      if (files.nic?.[0]) documentReviews.nic = pendingReview()
+      if (files.studentId?.[0]) documentReviews.studentId = pendingReview()
+      if (files.medicalReport?.[0]) documentReviews.medicalReport = pendingReview()
+      if (files.policeReport?.[0]) documentReviews.policeReport = pendingReview()
+      if (files.guardianLetter?.[0]) documentReviews.guardianLetter = pendingReview()
+      if (files.recommendationLetter?.[0]) {
+        documentReviews.recommendationLetter = pendingReview()
+      } else if (!documents.recommendationLetter) {
+        documentReviews.recommendationLetter = {
+          status: 'not_uploaded',
+          note: '',
+          reviewedAt: null,
+          reviewedBy: null,
+        }
+      }
+
+      const sn = String(req.body?.studentName || '').trim()
+      const em = String(req.body?.email || '').trim().toLowerCase()
+      const occRaw = Number.parseInt(String(req.body?.occupantsCount || '1'), 10)
+      const occ = Number.isFinite(occRaw) && occRaw >= 1 ? Math.min(occRaw, 8) : previousBooking.occupantsCount
+
+      previousBooking.roomNumber = roomNumber
+      previousBooking.bedNumber = bedNumber
+      previousBooking.roomType = String(req.body?.roomType || '').trim() || previousBooking.roomType
+      previousBooking.fromDate = fromDate
+      previousBooking.toDate = toDate
+      previousBooking.note = String(req.body?.note || '').trim().slice(0, 500)
+      if (sn) previousBooking.studentName = sn
+      if (em) previousBooking.email = em
+      if (req.body?.contactNumber != null) {
+        previousBooking.contactNumber = String(req.body.contactNumber).trim()
+      }
+      if (req.body?.address != null) previousBooking.address = String(req.body.address).trim()
+      if (req.body?.gender != null) {
+        const g = String(req.body.gender).trim().toLowerCase()
+        if (['male', 'female', 'other'].includes(g)) previousBooking.gender = g
+      }
+      const dob = toDateOrNull(req.body?.dateOfBirth)
+      if (dob) previousBooking.dateOfBirth = dob
+      if (req.body?.instituteName != null) {
+        previousBooking.instituteName = String(req.body.instituteName).trim()
+      }
+      if (req.body?.courseProgram != null) {
+        previousBooking.courseProgram = String(req.body.courseProgram).trim()
+      }
+      if (req.body?.emergencyContactName != null) {
+        previousBooking.emergencyContactName = String(req.body.emergencyContactName).trim()
+      }
+      if (req.body?.emergencyContactNumber != null) {
+        previousBooking.emergencyContactNumber = String(req.body.emergencyContactNumber).trim()
+      }
+      if (occ != null) previousBooking.occupantsCount = occ
+      if (req.body?.specialRequests != null) {
+        previousBooking.specialRequests = String(req.body.specialRequests).trim().slice(0, 1000)
+      }
+
+      previousBooking.documents = documents
+      previousBooking.documentReviews = documentReviews
+      previousBooking.status = 'pending'
+      previousBooking.rejectionReason = ''
+      previousBooking.missingDocuments = []
+      previousBooking.reviewedAt = null
+      previousBooking.reviewedBy = null
+
+      await previousBooking.save()
+      const populated = await Booking.findById(previousBooking._id)
+        .populate('student', 'name email')
+        .populate('hostel', 'name location')
+      return res.status(200).json(populated)
+    }
+
     // Prevent overlapping bookings by same student for the same date range.
     const existingByStudent = await Booking.find({
       student: studentId,

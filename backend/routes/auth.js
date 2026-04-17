@@ -10,9 +10,15 @@ import {
   login,
   forgotPassword,
   resetPassword,
+  getMe,
+  patchMe,
 } from '../controllers/authController.js'
+import { authMiddleware } from '../middleware/auth.js'
 
 const router = express.Router()
+
+router.get('/me', authMiddleware, getMe)
+router.patch('/me', authMiddleware, patchMe)
 
 // POST /api/auth/student-signup
 router.post('/student-signup', studentSignup)

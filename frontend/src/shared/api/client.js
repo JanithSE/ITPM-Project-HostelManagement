@@ -103,6 +103,9 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ email, resetToken, password }),
     }),
+  me: () => apiFetch('/auth/me'),
+  patchMe: (payload) =>
+    apiFetch('/auth/me', { method: 'PATCH', body: JSON.stringify(payload) }),
 
   // Backward-compatible aliases used by some auth screens.
   login: (email, password) =>
