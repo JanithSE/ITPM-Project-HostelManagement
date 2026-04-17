@@ -424,3 +424,50 @@ export const resetPassword = async (req, res) => {
   }
 }
 
+/** Current user from JWT (any authenticated role). */
+export const getMe = async (req, res) => {
+  try {
+    const u = req.user
+    if (!u) return res.status(401).json({ error: 'Unauthorized' })
+    return res.json({
+      user: {
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        phoneNumber: u.phoneNumber || '',
+        universityId: u.universityId || '',
+      },
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to load profile' })
+  }
+}
+
+/** Update own display name / phone (stored on User). Email changes are not supported here. */
+export const patchMe = async (req, res) => {
+  try {
+    const u = req.user
+    if (!u) return res.status(401).json({ error: 'Unauthorized' })
+    const { name, phoneNumber } = req.body || {}
+    if (name != null) {
+      const n = String(name).trim()
+      if (!n) return res.status(400).json({ error: 'Name cannot be empty' })
+      u.name = n
+    }
+    if (phoneNumber != null) u.phoneNumber = String(phoneNumber).trim()
+    await u.save()
+    return res.json({
+      user: {
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        phoneNumber: u.phoneNumber || '',
+        universityId: u.universityId || '',
+      },
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to update profile' })
+  }
+}

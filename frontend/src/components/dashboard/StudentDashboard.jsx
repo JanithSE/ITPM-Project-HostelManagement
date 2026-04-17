@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { bookingApi, latepassApi, notificationApi, paymentApi } from '../../shared/api/client'
+import { authApi, bookingApi, latepassApi, notificationApi, paymentApi } from '../../shared/api/client'
 
 function formatDate(d) {
   if (!d) return '—'
@@ -29,22 +29,65 @@ export default function StudentDashboard() {
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [profileExpanded, setProfileExpanded] = useState(false)
   const [profile, setProfile] = useState(() => {
-    const saved = localStorage.getItem('studentProfile')
-    if (saved) {
-      try {
-        return JSON.parse(saved)
-      } catch {}
-    }
-    return {
-      fullName: localStorage.getItem('studentName') || '',
-      email: '',
+    const base = {
+      fullName: '',
+      email: localStorage.getItem('studentEmail') || '',
       phoneNumber: '',
       address: '',
       dateOfBirth: '',
       profilePicture: '',
     }
+    const saved = localStorage.getItem('studentProfile')
+    if (saved) {
+      try {
+        return { ...base, ...JSON.parse(saved) }
+      } catch {}
+    }
+    return {
+      ...base,
+      fullName: localStorage.getItem('studentName') || '',
+    }
   })
   const [profileDraft, setProfileDraft] = useState(profile)
+
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const data = await authApi.me()
+        if (cancelled || !data?.user) return
+        const u = data.user
+        const name = String(u.name || '').trim()
+        const email = String(u.email || '').trim()
+        const phone = String(u.phoneNumber || '').trim()
+        setProfile((prev) => {
+          const next = {
+            ...prev,
+            fullName: name || prev.fullName,
+            email: email || prev.email,
+            phoneNumber: prev.phoneNumber || phone,
+          }
+          try {
+            localStorage.setItem('studentProfile', JSON.stringify(next))
+          } catch {}
+          if (next.fullName) localStorage.setItem('studentName', next.fullName)
+          if (next.email) localStorage.setItem('studentEmail', next.email)
+          return next
+        })
+        setProfileDraft((prev) => ({
+          ...prev,
+          fullName: name || prev.fullName,
+          email: email || prev.email,
+          phoneNumber: prev.phoneNumber || phone,
+        }))
+      } catch {
+        // No / invalid token — keep localStorage fallbacks
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -144,7 +187,7 @@ export default function StudentDashboard() {
     setProfileModalOpen(true)
   }
 
-  function saveProfile(e) {
+  async function saveProfile(e) {
     e.preventDefault()
     if (!profileDraft.fullName.trim()) return
     const next = {
@@ -153,9 +196,18 @@ export default function StudentDashboard() {
       address: String(profileDraft.address || '').trim(),
       dateOfBirth: profileDraft.dateOfBirth || '',
     }
+    try {
+      await authApi.patchMe({
+        name: next.fullName,
+        phoneNumber: next.phoneNumber || '',
+      })
+    } catch {
+      // Still persist locally if server is unreachable
+    }
     setProfile(next)
     localStorage.setItem('studentProfile', JSON.stringify(next))
     localStorage.setItem('studentName', next.fullName)
+    if (next.email) localStorage.setItem('studentEmail', next.email)
     setProfileModalOpen(false)
   }
 
