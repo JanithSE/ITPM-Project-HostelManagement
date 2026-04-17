@@ -28,8 +28,24 @@ function WrappableText({ children, empty = '—' }) {
 
 export default function StudentPayments() {
   const [list, setList] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const filteredList = list.filter((p) => {
+    if (!searchQuery) return true
+    const q = searchQuery.toLowerCase()
+    return (
+      (p.studentName || p.student?.name || '').toLowerCase().includes(q) ||
+      (p.roomNo || '').toLowerCase().includes(q) ||
+      (p.roomType || '').toLowerCase().includes(q) ||
+      (p.facilityType || '').toLowerCase().includes(q) ||
+      (p.month || '').toLowerCase().includes(q) ||
+      (p.status || '').toLowerCase().includes(q) ||
+      (p.transactionType || p.transactionReference || '').toLowerCase().includes(q) ||
+      (p.adminRemarks || '').toLowerCase().includes(q)
+    )
+  })
 
   const load = useCallback(async () => {
     setError('')
@@ -68,12 +84,21 @@ export default function StudentPayments() {
           <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-50">Payments</h1>
           <p className="mt-1 text-sm text-slate-600 dark:text-slate-400">Your submitted fee payments only.</p>
         </div>
-        <Link
-          to="/student/payments/new"
-          className="inline-flex items-center justify-center rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
-        >
-          Add payment
-        </Link>
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search payments..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full sm:w-64 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:placeholder-slate-400"
+          />
+          <Link
+            to="/student/payments/new"
+            className="inline-flex items-center justify-center rounded-full bg-primary-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-primary-600/25 hover:bg-primary-700"
+          >
+            Add payment
+          </Link>
+        </div>
       </div>
 
       <div className="panel-surface overflow-hidden rounded-2xl shadow-card">
@@ -88,88 +113,125 @@ export default function StudentPayments() {
         <div className="overflow-x-auto p-4 sm:p-6">
           {loading ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">Loading…</p>
-          ) : list.length === 0 ? (
+          ) : filteredList.length === 0 ? (
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              No payments yet.{' '}
-              <Link to="/student/payments/new" className="font-medium text-primary-600 hover:underline">
-                Add payment
-              </Link>
+              {searchQuery ? (
+                "No matching payments found."
+              ) : (
+                <>
+                  No payments yet.{' '}
+                  <Link to="/student/payments/new" className="font-medium text-primary-600 hover:underline">
+                    Add payment
+                  </Link>
+                </>
+              )}
             </p>
           ) : (
-            <table className="table-dashboard w-full min-w-[70rem] table-fixed">
+            <table className="w-full text-left border-collapse">
               <thead>
-                <tr>
-                  <th className="w-[11%]">Student name</th>
-                  <th className="whitespace-nowrap">Room no.</th>
-                  <th className="whitespace-nowrap">Month</th>
-                  <th className="whitespace-nowrap">Room type</th>
-                  <th className="whitespace-nowrap">Facility</th>
-                  <th className="whitespace-nowrap">Amount</th>
-                  <th className="min-w-0 w-[11%]">Transaction type</th>
-                  <th className="whitespace-nowrap">Proof</th>
-                  <th className="whitespace-nowrap">Status</th>
-                  <th className="min-w-0 w-[13%]">Admin remarks</th>
-                  <th className="whitespace-nowrap">Submitted</th>
-                  <th className="whitespace-nowrap">Actions</th>
+                <tr className="border-b border-slate-200 bg-slate-50/50 dark:border-slate-800 dark:bg-slate-900/50 text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Student</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Room</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Month</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Type</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Facility</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap text-right">Amount</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 min-w-[12rem]">Reference</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6">Proof</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6">Status</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 min-w-[14rem]">Admin remarks</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap">Submitted</th>
+                  <th className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {list.map((p) => {
+                {filteredList.map((p) => {
                   const href = proofHref(p)
                   const isPending = String(p?.status || '').toLowerCase() === 'pending'
                   return (
-                    <tr key={p._id}>
-                      <td className="px-3 py-3">{p.studentName || p.student?.name || '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3">{p.roomNo || '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3">{p.month || '—'}</td>
-                      <td className="capitalize px-3 py-3">{p.roomType || '—'}</td>
-                      <td className="uppercase px-3 py-3">{p.facilityType || '—'}</td>
-                      <td className="whitespace-nowrap px-3 py-3 font-medium">{formatMoney(p.amount)}</td>
-                      <td className="min-w-0 px-3 py-3">
+                    <tr
+                      key={p._id}
+                      className="group border-b border-slate-100 last:border-0 hover:bg-slate-50/50 dark:border-slate-800/50 dark:hover:bg-slate-900/40 transition-colors"
+                    >
+                      <td className="px-5 py-4 first:pl-6 last:pr-6">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                            {p.studentName || p.student?.name || '—'}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 first:pl-6 last:pr-6 text-sm text-slate-600 dark:text-slate-400">
+                        #{p.roomNo || '—'}
+                      </td>
+                      <td className="px-5 py-4 first:pl-6 last:pr-6 text-sm text-slate-600 dark:text-slate-400">
+                        {p.month || '—'}
+                      </td>
+                      <td className="px-5 py-4 first:pl-6 last:pr-6">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-500">
+                          {p.roomType || '—'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 first:pl-6 last:pr-6">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-slate-500 dark:text-slate-500">
+                          {p.facilityType || '—'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4 first:pl-6 last:pr-6 text-right whitespace-nowrap text-sm font-bold text-slate-900 dark:text-slate-100">
+                        {formatMoney(p.amount)}
+                      </td>
+                      <td className="px-5 py-4 first:pl-6 last:pr-6">
                         <WrappableText>{p.transactionType || p.transactionReference}</WrappableText>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3">
+                      <td className="px-5 py-4 first:pl-6 last:pr-6">
                         {href ? (
                           <a
                             href={href}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="font-medium text-primary-600 hover:underline dark:text-primary-400"
+                            className="inline-flex h-8 items-center rounded-lg bg-indigo-50 px-3 text-xs font-bold text-indigo-600 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:text-indigo-400 dark:hover:bg-indigo-500/20 transition-colors"
                           >
                             View
                           </a>
                         ) : (
-                          '—'
+                          <span className="text-slate-400">—</span>
                         )}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3">
+                      <td className="px-5 py-4 first:pl-6 last:pr-6">
                         <StatusBadge status={p.status} />
                       </td>
-                      <td className="min-w-0 px-3 py-3">
+                      <td className="px-5 py-4 first:pl-6 last:pr-6">
                         <WrappableText empty="—">{p.adminRemarks}</WrappableText>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-xs">
-                        {p.createdAt ? new Date(p.createdAt).toLocaleString() : '—'}
+                      <td className="px-5 py-4 first:pl-6 last:pr-6 whitespace-nowrap text-[11px] font-medium text-slate-500 dark:text-slate-500">
+                        {p.createdAt ? new Date(p.createdAt).toLocaleDateString() : '—'}
+                        <div className="text-[10px] opacity-60">
+                          {p.createdAt ? new Date(p.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </div>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3">
+                      <td className="px-5 py-4 first:pl-6 last:pr-6 text-right">
                         {isPending ? (
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center justify-end gap-2">
                             <Link
                               to={`/student/payments/${p._id}/edit`}
-                              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
+                              className="inline-flex h-8 items-center rounded-lg border border-slate-200 bg-white px-3 text-[11px] font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700 shadow-sm transition-all"
                             >
                               Edit
                             </Link>
                             <button
                               type="button"
                               onClick={() => handleDelete(p._id)}
-                              className="rounded-full bg-rose-600 px-3 py-1 text-xs font-semibold text-white hover:bg-rose-700"
+                              className="inline-flex h-8 items-center rounded-lg bg-rose-50 px-3 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 transition-all"
                             >
                               Delete
                             </button>
                           </div>
                         ) : (
-                          <span className="text-xs text-slate-500 dark:text-slate-400">Read only</span>
+                          <div className="flex justify-end">
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                              <span className="h-1 w-1 rounded-full bg-slate-400 dark:bg-slate-600" />
+                              Locked
+                            </span>
+                          </div>
                         )}
                       </td>
                     </tr>
