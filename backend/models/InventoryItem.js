@@ -22,6 +22,8 @@ const inventoryItemSchema = new mongoose.Schema(
       enum: INVENTORY_CONDITIONS,
       default: 'good',
     },
+    /** Units issued to each student when a booking is confirmed (0 = not auto-issued). */
+    issuePerBooking: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true },
 )

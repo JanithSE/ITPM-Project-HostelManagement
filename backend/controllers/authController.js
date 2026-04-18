@@ -13,7 +13,10 @@ function signToken(user) {
 }
 
 const OTP_VALIDITY_MS = 5 * 60 * 1000
+<<<<<<< HEAD
 /** Window after OTP verification during which the user may submit a new password (opaque token, not email OTP). */
+=======
+>>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
 const PASSWORD_RESET_TOKEN_VALIDITY_MS = 15 * 60 * 1000
 
 function normalizeEmail(email) {
@@ -29,8 +32,26 @@ function hashOtp(otpCode) {
 }
 
 function hashPasswordResetToken(rawToken) {
+<<<<<<< HEAD
   return crypto.createHash('sha256').update(String(rawToken), 'utf8').digest('hex')
 }
+=======
+  // Store only the hash, never the raw token.
+  return crypto.createHash('sha256').update(String(rawToken), 'utf8').digest('hex')
+}
+
+function generatePasswordResetToken() {
+  // 32 bytes => 64 hex chars. Good enough as an opaque one-time secret.
+  return crypto.randomBytes(32).toString('hex')
+}
+
+function createTransport() {
+  const emailUser = process.env.EMAIL_USER
+  const emailPass = process.env.EMAIL_PASS
+  if (!emailUser || !emailPass) {
+    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASS in backend/.env')
+  }
+>>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
 
 function generatePasswordResetToken() {
   return crypto.randomBytes(32).toString('hex')
@@ -99,6 +120,10 @@ async function issueOtpForUser(user, purpose) {
   user.otpPurpose = purpose
   user.otpExpiresAt = new Date(Date.now() + OTP_VALIDITY_MS)
   if (purpose === 'password_reset') {
+<<<<<<< HEAD
+=======
+    // Invalidate any previous reset session for safety.
+>>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     user.passwordResetTokenHash = ''
     user.passwordResetExpiresAt = null
   }
@@ -280,7 +305,7 @@ export const studentLogin = async (req, res) => {
     const token = signToken(user)
     res.json({ token, role: 'student', user: { id: user._id, name: user.name, email: user.email } })
   } catch (err) {
-    console.error('[studentLogin]', err)
+    console.error('[studentLogin] Full error:', err)
     const msg =
       err?.name === 'MongoServerSelectionError' || err?.name === 'MongooseError'
         ? 'Database unavailable. Try again in a moment.'
@@ -314,7 +339,7 @@ export const adminLogin = async (req, res) => {
     const token = signToken(user)
     res.json({ token, role: 'admin', user: { id: user._id, name: 'Admin', email: usernameNorm } })
   } catch (err) {
-    console.error('[adminLogin]', err)
+    console.error('[adminLogin] Full error:', err)
     const msg =
       err?.name === 'MongoServerSelectionError' || err?.name === 'MongooseError'
         ? 'Database unavailable. Try again in a moment.'
@@ -359,12 +384,20 @@ export const verifyOtp = async (req, res) => {
     }
 
     let resetToken = null
+<<<<<<< HEAD
     if (otpPurpose === 'registration') {
       user.isVerified = true
+=======
+
+    if (otpPurpose === 'registration') {
+      user.isVerified = true
+      // Registration OTP is single-use: clear it immediately after verification.
+>>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
       user.otpCode = ''
       user.otpPurpose = ''
       user.otpExpiresAt = null
     } else {
+<<<<<<< HEAD
       resetToken = generatePasswordResetToken()
       user.passwordResetTokenHash = hashPasswordResetToken(resetToken)
       user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_VALIDITY_MS)
@@ -372,6 +405,15 @@ export const verifyOtp = async (req, res) => {
       user.otpPurpose = ''
       user.otpExpiresAt = null
     }
+=======
+      // Password reset OTP: do NOT delete otpCode/otpExpiresAt here.
+      // Instead, issue a separate one-time resetToken for the reset step.
+      resetToken = generatePasswordResetToken()
+      user.passwordResetTokenHash = hashPasswordResetToken(resetToken)
+      user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_VALIDITY_MS)
+    }
+
+>>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     await user.save()
 
     return res.json({
@@ -423,16 +465,27 @@ export const resetPassword = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     if (!user.passwordResetTokenHash || !user.passwordResetExpiresAt) {
+<<<<<<< HEAD
       return res.status(400).json({ error: 'No valid password reset session. Verify your OTP again.' })
     }
     if (user.passwordResetExpiresAt.getTime() < Date.now()) {
       return res.status(400).json({ error: 'Password reset session expired. Request a new OTP.' })
+=======
+      return res.status(400).json({ error: 'No valid password reset session. Verify OTP first.' })
+    }
+    if (user.passwordResetExpiresAt.getTime() < Date.now()) {
+      return res.status(400).json({ error: 'Reset session expired. Verify OTP again.' })
+>>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     }
     if (hashPasswordResetToken(tokenRaw) !== user.passwordResetTokenHash) {
       return res.status(400).json({ error: 'Invalid reset token' })
     }
 
     user.password = String(password)
+<<<<<<< HEAD
+=======
+    // Clear both the reset token and OTP (OTP is no longer needed once password is updated).
+>>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     user.passwordResetTokenHash = ''
     user.passwordResetExpiresAt = null
     user.otpCode = ''
@@ -446,3 +499,50 @@ export const resetPassword = async (req, res) => {
   }
 }
 
+/** Current user from JWT (any authenticated role). */
+export const getMe = async (req, res) => {
+  try {
+    const u = req.user
+    if (!u) return res.status(401).json({ error: 'Unauthorized' })
+    return res.json({
+      user: {
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        phoneNumber: u.phoneNumber || '',
+        universityId: u.universityId || '',
+      },
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to load profile' })
+  }
+}
+
+/** Update own display name / phone (stored on User). Email changes are not supported here. */
+export const patchMe = async (req, res) => {
+  try {
+    const u = req.user
+    if (!u) return res.status(401).json({ error: 'Unauthorized' })
+    const { name, phoneNumber } = req.body || {}
+    if (name != null) {
+      const n = String(name).trim()
+      if (!n) return res.status(400).json({ error: 'Name cannot be empty' })
+      u.name = n
+    }
+    if (phoneNumber != null) u.phoneNumber = String(phoneNumber).trim()
+    await u.save()
+    return res.json({
+      user: {
+        id: u._id,
+        name: u.name,
+        email: u.email,
+        role: u.role,
+        phoneNumber: u.phoneNumber || '',
+        universityId: u.universityId || '',
+      },
+    })
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to update profile' })
+  }
+}

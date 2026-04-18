@@ -1,4 +1,5 @@
 import InventoryItem from '../models/InventoryItem.js'
+import IssuedItem from '../models/IssuedItem.js'
 
 function parseQuantityMin10(raw) {
   // Accept numbers or numeric strings; reject decimals and values < 10.
@@ -17,10 +18,46 @@ function parseCondition(raw, { required = false } = {}) {
   return v
 }
 
+/** Int 0–500; invalid or out of range → null */
+function parseIssuePerBooking(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return undefined
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 500) return null
+  return n
+}
+
 export const listInventory = async (req, res) => {
   try {
-    const items = await InventoryItem.find().sort({ name: 1 })
-    res.json(items)
+    const items = await InventoryItem.find().sort({ name: 1 }).lean()
+
+    const issuedAgg = await IssuedItem.aggregate([
+      { $unwind: '$items' },
+      {
+        $match: { 'items.inventoryItem': { $ne: null } },
+      },
+      {
+        $group: {
+          _id: '$items.inventoryItem',
+          issuedTotal: { $sum: '$items.quantity' },
+        },
+      },
+    ])
+
+    const issuedMap = new Map(issuedAgg.map((x) => [String(x._id), x.issuedTotal]))
+
+    const enriched = items.map((row) => {
+      const issuedTotal = issuedMap.get(String(row._id)) || 0
+      const availableQuantity = Number(row.quantity) || 0
+      const totalStock = availableQuantity + issuedTotal
+      return {
+        ...row,
+        issuedTotal,
+        availableQuantity,
+        totalStock,
+      }
+    })
+
+    res.json(enriched)
   } catch (err) {
     res.status(500).json({ error: err.message })
   }
@@ -40,7 +77,11 @@ export const createInventoryItem = async (req, res) => {
 
     const taken = await InventoryItem.findOne({ category })
     if (taken) return res.status(409).json({ error: 'An item with this category already exists' })
-    const payload = { ...req.body, quantity: qty }
+    const issuePerBooking = parseIssuePerBooking(req.body?.issuePerBooking)
+    if (issuePerBooking === null) {
+      return res.status(400).json({ error: 'issuePerBooking must be an integer from 0 to 500' })
+    }
+    const payload = { ...req.body, quantity: qty, issuePerBooking: issuePerBooking ?? 0 }
     if (condition !== undefined) payload.condition = condition
     const item = await InventoryItem.create(payload)
     res.status(201).json(item)
@@ -70,6 +111,13 @@ export const updateInventoryItem = async (req, res) => {
       if (!category) return res.status(400).json({ error: 'category cannot be empty' })
       const clash = await InventoryItem.findOne({ category, _id: { $ne: req.params.id } })
       if (clash) return res.status(409).json({ error: 'An item with this category already exists' })
+    }
+    if (req.body?.issuePerBooking !== undefined) {
+      const issuePerBooking = parseIssuePerBooking(req.body.issuePerBooking)
+      if (issuePerBooking === null) {
+        return res.status(400).json({ error: 'issuePerBooking must be an integer from 0 to 500' })
+      }
+      req.body.issuePerBooking = issuePerBooking
     }
     const item = await InventoryItem.findByIdAndUpdate(req.params.id, req.body, { new: true })
     if (!item) return res.status(404).json({ error: 'Item not found' })
