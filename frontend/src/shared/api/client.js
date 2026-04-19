@@ -39,6 +39,11 @@ function errorFromResponse(res, text, data) {
     return `Server error. If the login just failed, ${BACKEND_HINT}`
   }
 
+  const trimmed = raw.trim()
+  if (trimmed && trimmed.length < 1000 && !trimmed.startsWith('<') && !trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return trimmed
+  }
+
   return res.statusText || `Request failed (${res.status})`
 }
 
@@ -152,6 +157,10 @@ export const maintenanceApi = {
   create: (payload) =>
     apiFetch('/maintenance', { method: 'POST', body: JSON.stringify(payload) }),
   myList: () => apiFetch('/maintenance/my'),
+  updateMine: (id, payload) =>
+    apiFetch(`/maintenance/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeMine: (id) =>
+    apiFetch(`/maintenance/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/maintenance'),
   updateStatus: (id, status) =>
     apiFetch(`/maintenance/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
@@ -161,9 +170,15 @@ export const inquiryApi = {
   create: (payload) =>
     apiFetch('/inquiry', { method: 'POST', body: JSON.stringify(payload) }),
   myList: () => apiFetch('/inquiry/my'),
+  updateMine: (id, payload) =>
+    apiFetch(`/inquiry/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeMine: (id) =>
+    apiFetch(`/inquiry/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/inquiry'),
   reply: (id, reply) =>
     apiFetch(`/inquiry/${id}/reply`, { method: 'PUT', body: JSON.stringify({ reply }) }),
+  comment: (id, text) =>
+    apiFetch(`/inquiry/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
 }
 
 export const roomApi = {

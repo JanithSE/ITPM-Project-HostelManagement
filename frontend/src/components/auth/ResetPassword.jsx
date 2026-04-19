@@ -10,7 +10,7 @@ export default function ResetPassword() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState(() =>
-    resetToken ? '' : 'Verify your OTP first (use the Forgot Password flow).'
+    resetToken ? '' : 'Verify your OTP first (use the link from Forgot Password).'
   )
   const [loading, setLoading] = useState(false)
 
@@ -48,7 +48,9 @@ export default function ResetPassword() {
             <span className="auth-pro-panel-mark">UH</span>
             <div>
               <h1 className="auth-pro-heading">Reset Password</h1>
-              <p className="auth-pro-subheading !mt-0">Set your new password. OTP was already verified.</p>
+              <p className="auth-pro-subheading !mt-0">
+                Enter your new password. Your OTP was already verified.
+              </p>
             </div>
           </div>
           {error && <p className="auth-pro-error">{error}</p>}
@@ -63,11 +65,12 @@ export default function ResetPassword() {
                 className="auth-pro-input"
                 required
                 disabled={Boolean(resetToken)}
+                title={resetToken ? 'Must match the email you verified' : ''}
               />
             </div>
-            <div>
+            {resetToken && (
               <p className="auth-pro-subheading !mt-0">OTP verified. You can set a new password now.</p>
-            </div>
+            )}
             <div>
               <label htmlFor="reset-password" className="auth-pro-label">New Password</label>
               <input
@@ -97,6 +100,8 @@ export default function ResetPassword() {
             </button>
           </form>
           <p className="auth-pro-footer">
+            <Link to="/forgot-password" className="auth-pro-link">Forgot password again</Link>
+            {' · '}
             <Link to="/student/login" className="auth-pro-link">Back to login</Link>
           </p>
         </section>
