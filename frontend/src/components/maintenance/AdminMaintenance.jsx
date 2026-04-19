@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { maintenanceApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
+import { inDateRange, exportMaintenancePdf } from '../../utils/reportExport'
 
 function statusOptions(current) {
   // Enforce forward-only status transitions in the admin UI.
@@ -51,6 +52,38 @@ export default function AdminMaintenance() {
   const [msg, setMsg] = useState('')
   const [pending, setPending] = useState({})
   const [activityLog, setActivityLog] = useState([])
+  const [reportStatus, setReportStatus] = useState('all')
+  const [reportFromDate, setReportFromDate] = useState('')
+  const [reportToDate, setReportToDate] = useState('')
+
+  const filteredList = useMemo(
+    () =>
+      list.filter((row) => {
+        const statusOk = reportStatus === 'all' || row.status === reportStatus
+        const dateOk = inDateRange(row.createdAt, reportFromDate, reportToDate)
+        return statusOk && dateOk
+      }),
+    [list, reportStatus, reportFromDate, reportToDate]
+  )
+
+  function exportPdf() {
+    if (filteredList.length === 0) {
+      setMsg('No rows match the current report filters.')
+      return
+    }
+    setMsg('')
+    try {
+      exportMaintenancePdf(filteredList)
+    } catch (e) {
+      setMsg(e?.message || 'PDF export failed')
+    }
+  }
+
+  function clearReportFilters() {
+    setReportStatus('all')
+    setReportFromDate('')
+    setReportToDate('')
+  }
 
   // Load all maintenance requests for admin monitoring.
   const load = useCallback(async () => {
@@ -163,6 +196,57 @@ export default function AdminMaintenance() {
             {list.length} {list.length === 1 ? 'request' : 'requests'}
           </p>
         )}
+        <div className="mt-4 space-y-3">
+          <p className="text-xs font-semibold text-primary-100 uppercase tracking-wide">Reports</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="block text-xs text-primary-100 mb-1">Status</label>
+              <select
+                className="w-full rounded-lg border border-primary-100/30 bg-white px-3 py-2 text-sm text-slate-800"
+                value={reportStatus}
+                onChange={(e) => setReportStatus(e.target.value)}
+              >
+                <option value="all">All statuses</option>
+                <option value="open">Open</option>
+                <option value="in_progress">In progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-primary-100 mb-1">From</label>
+              <input
+                type="date"
+                className="w-full rounded-lg border border-primary-100/30 bg-white px-3 py-2 text-sm text-slate-800"
+                value={reportFromDate}
+                onChange={(e) => setReportFromDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-primary-100 mb-1">To</label>
+              <input
+                type="date"
+                className="w-full rounded-lg border border-primary-100/30 bg-white px-3 py-2 text-sm text-slate-800"
+                value={reportToDate}
+                onChange={(e) => setReportToDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-table-primary text-sm px-3 py-2" onClick={exportPdf}>
+              Export PDF
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+              onClick={clearReportFilters}
+            >
+              Clear filters
+            </button>
+          </div>
+          <p className="text-xs text-primary-100">
+            Showing {filteredList.length} of {list.length} requests (filters apply to list and exports)
+          </p>
+        </div>
       </div>
 
       <div className="p-6 bg-gray-50/50">
@@ -220,7 +304,7 @@ export default function AdminMaintenance() {
         )}
 
         <ul className="space-y-5 list-none m-0 p-0">
-          {list.map((row) => (
+          {filteredList.map((row) => (
             <li
               key={row._id}
               className="rounded-xl border border-gray-200 bg-white shadow-sm hover:shadow-md hover:border-primary-100/60 transition-shadow duration-200 overflow-hidden"
