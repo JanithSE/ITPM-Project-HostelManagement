@@ -2,7 +2,6 @@ import mongoose from 'mongoose'
 
 const maintenanceSchema = new mongoose.Schema(
   {
-    studentId: { type: String, trim: true, uppercase: true, default: '' },
     title: { type: String, required: true, trim: true },
     description: { type: String, required: true, trim: true },
     location: { type: String, trim: true },

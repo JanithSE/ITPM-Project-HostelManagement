@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { inquiryApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
+import { inDateRange, exportInquiriesPdf } from '../../utils/reportExport'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -27,6 +28,38 @@ export default function AdminInquiries() {
   const [drafts, setDrafts] = useState({})
   const [pending, setPending] = useState({})
   const [activityLog, setActivityLog] = useState([])
+  const [reportStatus, setReportStatus] = useState('all')
+  const [reportFromDate, setReportFromDate] = useState('')
+  const [reportToDate, setReportToDate] = useState('')
+
+  const filteredList = useMemo(
+    () =>
+      list.filter((row) => {
+        const statusOk = reportStatus === 'all' || row.status === reportStatus
+        const dateOk = inDateRange(row.createdAt, reportFromDate, reportToDate)
+        return statusOk && dateOk
+      }),
+    [list, reportStatus, reportFromDate, reportToDate]
+  )
+
+  function exportPdf() {
+    if (filteredList.length === 0) {
+      setMsg('No rows match the current report filters.')
+      return
+    }
+    setMsg('')
+    try {
+      exportInquiriesPdf(filteredList)
+    } catch (e) {
+      setMsg(e?.message || 'PDF export failed')
+    }
+  }
+
+  function clearReportFilters() {
+    setReportStatus('all')
+    setReportFromDate('')
+    setReportToDate('')
+  }
 
   // Load all inquiries for admin review.
   const load = useCallback(async () => {
@@ -142,6 +175,57 @@ export default function AdminInquiries() {
             {list.length} {list.length === 1 ? 'inquiry' : 'inquiries'}
           </p>
         )}
+        <div className="mt-4 space-y-3">
+          <p className="text-xs font-semibold text-primary-100 uppercase tracking-wide">Reports</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div>
+              <label className="block text-xs text-primary-100 mb-1">Status</label>
+              <select
+                className="w-full rounded-lg border border-primary-100/30 bg-white px-3 py-2 text-sm text-slate-800"
+                value={reportStatus}
+                onChange={(e) => setReportStatus(e.target.value)}
+              >
+                <option value="all">All statuses</option>
+                <option value="open">Open</option>
+                <option value="replied">Replied</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs text-primary-100 mb-1">From</label>
+              <input
+                type="date"
+                className="w-full rounded-lg border border-primary-100/30 bg-white px-3 py-2 text-sm text-slate-800"
+                value={reportFromDate}
+                onChange={(e) => setReportFromDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-primary-100 mb-1">To</label>
+              <input
+                type="date"
+                className="w-full rounded-lg border border-primary-100/30 bg-white px-3 py-2 text-sm text-slate-800"
+                value={reportToDate}
+                onChange={(e) => setReportToDate(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-table-primary text-sm px-3 py-2" onClick={exportPdf}>
+              Export PDF
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-white/40 bg-white/10 px-3 py-2 text-sm font-medium text-white hover:bg-white/20"
+              onClick={clearReportFilters}
+            >
+              Clear filters
+            </button>
+          </div>
+          <p className="text-xs text-primary-100">
+            Showing {filteredList.length} of {list.length} inquiries (filters apply to list and exports)
+          </p>
+        </div>
       </div>
 
       <div className="p-6 bg-gray-50/50">
@@ -185,7 +269,7 @@ export default function AdminInquiries() {
 
         <ul className="space-y-5 list-none m-0 p-0">
           {/* List is already sorted by newest first from backend using createdAt descending */}
-          {list.map((row) => {
+          {filteredList.map((row) => {
             const replyText = drafts[row._id] ?? ''
             const replyTrim = replyText.trim()
             const canReply = row.status === 'open' && !row.reply
