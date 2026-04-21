@@ -228,6 +228,7 @@ export const paymentNotificationApi = {
   listMine: () => apiFetch('/payment-notifications/my'),
   markRead: (id) => apiFetch(`/payment-notifications/${id}/read`, { method: 'PUT' }),
   markAllRead: () => apiFetch('/payment-notifications/read-all', { method: 'PUT' }),
+  remove: (id) => apiFetch(`/payment-notifications/${id}`, { method: 'DELETE' }),
 }
 
 export const latepassApi = {

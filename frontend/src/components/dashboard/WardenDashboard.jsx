@@ -21,6 +21,7 @@ import {
 } from "./wardenDashboardPrimitives";
 import LatePassNotificationBell from "../latepass/LatePassNotificationBell";
 import PaymentNotificationBell from "../payments/PaymentNotificationBell";
+import ThemeToggle from "../../shared/components/ThemeToggle";
 
 const defaultRoomsOverview = {
   occupiedRooms: 0,
@@ -546,9 +547,15 @@ export default function WardenDashboard() {
             </div>
           </div>
           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <PaymentNotificationBell
-              buttonClassName="!border-emerald-400/30 !bg-slate-900/70 !text-emerald-100 hover:!bg-slate-800"
-            />
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+              <PaymentNotificationBell
+                buttonClassName="!border-emerald-400/30 !bg-slate-900/70 !text-emerald-100 hover:!bg-slate-800"
+              />
+              <LatePassNotificationBell
+                buttonClassName="!border-indigo-400/30 !bg-slate-900/70 !text-indigo-100 hover:!bg-slate-800"
+              />
+              <ThemeToggle className="!border-indigo-400/30 !bg-slate-900/70 !text-amber-200 hover:!bg-slate-800 dark:!border-indigo-400/30 dark:!bg-slate-900/70" />
+            </div>
             <button
               type="button"
               onClick={() => navigate("/warden/issued-items")}
@@ -569,9 +576,6 @@ export default function WardenDashboard() {
             >
               Issued items
             </button>
-            <LatePassNotificationBell
-              buttonClassName="!border-indigo-400/30 !bg-slate-900/70 !text-indigo-100 hover:!bg-slate-800"
-            />
             <button type="button" style={{ background: "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #c084fc 100%)", borderRadius: "12px", padding: "9px 20px", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 22px rgba(99,102,241,0.4)", color: "#fff", border: "none", fontFamily: "inherit" }}>+ Post Notice</button>
             <button type="button" onClick={handleLogout} style={{ background: "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(248,113,113,0.08))", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "12px", padding: "9px 16px", fontSize: "14px", fontWeight: 700, cursor: "pointer", color: "#fecaca", fontFamily: "inherit" }}>Logout</button>
           </div>

@@ -7,7 +7,7 @@ import Payment, {
 import { PAYMENT_AMOUNT_LKR, getExpectedAmountLkr } from '../config/paymentPricing.js'
 import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
 import { notifyAdminsAndWardens, notifyStudent } from '../services/paymentNotificationService.js'
-import { sendPaymentAcceptedEmail } from '../services/emailService.js'
+import { sendPaymentAcceptedEmail, sendPaymentRejectedEmail } from '../services/emailService.js'
 
 function normalizePaymentStatus(input) {
   if (!input) return null
@@ -342,7 +342,7 @@ export const patchPaymentStatus = async (req, res) => {
 
     const populated = await Payment.findById(req.params.id).populate('student', 'name email universityId')
 
-    if (previousStatus !== nextStatus && req.user.role === 'admin') {
+    if (previousStatus !== nextStatus) {
       const statusMessage = `Your payment status has been updated to ${String(nextStatus).toUpperCase()} for ${monthLabel(payment.month)}`
       try {
         await notifyStudent(payment.student, statusMessage, payment._id, payment.month, req.user._id)
@@ -351,6 +351,7 @@ export const patchPaymentStatus = async (req, res) => {
       }
 
       if (nextStatus === 'completed') {
+        console.log(`[PaymentController] Triggering completion email for payment ${payment._id}`)
         try {
           await sendPaymentAcceptedEmail({
             to: populated?.student?.email,
@@ -364,6 +365,19 @@ export const patchPaymentStatus = async (req, res) => {
           })
         } catch (emailErr) {
           console.error('[payment acceptance email]', emailErr.message)
+        }
+      } else if (nextStatus === 'rejected') {
+        try {
+          await sendPaymentRejectedEmail({
+            to: populated?.student?.email,
+            studentName: populated?.student?.name || payment.studentName,
+            monthLabel: monthLabel(payment.month),
+            amount: payment.amount,
+            roomNo: payment.roomNo,
+            adminRemarks: payment.adminRemarks,
+          })
+        } catch (emailErr) {
+          console.error('[payment rejection email]', emailErr.message)
         }
       }
     }
