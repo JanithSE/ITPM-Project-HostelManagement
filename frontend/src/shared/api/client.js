@@ -68,7 +68,7 @@ export async function apiFetch(path, options = {}) {
   if (text) {
     try {
       data = JSON.parse(text)
-    } catch {}
+    } catch { }
   }
 
   if (!res.ok) {
@@ -82,7 +82,7 @@ function parseFormResponse(res, text) {
   let data = {}
   try {
     data = text ? JSON.parse(text) : {}
-  } catch {}
+  } catch { }
 
   if (!res.ok) {
     throw new Error(errorFromResponse(res, text, data))
@@ -224,15 +224,22 @@ export const paymentApi = {
   create: (formData) => apiPostForm('/payments', formData),
 }
 
+export const paymentNotificationApi = {
+  listMine: () => apiFetch('/payment-notifications/my'),
+  markRead: (id) => apiFetch(`/payment-notifications/${id}/read`, { method: 'PUT' }),
+  markAllRead: () => apiFetch('/payment-notifications/read-all', { method: 'PUT' }),
+}
+
 export const latepassApi = {
   listMine: () => apiFetch('/latepass/my'),
   listAdmin: () => apiFetch('/latepass/admin'),
   create: (formData) => apiPostForm('/latepass', formData),
 }
 
-export const notificationApi = {
-  listMine: () => apiFetch('/notifications/my'),
-  markRead: (id) => apiFetch(`/notifications/${id}/read`, { method: 'PATCH' }),
+export const latePassNotificationApi = {
+  listMine: () => apiFetch('/latepass-notifications/my'),
+  markRead: (id) => apiFetch(`/latepass-notifications/${id}/read`, { method: 'PUT' }),
+  markAllRead: () => apiFetch('/latepass-notifications/read-all', { method: 'PUT' }),
 }
 
 export const userApi = {

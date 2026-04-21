@@ -24,7 +24,6 @@ export default function StudentDashboard() {
   const [bookings, setBookings] = useState([])
   const [payments, setPayments] = useState([])
   const [latepasses, setLatepasses] = useState([])
-  const [notifications, setNotifications] = useState([])
   const [loading, setLoading] = useState(true)
   const [profileModalOpen, setProfileModalOpen] = useState(false)
   const [profileExpanded, setProfileExpanded] = useState(false)
@@ -103,9 +102,6 @@ export default function StudentDashboard() {
         setBookings(Array.isArray(bookingData) ? bookingData : [])
         setPayments(Array.isArray(paymentData) ? paymentData : [])
         setLatepasses(Array.isArray(latepassData) ? latepassData : [])
-        const notificationData = await notificationApi.listMine().catch(() => [])
-        if (cancelled) return
-        setNotifications(Array.isArray(notificationData) ? notificationData : [])
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -160,26 +156,10 @@ export default function StudentDashboard() {
     return confirmed[0] || null
   }, [bookings])
 
-  const bookingAlerts = useMemo(
-    () => notifications.filter((n) => n?.type === 'booking_rejected' && !n?.isRead),
-    [notifications],
-  )
-
   const latestPayment = useMemo(() => {
     const sorted = [...payments].sort((a, b) => new Date(b.updatedAt || b.createdAt || 0) - new Date(a.updatedAt || a.createdAt || 0))
     return sorted[0] || null
   }, [payments])
-
-  async function markAlertAsRead(id) {
-    try {
-      await notificationApi.markRead(id)
-      setNotifications((prev) =>
-        prev.map((n) => (n._id === id ? { ...n, isRead: true, readAt: new Date().toISOString() } : n)),
-      )
-    } catch {
-      // Ignore notification read failures to keep dashboard usable.
-    }
-  }
 
   function openProfileEditor() {
     setProfileExpanded(false)
@@ -225,202 +205,175 @@ export default function StudentDashboard() {
       {/* Welcome Header */}
       <section className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-           <div className="text-indigo-600 font-bold text-sm tracking-widest uppercase mb-2">Student Portal</div>
-           <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tighter text-slate-900 dark:text-white">
-             Hello, {profile.fullName || 'Resident'}
-           </h1>
-           <p className="mt-2 text-slate-500 max-w-md">
-             Manage your room, track payments, and access campus services from your personal dashboard.
-           </p>
+          <div className="text-indigo-600 font-bold text-sm tracking-widest uppercase mb-2">Student Portal</div>
+          <h1 className="text-4xl sm:text-5xl font-extrabold tracking-tighter text-slate-900 dark:text-white">
+            Hello, {profile.fullName || 'Resident'}
+          </h1>
+          <p className="mt-2 text-slate-500 max-w-md">
+            Manage your room, track payments, and access campus services from your personal dashboard.
+          </p>
         </div>
         <div className="flex gap-3">
-           <button onClick={openProfileEditor} className="btn-secondary-outline !px-5 !py-2.5">Edit Profile</button>
-           <Link to="/student/booking" className="btn-primary-solid !px-5 !py-2.5">Book New Room</Link>
+          <button onClick={openProfileEditor} className="btn-secondary-outline !px-5 !py-2.5">Edit Profile</button>
+          <Link to="/student/booking" className="btn-primary-solid !px-5 !py-2.5">Book New Room</Link>
         </div>
       </section>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-         {[
-           { label: 'Total Bookings', val: bookings.length, icon: '📅', color: 'bg-blue-50 text-blue-600' },
-           { label: 'Active Stay', val: upcomingStay ? 'Confirmed' : 'None', icon: '🏠', color: 'bg-emerald-50 text-emerald-600' },
-           { label: 'Pending Payment', val: summary.pendingPayments, icon: '💳', color: 'bg-amber-50 text-amber-600' },
-           { label: 'Late Passes', val: latepasses.length, icon: '🕒', color: 'bg-purple-50 text-purple-600' },
-         ].map((stat, i) => (
-           <div key={i} className="stat-widget group hover:border-indigo-200 transition-colors">
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${stat.color} dark:bg-slate-800`}>
-                {stat.icon}
-              </div>
-              <div className="stat-label">{stat.label}</div>
-              <div className="stat-value">{stat.val}</div>
-           </div>
-         ))}
+        {[
+          { label: 'Total Bookings', val: bookings.length, icon: '📅', color: 'bg-blue-50 text-blue-600' },
+          { label: 'Active Stay', val: upcomingStay ? 'Confirmed' : 'None', icon: '🏠', color: 'bg-emerald-50 text-emerald-600' },
+          { label: 'Pending Payment', val: summary.pendingPayments, icon: '💳', color: 'bg-amber-50 text-amber-600' },
+          { label: 'Late Passes', val: latepasses.length, icon: '🕒', color: 'bg-purple-50 text-purple-600' },
+        ].map((stat, i) => (
+          <div key={i} className="stat-widget group hover:border-indigo-200 transition-colors">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-4 ${stat.color} dark:bg-slate-800`}>
+              {stat.icon}
+            </div>
+            <div className="stat-label">{stat.label}</div>
+            <div className="stat-value">{stat.val}</div>
+          </div>
+        ))}
       </div>
 
-      {bookingAlerts.length > 0 && (
-        <section className="rounded-2xl border border-rose-200 bg-rose-50/80 p-5 shadow-sm dark:border-rose-900/40 dark:bg-rose-950/20">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h2 className="text-lg font-bold text-rose-700 dark:text-rose-300">Booking Alerts</h2>
-            <Link to="/student/booking" className="text-sm font-semibold text-rose-700 underline dark:text-rose-300">
-              Go to Re-upload
-            </Link>
-          </div>
-          <div className="space-y-2">
-            {bookingAlerts.slice(0, 3).map((alert) => (
-              <div key={alert._id} className="rounded-xl border border-rose-200 bg-white p-3 dark:border-rose-900/40 dark:bg-slate-900/60">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{alert.title}</p>
-                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{alert.message}</p>
-                <button
-                  type="button"
-                  onClick={() => markAlertAsRead(alert._id)}
-                  className="mt-2 text-xs font-semibold text-rose-700 underline dark:text-rose-300"
-                >
-                  Mark as read
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       <div className="dashboard-grid">
         {/* Main Content Column */}
         <div className="lg:col-span-8 space-y-8">
-           {/* Active Stay Card */}
-           <div className="premium-card">
-              <div className="premium-card-inner">
-                <div className="flex items-center justify-between mb-8">
-                  <h2 className="text-xl font-bold">Your Current Residence</h2>
-                  <Link to="/student/hostels" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">Change preferences</Link>
-                </div>
-                
-                {upcomingStay ? (
-                  <div className="flex flex-col md:flex-row gap-8 items-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 border border-slate-100 dark:border-slate-800">
-                    <div className="w-24 h-24 rounded-2xl bg-indigo-600 flex items-center justify-center text-4xl text-white shadow-xl shadow-indigo-600/20">
-                      🏢
-                    </div>
-                    <div className="flex-1 text-center md:text-left">
-                       <h3 className="text-2xl font-bold mb-1">{upcomingStay.hostel?.name || 'Assigned Hostel'}</h3>
-                       <p className="text-slate-500 font-medium mb-4">Room No: <span className="text-slate-900 dark:text-white font-bold">{upcomingStay.roomNumber || 'TBD'}</span></p>
-                       <div className="flex flex-wrap justify-center md:justify-start gap-4">
-                          <div className="px-4 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                             <div className="text-[10px] font-bold uppercase text-slate-400">Check-in</div>
-                             <div className="text-sm font-bold">{formatDate(upcomingStay.fromDate)}</div>
-                          </div>
-                          <div className="px-4 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                             <div className="text-[10px] font-bold uppercase text-slate-400">Check-out</div>
-                             <div className="text-sm font-bold">{formatDate(upcomingStay.toDate)}</div>
-                          </div>
-                       </div>
-                    </div>
-                    <div className="shrink-0">
-                       <span className="px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider">
-                         {upcomingStay.status}
-                       </span>
-                       <Link
-                         to="/student/payments"
-                         className="mt-3 inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700"
-                       >
-                         Pay Now
-                       </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="py-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
-                     <p className="text-slate-400 font-medium">You don't have any active stay records.</p>
-                     <Link to="/student/booking" className="inline-block mt-4 text-indigo-600 font-bold hover:underline">Apply for a room now</Link>
-                  </div>
-                )}
+          {/* Active Stay Card */}
+          <div className="premium-card">
+            <div className="premium-card-inner">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-bold">Your Current Residence</h2>
+                <Link to="/student/hostels" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">Change preferences</Link>
               </div>
-           </div>
 
-           {/* Payments & Billing */}
-           <div className="premium-card">
-              <div className="premium-card-inner">
-                 <div className="flex items-center justify-between mb-8">
-                    <h2 className="text-xl font-bold">Invoices & Billing</h2>
-                    <Link to="/student/payments" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">View all records</Link>
-                 </div>
-                 
-                 {latestPayment ? (
-                   <div className="space-y-4">
-                      <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
-                         <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-xl shadow-sm">💳</div>
-                            <div>
-                               <div className="font-bold">Rs. {Number(latestPayment.amount).toLocaleString()}</div>
-                               <div className="text-xs text-slate-500">Invoice Ref: #{latestPayment._id.slice(-6).toUpperCase()}</div>
-                            </div>
-                         </div>
-                         <div className="text-right">
-                            <div className="text-sm font-bold mb-1">{formatDate(latestPayment.createdAt)}</div>
-                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                               latestPayment.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                            }`}>
-                               {latestPayment.status}
-                            </span>
-                         </div>
+              {upcomingStay ? (
+                <div className="flex flex-col md:flex-row gap-8 items-center bg-slate-50 dark:bg-slate-800/50 rounded-3xl p-8 border border-slate-100 dark:border-slate-800">
+                  <div className="w-24 h-24 rounded-2xl bg-indigo-600 flex items-center justify-center text-4xl text-white shadow-xl shadow-indigo-600/20">
+                    🏢
+                  </div>
+                  <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-2xl font-bold mb-1">{upcomingStay.hostel?.name || 'Assigned Hostel'}</h3>
+                    <p className="text-slate-500 font-medium mb-4">Room No: <span className="text-slate-900 dark:text-white font-bold">{upcomingStay.roomNumber || 'TBD'}</span></p>
+                    <div className="flex flex-wrap justify-center md:justify-start gap-4">
+                      <div className="px-4 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div className="text-[10px] font-bold uppercase text-slate-400">Check-in</div>
+                        <div className="text-sm font-bold">{formatDate(upcomingStay.fromDate)}</div>
                       </div>
-                   </div>
-                 ) : (
-                   <p className="text-slate-400 text-center py-10 font-medium">No payment history found.</p>
-                 )}
+                      <div className="px-4 py-2 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                        <div className="text-[10px] font-bold uppercase text-slate-400">Check-out</div>
+                        <div className="text-sm font-bold">{formatDate(upcomingStay.toDate)}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="shrink-0">
+                    <span className="px-4 py-1.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold uppercase tracking-wider">
+                      {upcomingStay.status}
+                    </span>
+                    <Link
+                      to="/student/payments"
+                      className="mt-3 inline-flex items-center justify-center rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-700"
+                    >
+                      Pay Now
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-20 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl">
+                  <p className="text-slate-400 font-medium">You don't have any active stay records.</p>
+                  <Link to="/student/booking" className="inline-block mt-4 text-indigo-600 font-bold hover:underline">Apply for a room now</Link>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Payments & Billing */}
+          <div className="premium-card">
+            <div className="premium-card-inner">
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-xl font-bold">Invoices & Billing</h2>
+                <Link to="/student/payments" className="text-sm font-semibold text-indigo-600 hover:text-indigo-700">View all records</Link>
               </div>
-           </div>
+
+              {latestPayment ? (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-6 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-white dark:bg-slate-900 flex items-center justify-center text-xl shadow-sm">💳</div>
+                      <div>
+                        <div className="font-bold">Rs. {Number(latestPayment.amount).toLocaleString()}</div>
+                        <div className="text-xs text-slate-500">Invoice Ref: #{latestPayment._id.slice(-6).toUpperCase()}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm font-bold mb-1">{formatDate(latestPayment.createdAt)}</div>
+                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${latestPayment.status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}>
+                        {latestPayment.status}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-slate-400 text-center py-10 font-medium">No payment history found.</p>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Column */}
         <div className="lg:col-span-4 space-y-8">
-           {/* Profile Widget */}
-           <div className="premium-card overflow-visible">
-              <div className="premium-card-inner">
-                 <div className="flex flex-col items-center text-center -mt-12">
-                   <button
-                     type="button"
-                     onClick={() => setProfileExpanded((v) => !v)}
-                     className="group mb-4 focus:outline-none"
-                     aria-expanded={profileExpanded}
-                     aria-label="Toggle profile details"
-                   >
-                     {profile.profilePicture ? (
-                       <img
-                         src={profile.profilePicture}
-                         alt="User"
-                         className="w-24 h-24 rounded-3xl object-cover ring-8 ring-white shadow-2xl transition-transform group-hover:scale-105 dark:ring-slate-900"
-                       />
-                     ) : (
-                       <div className="w-24 h-24 rounded-3xl bg-indigo-600 flex items-center justify-center text-3xl font-black text-white ring-8 ring-white shadow-2xl transition-transform group-hover:scale-105 dark:ring-slate-900">
-                         {(profile.fullName || 'S').slice(0, 1).toUpperCase()}
-                       </div>
-                     )}
-                   </button>
-                   <h3 className="text-xl font-bold">{profile.fullName || 'Resident'}</h3>
-                   <p className="text-sm text-slate-500 font-medium mb-6">{profile.email || 'No email provided'}</p>
+          {/* Profile Widget */}
+          <div className="premium-card overflow-visible">
+            <div className="premium-card-inner">
+              <div className="flex flex-col items-center text-center -mt-12">
+                <button
+                  type="button"
+                  onClick={() => setProfileExpanded((v) => !v)}
+                  className="group mb-4 focus:outline-none"
+                  aria-expanded={profileExpanded}
+                  aria-label="Toggle profile details"
+                >
+                  {profile.profilePicture ? (
+                    <img
+                      src={profile.profilePicture}
+                      alt="User"
+                      className="w-24 h-24 rounded-3xl object-cover ring-8 ring-white shadow-2xl transition-transform group-hover:scale-105 dark:ring-slate-900"
+                    />
+                  ) : (
+                    <div className="w-24 h-24 rounded-3xl bg-indigo-600 flex items-center justify-center text-3xl font-black text-white ring-8 ring-white shadow-2xl transition-transform group-hover:scale-105 dark:ring-slate-900">
+                      {(profile.fullName || 'S').slice(0, 1).toUpperCase()}
+                    </div>
+                  )}
+                </button>
+                <h3 className="text-xl font-bold">{profile.fullName || 'Resident'}</h3>
+                <p className="text-sm text-slate-500 font-medium mb-6">{profile.email || 'No email provided'}</p>
 
-                   <p className="text-xs text-slate-400">Click profile photo to view full profile</p>
-                 </div>
+                <p className="text-xs text-slate-400">Click profile photo to view full profile</p>
               </div>
-           </div>
+            </div>
+          </div>
 
-           {/* Recent Activity Mini-Feed */}
-           <div className="premium-card">
-              <div className="premium-card-inner">
-                 <h2 className="text-lg font-bold mb-6">Activity Feed</h2>
-                 <div className="relative space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-slate-800">
-                    {recentActivities.map((act) => (
-                       <div key={act.id} className="relative pl-10">
-                          <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white dark:border-slate-900 z-10 flex items-center justify-center text-[10px] ${
-                             act.type === 'payment' ? 'bg-amber-500' : act.type === 'booking' ? 'bg-indigo-500' : 'bg-emerald-500'
-                          }`} />
-                          <div className="text-sm font-bold">{act.title}</div>
-                          <div className="text-xs text-slate-500 mb-1">{act.sub}</div>
-                          <div className="text-[10px] text-slate-400 font-bold uppercase">{formatDate(act.date)}</div>
-                       </div>
-                    ))}
-                    {recentActivities.length === 0 && <p className="text-xs text-slate-400 text-center py-4 italic">No recent updates.</p>}
-                 </div>
+          {/* Recent Activity Mini-Feed */}
+          <div className="premium-card">
+            <div className="premium-card-inner">
+              <h2 className="text-lg font-bold mb-6">Activity Feed</h2>
+              <div className="relative space-y-6 before:absolute before:left-[11px] before:top-2 before:bottom-2 before:w-[2px] before:bg-slate-100 dark:before:bg-slate-800">
+                {recentActivities.map((act) => (
+                  <div key={act.id} className="relative pl-10">
+                    <div className={`absolute left-0 top-1 w-6 h-6 rounded-full border-4 border-white dark:border-slate-900 z-10 flex items-center justify-center text-[10px] ${act.type === 'payment' ? 'bg-amber-500' : act.type === 'booking' ? 'bg-indigo-500' : 'bg-emerald-500'
+                      }`} />
+                    <div className="text-sm font-bold">{act.title}</div>
+                    <div className="text-xs text-slate-500 mb-1">{act.sub}</div>
+                    <div className="text-[10px] text-slate-400 font-bold uppercase">{formatDate(act.date)}</div>
+                  </div>
+                ))}
+                {recentActivities.length === 0 && <p className="text-xs text-slate-400 text-center py-4 italic">No recent updates.</p>}
               </div>
-           </div>
+            </div>
+          </div>
         </div>
       </div>
 

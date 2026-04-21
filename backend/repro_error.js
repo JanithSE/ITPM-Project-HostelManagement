@@ -1,9 +1,9 @@
-import fetch from 'node-fetch';
+
 
 async function testLogin() {
   const url = 'http://localhost:5001/api/auth/student-login';
   const body = JSON.stringify({ email: 'akasq78@gmail.com', password: 'password123' });
-  
+
   try {
     const res = await fetch(url, {
       method: 'POST',

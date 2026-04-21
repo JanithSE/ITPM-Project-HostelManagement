@@ -19,6 +19,8 @@ import {
   pillBaseStatic,
   bedPillStyle,
 } from "./wardenDashboardPrimitives";
+import LatePassNotificationBell from "../latepass/LatePassNotificationBell";
+import PaymentNotificationBell from "../payments/PaymentNotificationBell";
 
 const defaultRoomsOverview = {
   occupiedRooms: 0,
@@ -544,6 +546,9 @@ export default function WardenDashboard() {
             </div>
           </div>
           <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+            <PaymentNotificationBell
+              buttonClassName="!border-emerald-400/30 !bg-slate-900/70 !text-emerald-100 hover:!bg-slate-800"
+            />
             <button
               type="button"
               onClick={() => navigate("/warden/issued-items")}
@@ -564,14 +569,9 @@ export default function WardenDashboard() {
             >
               Issued items
             </button>
-            <button type="button" style={{ background: T.inputBg, border: `1px solid ${T.inputBorder}`, borderRadius: "12px", padding: "9px 14px", color: T.textSecondary, cursor: "pointer", position: "relative", fontSize: "16px", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }}>
-              🔔
-              {lowInventoryAlerts.length > 0 ? (
-                <span style={{ position: "absolute", top: "-3px", right: "-3px", minWidth: "15px", height: "15px", borderRadius: "50%", padding: "0 4px", background: "linear-gradient(135deg, #f97316, #ef4444)", fontSize: "10px", fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff" }}>
-                  {lowInventoryAlerts.length > 99 ? "99+" : lowInventoryAlerts.length}
-                </span>
-              ) : null}
-            </button>
+            <LatePassNotificationBell
+              buttonClassName="!border-indigo-400/30 !bg-slate-900/70 !text-indigo-100 hover:!bg-slate-800"
+            />
             <button type="button" style={{ background: "linear-gradient(135deg, #6366f1 0%, #a855f7 50%, #c084fc 100%)", borderRadius: "12px", padding: "9px 20px", fontSize: "14px", fontWeight: 700, cursor: "pointer", boxShadow: "0 6px 22px rgba(99,102,241,0.4)", color: "#fff", border: "none", fontFamily: "inherit" }}>+ Post Notice</button>
             <button type="button" onClick={handleLogout} style={{ background: "linear-gradient(135deg, rgba(248,113,113,0.22), rgba(248,113,113,0.08))", border: "1px solid rgba(248,113,113,0.4)", borderRadius: "12px", padding: "9px 16px", fontSize: "14px", fontWeight: 700, cursor: "pointer", color: "#fecaca", fontFamily: "inherit" }}>Logout</button>
           </div>
