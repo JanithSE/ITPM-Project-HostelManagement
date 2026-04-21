@@ -84,3 +84,62 @@ export async function sendDocumentRejectedEmail({
     html,
   })
 }
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
+/**
+ * Sent when an admin marks a payment as accepted (status: completed).
+ */
+export async function sendPaymentAcceptedEmail({
+  to,
+  studentName,
+  monthLabel: monthLabelText,
+  amount,
+  roomNo,
+  roomType,
+  facilityType,
+  adminRemarks,
+}) {
+  if (!to) return
+
+  const transporter = createTransport()
+  const amt =
+    amount != null && Number.isFinite(Number(amount))
+      ? Number(amount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : String(amount ?? '-')
+
+  const remarksBlock = adminRemarks
+    ? `<li><strong>Notes:</strong> ${escapeHtml(adminRemarks)}</li>`
+    : ''
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
+      <h2>Payment Accepted</h2>
+      <p>Hello ${escapeHtml(studentName || 'Student')},</p>
+      <p>Your hostel fee payment has been <strong>accepted</strong>. Thank you.</p>
+      <ul>
+        <li><strong>Month:</strong> ${escapeHtml(monthLabelText || '-')}</li>
+        <li><strong>Amount (LKR):</strong> ${escapeHtml(amt)}</li>
+        <li><strong>Room:</strong> ${escapeHtml(roomNo || '-')}</li>
+        <li><strong>Room type:</strong> ${escapeHtml(roomType || '-')}</li>
+        <li><strong>Facility:</strong> ${escapeHtml(facilityType || '-')}</li>
+        ${remarksBlock}
+      </ul>
+      <p>You can view this record anytime in your student dashboard.</p>
+      <p>UniHostel Team</p>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject: `UniHostel: Payment accepted for ${monthLabelText || 'your booking'}`,
+    html,
+  })
+}

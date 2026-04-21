@@ -1,6 +1,6 @@
 import LatePass from '../models/LatePass.js'
-import User from '../models/User.js'
 import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
+import { notifyAdminsAndWardens, notifyStudent } from '../services/latePassNotificationService.js'
 
 function normalizeLatepassStatus(input) {
   if (!input) return null
@@ -413,6 +413,14 @@ export const createLatepass = async (req, res) => {
       .populate('createdBy', 'name email universityId')
       .populate('student', 'name email universityId')
 
+    const creatorName = String(req.user?.name || 'A student').trim() || 'A student'
+    const creationMessage = `${creatorName} has created a late pass request`
+    try {
+      await notifyAdminsAndWardens(creationMessage, pass._id, req.user._id)
+    } catch (notifyErr) {
+      console.error('[latepass notifyAdminsAndWardens]', notifyErr)
+    }
+
     res.status(201).json(serializeLatepass(populated))
   } catch (err) {
     const code = err?.name === 'ValidationError' ? 400 : 500
@@ -422,8 +430,8 @@ export const createLatepass = async (req, res) => {
 
 export const patchLatepassStatus = async (req, res) => {
   try {
-    const exists = await LatePass.exists({ _id: req.params.id })
-    if (!exists) return res.status(404).json({ error: 'Late pass not found' })
+    const pass = await LatePass.findById(req.params.id)
+    if (!pass) return res.status(404).json({ error: 'Late pass not found' })
 
     const nextStatus = normalizeLatepassStatus(req.body.status)
     if (!nextStatus) return res.status(400).json({ error: 'Invalid status' })
@@ -432,14 +440,28 @@ export const patchLatepassStatus = async (req, res) => {
     const hasRemarks = remarksRaw !== undefined
     const normalizedRemarks = hasRemarks ? String(remarksRaw ?? '').trim() : undefined
 
-    const $set = { status: nextStatus }
-    if (hasRemarks) $set.adminRemarks = normalizedRemarks
+    const previousStatus = String(pass.status || '').toLowerCase()
+    pass.status = nextStatus
+    if (hasRemarks) pass.adminRemarks = normalizedRemarks
 
-    await LatePass.updateOne({ _id: req.params.id }, { $set }, { runValidators: true })
+    await pass.save()
 
     const populated = await LatePass.findById(req.params.id)
       .populate('createdBy', 'name email universityId')
       .populate('student', 'name email universityId')
+
+    if (previousStatus !== nextStatus) {
+      const studentUserId = pass.createdBy || pass.student
+      if (studentUserId) {
+        const statusMessage = `Your late pass status has been updated to ${String(nextStatus).toUpperCase()}`
+        try {
+          await notifyStudent(studentUserId, statusMessage, pass._id, req.user._id)
+        } catch (notifyErr) {
+          console.error('[latepass notifyStudent]', notifyErr)
+        }
+      }
+    }
+
     res.json(serializeLatepass(populated))
   } catch (err) {
     res.status(500).json({ error: err.message })

@@ -6,6 +6,8 @@ import Payment, {
 } from '../models/Payment.js'
 import { PAYMENT_AMOUNT_LKR, getExpectedAmountLkr } from '../config/paymentPricing.js'
 import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
+import { notifyAdminsAndWardens, notifyStudent } from '../services/paymentNotificationService.js'
+import { sendPaymentAcceptedEmail } from '../services/emailService.js'
 
 function normalizePaymentStatus(input) {
   if (!input) return null
@@ -93,6 +95,17 @@ function validateMonthField(raw) {
 function amountsMatch(expected, actual, eps = 0.005) {
   if (expected == null || !Number.isFinite(actual)) return false
   return Math.abs(Number(actual) - Number(expected)) < eps
+}
+
+function monthLabel(month) {
+  const value = String(month || '').trim()
+  const m = /^(\d{4})-(\d{2})$/.exec(value)
+  if (!m) return value
+  const year = Number(m[1])
+  const monthIndex = Number(m[2]) - 1
+  const dt = new Date(Date.UTC(year, monthIndex, 1))
+  if (Number.isNaN(dt.getTime())) return value
+  return dt.toLocaleString('en-US', { month: 'long' })
 }
 
 export const getPaymentPricing = async (req, res) => {
@@ -288,6 +301,15 @@ export const createPayment = async (req, res) => {
       proofFile,
       status: 'pending',
     })
+    const creatorName = String(req.user?.name || 'A student').trim() || 'A student'
+    const prettyMonth = monthLabel(mo.value)
+    const creationMessage = `${creatorName} has submitted payment for ${prettyMonth}`
+    try {
+      await notifyAdminsAndWardens(creationMessage, payment._id, mo.value, req.user._id)
+    } catch (notifyErr) {
+      console.error('[payment notifyAdminsAndWardens]', notifyErr)
+    }
+
     const populated = await Payment.findById(payment._id).populate('student', 'name email universityId')
     res.status(201).json(serializePayment(populated))
   } catch (err) {
@@ -298,8 +320,12 @@ export const createPayment = async (req, res) => {
 
 export const patchPaymentStatus = async (req, res) => {
   try {
-    const exists = await Payment.exists({ _id: req.params.id })
-    if (!exists) return res.status(404).json({ error: 'Payment not found' })
+    const payment = await Payment.findById(req.params.id)
+    if (!payment) return res.status(404).json({ error: 'Payment not found' })
+
+    if (req.user.role === 'student' && String(payment.student) !== String(req.user._id)) {
+      return res.status(403).json({ error: 'Forbidden' })
+    }
 
     const nextStatus = normalizePaymentStatus(req.body.status)
     if (!nextStatus) return res.status(400).json({ error: 'Invalid status' })
@@ -308,13 +334,41 @@ export const patchPaymentStatus = async (req, res) => {
     const hasRemarks = remarksRaw !== undefined
     const normalizedRemarks = hasRemarks ? String(remarksRaw ?? '').trim() : undefined
 
-    const $set = { status: nextStatus }
-    if (hasRemarks) $set.adminRemarks = normalizedRemarks
+    const previousStatus = String(payment.status || '').toLowerCase()
+    payment.status = nextStatus
+    if (hasRemarks) payment.adminRemarks = normalizedRemarks
 
-    await Payment.updateOne({ _id: req.params.id }, { $set }, { runValidators: true })
+    await payment.save()
 
-    const payment = await Payment.findById(req.params.id).populate('student', 'name email universityId')
-    res.json(serializePayment(payment))
+    const populated = await Payment.findById(req.params.id).populate('student', 'name email universityId')
+
+    if (previousStatus !== nextStatus && req.user.role === 'admin') {
+      const statusMessage = `Your payment status has been updated to ${String(nextStatus).toUpperCase()} for ${monthLabel(payment.month)}`
+      try {
+        await notifyStudent(payment.student, statusMessage, payment._id, payment.month, req.user._id)
+      } catch (notifyErr) {
+        console.error('[payment notifyStudent]', notifyErr)
+      }
+
+      if (nextStatus === 'completed') {
+        try {
+          await sendPaymentAcceptedEmail({
+            to: populated?.student?.email,
+            studentName: populated?.student?.name || payment.studentName,
+            monthLabel: monthLabel(payment.month),
+            amount: payment.amount,
+            roomNo: payment.roomNo,
+            roomType: payment.roomType,
+            facilityType: payment.facilityType,
+            adminRemarks: payment.adminRemarks,
+          })
+        } catch (emailErr) {
+          console.error('[payment acceptance email]', emailErr.message)
+        }
+      }
+    }
+
+    res.json(serializePayment(populated))
   } catch (err) {
     res.status(500).json({ error: err.message })
   }

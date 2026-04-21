@@ -220,9 +220,11 @@ export default function StudentPayments() {
                             <button
                               type="button"
                               onClick={() => handleDelete(p._id)}
-                              className="inline-flex h-8 items-center rounded-lg bg-rose-50 px-3 text-[11px] font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 transition-all"
+                              aria-label="Delete payment"
+                              title="Delete payment"
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-rose-50 text-sm font-bold text-rose-600 hover:bg-rose-100 dark:bg-rose-500/10 dark:text-rose-400 dark:hover:bg-rose-500/20 transition-all"
                             >
-                              Delete
+                              ✕
                             </button>
                           </div>
                         ) : (
@@ -242,6 +244,7 @@ export default function StudentPayments() {
           )}
         </div>
       </div>
+
     </div>
   )
 }

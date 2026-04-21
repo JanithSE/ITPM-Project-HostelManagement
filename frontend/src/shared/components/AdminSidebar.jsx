@@ -1,5 +1,4 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
-import ThemeToggle from '../../shared/components/ThemeToggle'
 
 export default function AdminSidebar() {
   const navigate = useNavigate()
@@ -25,12 +24,9 @@ export default function AdminSidebar() {
 
   return (
     <aside className="admin-sidebar">
-      
+
       {/* Header */}
       <div className="admin-sidebar-header">
-        <div className="admin-sidebar-theme-wrap">
-          <ThemeToggle />
-        </div>
 
         <Link to="/admin" className="admin-sidebar-brand">
           <span className="admin-sidebar-brand-mark">UH</span>

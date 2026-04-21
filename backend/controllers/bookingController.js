@@ -1,6 +1,5 @@
 import Booking from '../models/Booking.js'
 import Room from '../models/RoomSchema.js'
-import Notification from '../models/Notification.js'
 import { sendBookingRejectedEmail, sendDocumentRejectedEmail } from '../services/emailService.js'
 import {
   assertInventoryIssuanceAvailable,
@@ -331,20 +330,6 @@ export const rejectBooking = async (req, res) => {
     booking.reviewedBy = req.user._id
     await booking.save()
 
-    const studentId = booking.student?._id || booking.student
-    if (studentId) {
-      await Notification.create({
-        user: studentId,
-        type: 'booking_rejected',
-        title: 'Booking needs document corrections',
-        message: missingDocuments.length
-          ? `Your booking was rejected. Please correct and re-upload: ${missingDocuments.join(', ')}`
-          : `Your booking was rejected. Reason: ${rejectionReason}`,
-        booking: booking._id,
-        metadata: { rejectionReason, missingDocuments },
-      })
-    }
-
     try {
       await sendBookingRejectedEmail({
         to: booking.email || booking.student?.email || '',
@@ -444,17 +429,6 @@ export const reviewBookingDocument = async (req, res) => {
 
     if (status === 'rejected') {
       const documentLabel = DOCUMENT_LABELS[documentKey] || documentKey
-      const studentId = booking.student?._id || booking.student
-      if (studentId) {
-        await Notification.create({
-          user: studentId,
-          type: 'booking_document_rejected',
-          title: `${documentLabel} rejected`,
-          message: `${documentLabel} was rejected. Reason: ${note}`,
-          booking: booking._id,
-          metadata: { documentKey, documentLabel, note },
-        })
-      }
       try {
         await sendDocumentRejectedEmail({
           to: booking.email || booking.student?.email || '',

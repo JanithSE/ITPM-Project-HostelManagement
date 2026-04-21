@@ -80,6 +80,6 @@ main().catch(async (err) => {
   console.error(err)
   try {
     await mongoose.disconnect()
-  } catch {}
+  } catch { }
   process.exit(1)
 })
