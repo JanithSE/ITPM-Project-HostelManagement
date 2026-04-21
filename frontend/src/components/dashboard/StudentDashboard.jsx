@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { authApi, bookingApi, latepassApi, notificationApi, paymentApi } from '../../shared/api/client'
+import { authApi, bookingApi, latepassApi, paymentApi } from '../../shared/api/client'
 
 function formatDate(d) {
   if (!d) return '—'

@@ -4,9 +4,11 @@ function createTransport() {
   const emailUser = process.env.EMAIL_USER
   const emailPass = process.env.EMAIL_PASS
   if (!emailUser || !emailPass) {
+    console.error('[EmailService] MISSING CREDENTIALS. Please set EMAIL_USER and EMAIL_PASS in backend/.env')
     throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASS in backend/.env')
   }
 
+  console.log('[EmailService] Creating transport for:', emailUser)
   return nodemailer.createTransport({
     service: 'gmail',
     auth: { user: emailUser, pass: emailPass },
@@ -142,4 +144,52 @@ export async function sendPaymentAcceptedEmail({
     subject: `UniHostel: Payment accepted for ${monthLabelText || 'your booking'}`,
     html,
   })
+  console.log(`[EmailService] SUCCESS: Accepted email sent to ${to}`)
+}
+
+/**
+ * Sent when an admin marks a payment as rejected (requires correction).
+ */
+export async function sendPaymentRejectedEmail({
+  to,
+  studentName,
+  monthLabel: monthLabelText,
+  amount,
+  roomNo,
+  adminRemarks,
+}) {
+  if (!to) return
+
+  const transporter = createTransport()
+  const amt =
+    amount != null && Number.isFinite(Number(amount))
+      ? Number(amount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : String(amount ?? '-')
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
+      <h2 style="color: #e11d48;">Payment Rejected</h2>
+      <p>Hello ${escapeHtml(studentName || 'Student')},</p>
+      <p>Your payment submission for <strong>${escapeHtml(monthLabelText || 'your booking')}</strong> has been rejected and requires your attention.</p>
+      <div style="background-color: #fff1f2; border-left: 4px solid #e11d48; padding: 16px; margin: 16px 0;">
+        <p style="margin: 0; font-weight: bold; color: #9f1239;">Reason / Admin Remarks:</p>
+        <p style="margin: 8px 0 0 0; color: #be123c;">${escapeHtml(adminRemarks || 'Please verify your payment slip and re-upload.')}</p>
+      </div>
+      <ul>
+        <li><strong>Month:</strong> ${escapeHtml(monthLabelText || '-')}</li>
+        <li><strong>Amount (LKR):</strong> ${escapeHtml(amt)}</li>
+        <li><strong>Room:</strong> ${escapeHtml(roomNo || '-')}</li>
+      </ul>
+      <p>Please log in to your dashboard to correct the information or upload a clearer slip.</p>
+      <p>UniHostel Team</p>
+    </div>
+  `
+
+  await transporter.sendMail({
+    from: process.env.EMAIL_USER,
+    to,
+    subject: `UniHostel: Payment rejected for ${monthLabelText || 'your booking'}`,
+    html,
+  })
+  console.log(`[EmailService] SUCCESS: Rejection email sent to ${to}`)
 }

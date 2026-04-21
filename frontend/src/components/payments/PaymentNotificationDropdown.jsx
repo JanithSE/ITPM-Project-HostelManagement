@@ -17,6 +17,7 @@ export default function PaymentNotificationDropdown({
   unreadCount = 0,
   onMarkRead,
   onMarkAllRead,
+  onRemove,
 }) {
   return (
     <div className="w-[22rem] max-w-[90vw] rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
@@ -44,24 +45,41 @@ export default function PaymentNotificationDropdown({
           <p className="px-2 py-6 text-center text-sm text-slate-500 dark:text-slate-400">No payment notifications.</p>
         ) : (
           notifications.map((item) => (
-            <button
+            <div
               key={item._id}
-              type="button"
-              onClick={() => onMarkRead?.(item)}
-              className={`mb-2 block w-full rounded-xl border px-3 py-3 text-left transition ${
+              className={`group relative mb-2 block w-full rounded-xl border transition ${
                 item.read
                   ? 'border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/40'
                   : 'border-emerald-200 bg-emerald-50/60 shadow-sm dark:border-emerald-700 dark:bg-emerald-950/30'
               }`}
             >
-              <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{item.message}</p>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  {item.roleTarget}
-                </span>
-                <span className="text-[11px] text-slate-500 dark:text-slate-400">{formatWhen(item.createdAt)}</span>
-              </div>
-            </button>
+              <button
+                type="button"
+                onClick={() => onMarkRead?.(item)}
+                className="block w-full px-3 py-3 text-left"
+              >
+                <p className="pr-6 text-sm font-medium text-slate-900 dark:text-slate-100">{item.message}</p>
+                <div className="mt-1 flex items-center justify-between">
+                  <span className="text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                    {item.roleTarget}
+                  </span>
+                  <span className="text-[11px] text-slate-500 dark:text-slate-400">{formatWhen(item.createdAt)}</span>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={(e) => {
+                  console.log('[Dropdown] Remove clicked for:', item._id)
+                  e.stopPropagation()
+                  onRemove?.(item)
+                }}
+                className="absolute right-2 top-2 z-10 flex h-6 w-6 items-center justify-center rounded-lg text-slate-400 opacity-0 transition-all hover:bg-slate-200 hover:text-slate-600 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+                title="Remove notification"
+              >
+                <span className="text-lg leading-none">×</span>
+              </button>
+            </div>
           ))
         )}
       </div>

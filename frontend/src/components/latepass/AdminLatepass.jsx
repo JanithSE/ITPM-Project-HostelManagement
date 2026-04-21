@@ -24,23 +24,6 @@ function arrivingLabel(row) {
   return row.arrivingTime || row.returnTime || '—'
 }
 
-function hasTestLikeKeyword(v) {
-  return /(^|\b)(test|dummy|sample|invalid)(\b|$)/i.test(String(v ?? ''))
-}
-
-function canAdminDeleteLatepass(row) {
-  const st = String(row?.status || '').toLowerCase()
-  if (st === 'rejected') return true
-  if (!Array.isArray(row?.students) || row.students.length === 0) return true
-  if (!row?.date || !row?.arrivingTime || !row?.reason || !row?.guardianContactNo) return true
-  if (hasTestLikeKeyword(row.reason)) return true
-  return (row.students || []).some((s) =>
-    !s?.studentName || !s?.studentId || !s?.roomNo ||
-    hasTestLikeKeyword(s.studentName) ||
-    hasTestLikeKeyword(s.studentId) ||
-    hasTestLikeKeyword(s.roomNo),
-  )
-}
 
 function formatDateShort(d) {
   if (!d) return '—'
@@ -193,14 +176,21 @@ export default function AdminLatepass() {
   const [error, setError] = useState('')
   const [updatingId, setUpdatingId] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [filterDate, setFilterDate] = useState('')
 
   const [editingId, setEditingId] = useState(null)
   const [editDraft, setEditDraft] = useState({ status: 'pending', remarks: '' })
   const [editSaving, setEditSaving] = useState(false)
 
   const filteredList = useMemo(
-    () => list.filter((row) => latepassRowMatchesQuery(row, searchQuery)),
-    [list, searchQuery],
+    () =>
+      list.filter((row) => {
+        const matchesQuery = latepassRowMatchesQuery(row, searchQuery)
+        if (!filterDate) return matchesQuery
+        const rowYmd = row.date ? new Date(row.date).toISOString().split('T')[0] : ''
+        return matchesQuery && rowYmd === filterDate
+      }),
+    [list, searchQuery, filterDate],
   )
 
   const load = useCallback(async () => {
@@ -294,6 +284,25 @@ export default function AdminLatepass() {
               className="min-w-0 flex-1 rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm placeholder:text-slate-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 sm:min-w-[16rem]"
               autoComplete="off"
             />
+            <div className="relative">
+              <input
+                type="date"
+                value={filterDate}
+                onChange={(e) => setFilterDate(e.target.value)}
+                className="w-full rounded-full border border-slate-300 bg-white px-4 py-2.5 text-sm text-slate-900 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 sm:w-[10rem]"
+                title="Filter by arrival date"
+              />
+              {filterDate && (
+                <button
+                  type="button"
+                  onClick={() => setFilterDate('')}
+                  className="absolute right-8 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  title="Clear date filter"
+                >
+                  ✕
+                </button>
+              )}
+            </div>
             <button
               type="button"
               onClick={() => downloadLatepassPdfReport(filteredList)}
@@ -376,7 +385,6 @@ export default function AdminLatepass() {
               </thead>
               <tbody>
                 {filteredList.map((row) => {
-                  const allowDelete = canAdminDeleteLatepass(row)
                   const href = row.documentFile || ''
                   const students = row.students?.length ? row.students : []
                   return (
@@ -430,9 +438,8 @@ export default function AdminLatepass() {
                           <button
                             type="button"
                             onClick={() => deleteLatepass(row._id)}
-                            disabled={updatingId === row._id || !allowDelete}
-                            title={!allowDelete ? 'Delete allowed only for rejected or invalid/test records' : 'Delete request'}
-                            className="flex-1 rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                            disabled={updatingId === row._id}
+                            className="flex-1 rounded-full border border-rose-300 bg-white px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-50 dark:border-rose-900/50 dark:bg-slate-900 dark:text-rose-400 dark:hover:bg-rose-950/30"
                           >
                             Delete
                           </button>

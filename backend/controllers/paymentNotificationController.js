@@ -58,3 +58,23 @@ export async function markAllPaymentNotificationsAsRead(req, res) {
     return res.status(500).json({ error: err.message || 'Failed to mark all notifications as read' })
   }
 }
+
+export async function deletePaymentNotification(req, res) {
+  try {
+    console.log('[Backend] Deleting notification:', req.params.id, 'for user:', req.user._id)
+    const filter = buildViewerFilter(req.user)
+    if (!filter) return res.status(403).json({ error: 'Forbidden' })
+
+    const notification = await PaymentNotification.findOneAndDelete({
+      ...filter,
+      _id: req.params.id,
+    })
+
+    if (!notification) return res.status(404).json({ error: 'Notification not found' })
+
+    const unreadCount = await getUnreadCount(filter)
+    return res.json({ ok: true, unreadCount })
+  } catch (err) {
+    return res.status(500).json({ error: err.message || 'Failed to delete notification' })
+  }
+}

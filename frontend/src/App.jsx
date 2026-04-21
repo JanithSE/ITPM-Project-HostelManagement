@@ -42,12 +42,12 @@ import Booking from './components/bookings/Booking'
 import StudentBooking from './components/bookings/StudentBooking'
 
 import AdminRooms from './components/rooms/AdminRooms'
-import ThemeToggle from './shared/components/ThemeToggle'
+import ConditionalThemeToggle from './shared/components/ConditionalThemeToggle'
 
 export default function App() {
   return (
     <>
-      <ThemeToggle className="fixed right-4 top-4 z-[70]" />
+      <ConditionalThemeToggle />
 
       <Routes>
         {/* Public */}

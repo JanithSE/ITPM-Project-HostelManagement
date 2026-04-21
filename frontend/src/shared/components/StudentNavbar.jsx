@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import LatePassNotificationBell from '../../components/latepass/LatePassNotificationBell'
 import PaymentNotificationBell from '../../components/payments/PaymentNotificationBell'
+import ThemeToggle from './ThemeToggle'
 
 export default function StudentNavbar() {
   const navigate = useNavigate()
@@ -47,10 +48,11 @@ export default function StudentNavbar() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <PaymentNotificationBell />
             <LatePassNotificationBell />
-            <button type="button" onClick={handleLogout} className="btn-secondary-outline !px-4 !py-2 !text-xs">
+            <ThemeToggle />
+            <button type="button" onClick={handleLogout} className="btn-secondary-outline !px-4 !py-2 !text-xs shrink-0">
               Log Out
             </button>
           </div>

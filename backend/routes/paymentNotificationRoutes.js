@@ -3,6 +3,7 @@ import {
   getMyPaymentNotifications,
   markPaymentNotificationAsRead,
   markAllPaymentNotificationsAsRead,
+  deletePaymentNotification,
 } from '../controllers/paymentNotificationController.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
 
@@ -14,5 +15,6 @@ router.use(requireRole('student', 'admin', 'warden'))
 router.get('/my', getMyPaymentNotifications)
 router.put('/read-all', markAllPaymentNotificationsAsRead)
 router.put('/:id/read', markPaymentNotificationAsRead)
+router.delete('/:id', deletePaymentNotification)
 
 export default router
