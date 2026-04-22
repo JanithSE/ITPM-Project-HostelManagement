@@ -22,6 +22,8 @@ const inventoryItemSchema = new mongoose.Schema(
       enum: INVENTORY_CONDITIONS,
       default: 'good',
     },
+    /** Low-stock threshold for alerting and restock UI badges. */
+    reorderLevel: { type: Number, default: 15, min: 0 },
     /** Units issued to each student when a booking is confirmed (0 = not auto-issued). */
     issuePerBooking: { type: Number, default: 0, min: 0 },
   },
