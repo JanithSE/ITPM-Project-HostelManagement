@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "../../shared/api/client";
-import { getWardenTheme, pillBaseStatic, sanitizeDashboardSearchInput } from "../dashboard/wardenDashboardPrimitives";
+import { useWardenTheme, pillBaseStatic, sanitizeDashboardSearchInput } from "../dashboard/wardenDashboardPrimitives";
 
 function firstNonEmpty(...vals) {
   for (const v of vals) {
@@ -27,7 +27,7 @@ function formatStay(from, to) {
  * Confirmed bookings for the warden’s assigned hostel, merged with user + booking snapshot fields.
  */
 export default function WardenStudents() {
-  const { T, s } = getWardenTheme();
+  const { T, s } = useWardenTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [rows, setRows] = useState([]);
@@ -180,7 +180,17 @@ export default function WardenStudents() {
   };
 
   return (
-    <div style={{ ...s.card, padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div
+      style={{
+        ...s.card,
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        border: "1px solid rgba(99, 102, 241, 0.28)",
+        boxShadow: "0 8px 32px rgba(0,0,0,0.32), 0 0 0 1px rgba(99, 102, 241, 0.12) inset, 0 0 40px -8px rgba(99, 102, 241, 0.18)",
+      }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <div style={{ fontWeight: 800, fontSize: "17px", color: T.textPrimary }}>Students</div>

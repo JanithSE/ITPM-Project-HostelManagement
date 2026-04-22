@@ -8,11 +8,11 @@ const HOSTEL_LOCATION = 'Green View Hostel'
 
 /** Exactly one record per category (quantities = previous seed totals combined). */
 const DEFAULT_ITEMS = [
-  { name: 'Beds — single & bunk', quantity: 60, location: HOSTEL_LOCATION, category: 'Beds' },
-  { name: 'Tables — study & dining', quantity: 40, location: HOSTEL_LOCATION, category: 'Tables' },
-  { name: 'Chairs — plastic & office', quantity: 88, location: HOSTEL_LOCATION, category: 'Chairs' },
-  { name: 'Cupboards — wooden & lockers', quantity: 40, location: HOSTEL_LOCATION, category: 'Cupboards' },
-  { name: 'Fans — ceiling & pedestal', quantity: 52, location: HOSTEL_LOCATION, category: 'Fans' },
+  { name: 'Beds — single & bunk', quantity: 60, location: HOSTEL_LOCATION, category: 'Beds', reorderLevel: 15 },
+  { name: 'Tables — study & dining', quantity: 40, location: HOSTEL_LOCATION, category: 'Tables', reorderLevel: 12 },
+  { name: 'Chairs — plastic & office', quantity: 88, location: HOSTEL_LOCATION, category: 'Chairs', reorderLevel: 20 },
+  { name: 'Cupboards — wooden & lockers', quantity: 40, location: HOSTEL_LOCATION, category: 'Cupboards', reorderLevel: 10 },
+  { name: 'Fans — ceiling & pedestal', quantity: 52, location: HOSTEL_LOCATION, category: 'Fans', reorderLevel: 12 },
 ]
 
 const CATEGORY_BY_LOWER = Object.fromEntries(DEFAULT_ITEMS.map((r) => [r.category.toLowerCase(), r.category]))
@@ -38,6 +38,7 @@ async function mergeDuplicateCategories() {
         quantity: qty,
         category: canonicalCategory,
         location: keep.location || HOSTEL_LOCATION,
+        reorderLevel: Number.isFinite(Number(keep.reorderLevel)) ? Math.max(0, Number(keep.reorderLevel)) : 15,
       },
     })
     const removeIds = docs.slice(1).map((d) => d._id)
@@ -63,7 +64,7 @@ async function main() {
     })
     if (existing) {
       await InventoryItem.findByIdAndUpdate(existing._id, {
-        $set: { name: row.name, quantity: row.quantity, location: row.location, category: row.category },
+        $set: { name: row.name, quantity: row.quantity, location: row.location, category: row.category, reorderLevel: row.reorderLevel },
       })
       updated += 1
       continue

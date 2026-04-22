@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { apiFetch } from "../../shared/api/client";
-import { getWardenTheme, pillBaseStatic, sanitizeDashboardSearchInput } from "../dashboard/wardenDashboardPrimitives";
+import { useWardenTheme, pillBaseStatic, sanitizeDashboardSearchInput } from "../dashboard/wardenDashboardPrimitives";
 
 function formatDt(v) {
   if (v == null) return "—";
@@ -20,7 +20,7 @@ function formatDateOnly(v) {
  * Issued inventory log: when issued, room/bed, what was issued, expected return from booking stay end.
  */
 export default function WardenIssuedItems() {
-  const { T, s } = getWardenTheme();
+  const { T, s } = useWardenTheme();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [records, setRecords] = useState([]);
@@ -77,21 +77,54 @@ export default function WardenIssuedItems() {
     });
   }, [records, search]);
 
+  /** Distinct from Students page: warm amber + teal (inventory / logistics) vs indigo (people). */
   const sectionTitle = {
     fontSize: "12px",
     fontWeight: 800,
-    color: "#a5b4fc",
+    color: "#fbbf24",
     letterSpacing: "0.04em",
     marginBottom: "10px",
     paddingBottom: "8px",
-    borderBottom: `1px solid ${T.divider}`,
+    borderBottom: "1px solid rgba(245, 158, 11, 0.22)",
+  };
+  const cardChrome = {
+    border: "1px solid rgba(245, 158, 11, 0.28)",
+    boxShadow: "0 8px 28px rgba(0,0,0,0.2), 0 0 0 1px rgba(245, 158, 11, 0.1) inset, 0 0 32px -10px rgba(245, 158, 11, 0.15)",
+  };
+  const hostelPill = {
+    ...pillBaseStatic,
+    background: "rgba(245, 158, 11, 0.12)",
+    border: "1px solid rgba(245, 158, 11, 0.35)",
+    color: "#fbbf24",
+    fontSize: "11px",
+    flexShrink: 0,
   };
 
   return (
-    <div style={{ ...s.card, padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
+    <div
+      style={{
+        ...s.card,
+        padding: "20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "16px",
+        ...cardChrome,
+      }}
+    >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "12px" }}>
         <div>
-          <div style={{ fontWeight: 800, fontSize: "17px", color: T.textPrimary }}>Issued inventory</div>
+          <div
+            style={{
+              fontWeight: 800,
+              fontSize: "17px",
+              color: T.textPrimary,
+              display: "inline-block",
+              paddingBottom: "6px",
+              borderBottom: "2px solid rgba(245, 158, 11, 0.55)",
+            }}
+          >
+            Issued inventory
+          </div>
           <div style={{ fontSize: "13px", color: T.textMuted, marginTop: "4px" }}>
             {loading ? "Loading…" : `${filtered.length} record${filtered.length === 1 ? "" : "s"}`}
           </div>
@@ -141,8 +174,8 @@ export default function WardenIssuedItems() {
                 style={{
                   ...s.card,
                   padding: "18px",
-                  border: `1px solid ${T.accentBorder}`,
-                  boxShadow: "0 8px 28px rgba(0,0,0,0.2)",
+                  border: "1px solid rgba(245, 158, 11, 0.22)",
+                  boxShadow: "0 8px 28px rgba(0,0,0,0.22), 0 0 24px -8px rgba(245, 158, 11, 0.12)",
                 }}
               >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "14px" }}>
@@ -150,7 +183,7 @@ export default function WardenIssuedItems() {
                     <div style={{ fontSize: "17px", fontWeight: 800, color: T.textPrimary, letterSpacing: "-0.02em" }}>{rec?.studentName || "—"}</div>
                     <div style={{ fontSize: "13px", color: T.textSecondary, marginTop: "4px" }}>{rec?.student?.email || "—"}</div>
                   </div>
-                  <span style={{ ...pillBaseStatic, background: T.accentLight, border: `1px solid ${T.accentBorder}`, color: T.accent, fontSize: "11px", flexShrink: 0 }}>
+                  <span style={hostelPill} title={String(rec?.hostel?.name || rec?.hostelName || "Hostel")}>
                     {rec?.hostel?.name || rec?.hostelName || "Hostel"}
                   </span>
                 </div>
@@ -173,13 +206,13 @@ export default function WardenIssuedItems() {
                   style={{
                     padding: "12px 14px",
                     borderRadius: "10px",
-                    background: "rgba(52,211,153,0.08)",
-                    border: "1px solid rgba(52,211,153,0.22)",
+                    background: "rgba(45, 212, 191, 0.08)",
+                    border: "1px solid rgba(45, 212, 191, 0.28)",
                     marginBottom: "14px",
                   }}
                 >
                   <div style={{ fontSize: "11px", fontWeight: 700, color: T.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "6px" }}>Expected return (booking end)</div>
-                  <div style={{ fontSize: "16px", fontWeight: 800, color: "#6ee7b7" }}>{expectedReturnLabel}</div>
+                  <div style={{ fontSize: "16px", fontWeight: 800, color: "#2dd4bf" }}>{expectedReturnLabel}</div>
                   <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "6px" }}>Stay: {stayLabel}</div>
                 </div>
 

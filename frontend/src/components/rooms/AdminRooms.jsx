@@ -25,6 +25,8 @@ export default function AdminRooms() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [blockFilter, setBlockFilter] = useState('all')
+  const [roomTypeFilter, setRoomTypeFilter] = useState('all')
+  const [acTypeFilter, setAcTypeFilter] = useState('all')
   const [modalOpen, setModalOpen] = useState(false)
   const [editingId, setEditingId] = useState('')
   const [form, setForm] = useState(EMPTY_FORM)
@@ -69,13 +71,22 @@ export default function AdminRooms() {
     return rooms.filter((r) => {
       if (statusFilter !== 'all' && String(r.status || 'available') !== statusFilter) return false
       if (blockFilter !== 'all' && String(r.block || '').toUpperCase() !== blockFilter) return false
+      if (acTypeFilter !== 'all' && String(r.acType || 'non-ac') !== acTypeFilter) return false
+      if (roomTypeFilter !== 'all') {
+        const cap = Number(r.capacity || (Array.isArray(r.beds) ? r.beds.length : 0))
+        if (roomTypeFilter === 'single' && cap !== 1) return false
+        if (roomTypeFilter === 'two' && cap !== 2) return false
+        if (roomTypeFilter === 'threePlus' && cap < 3) return false
+      }
       if (!q) return true
       const roomNo = String(r.roomNumber || '').toLowerCase()
       const hostelName = String(r.hostel?.name || hostels.find((h) => h._id === r.hostel)?.name || '').toLowerCase()
       const floor = String(r.floor ?? '')
-      return roomNo.includes(q) || hostelName.includes(q) || floor.includes(q)
+      const acLabel = String(r.acType === 'ac' ? 'ac' : 'non ac').toLowerCase()
+      const capLabel = String(r.capacity || (Array.isArray(r.beds) ? r.beds.length : '')).toLowerCase()
+      return roomNo.includes(q) || hostelName.includes(q) || floor.includes(q) || acLabel.includes(q) || capLabel.includes(q)
     })
-  }, [rooms, search, statusFilter, blockFilter, hostels])
+  }, [rooms, search, statusFilter, blockFilter, roomTypeFilter, acTypeFilter, hostels])
 
   const stats = useMemo(() => {
     const total = rooms.length
@@ -190,7 +201,7 @@ export default function AdminRooms() {
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/40 dark:bg-red-950/20"><div className="text-xs uppercase text-red-700 dark:text-red-300">Occupied</div><div className="text-2xl font-bold text-red-700 dark:text-red-300">{stats.occupied}</div></div>
       </div>
 
-      <div className="mb-4 grid gap-3 md:grid-cols-3">
+      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         <input type="search" className="auth-input" placeholder="Search room, hostel, floor..." value={search} onChange={(e) => setSearch(e.target.value)} />
         <select className="auth-input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
           <option value="all">All status</option>
@@ -203,6 +214,17 @@ export default function AdminRooms() {
           <option value="A">Block A</option>
           <option value="B">Block B</option>
           <option value="C">Block C</option>
+        </select>
+        <select className="auth-input" value={roomTypeFilter} onChange={(e) => setRoomTypeFilter(e.target.value)}>
+          <option value="all">All room types</option>
+          <option value="single">Single room</option>
+          <option value="two">2 member room</option>
+          <option value="threePlus">3+ member room</option>
+        </select>
+        <select className="auth-input" value={acTypeFilter} onChange={(e) => setAcTypeFilter(e.target.value)}>
+          <option value="all">All A/C types</option>
+          <option value="ac">A/C room</option>
+          <option value="non-ac">Non A/C room</option>
         </select>
       </div>
 

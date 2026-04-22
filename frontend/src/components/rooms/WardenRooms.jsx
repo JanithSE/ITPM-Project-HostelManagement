@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { apiFetch } from "../../shared/api/client";
 import {
-  getWardenTheme,
+  useWardenTheme,
   MiniBarChart,
   MiniPieChart,
   bedPillStyle,
@@ -11,7 +11,7 @@ import {
 
 function formatRoomTypeLabel(v) {
   if (v === "single") return "Single";
-  if (v === "double") return "Double";
+  if (v === "sharing" || v === "double") return "Sharing";
   return v ? String(v) : "—";
 }
 
@@ -22,7 +22,7 @@ function formatAcLabel(v) {
 }
 
 export default function WardenRooms() {
-  const { T, s } = getWardenTheme();
+  const { T, s } = useWardenTheme();
   const [roomsManageLoading, setRoomsManageLoading] = useState(false);
   const [roomsManageError, setRoomsManageError] = useState("");
   const [roomsManageList, setRoomsManageList] = useState([]);
@@ -35,14 +35,14 @@ export default function WardenRooms() {
 
   const [showAddRoomForm, setShowAddRoomForm] = useState(false);
   const [newRoomNumber, setNewRoomNumber] = useState("");
-  const [newRoomType, setNewRoomType] = useState("double");
+  const [newRoomType, setNewRoomType] = useState("sharing");
   const [newRoomAc, setNewRoomAc] = useState("non-ac");
   const [newRoomDetails, setNewRoomDetails] = useState("");
   const [addRoomDirty, setAddRoomDirty] = useState({ roomNumber: false, roomType: false, ac: false, details: false });
 
   const resetAddRoomForm = () => {
     setNewRoomNumber("");
-    setNewRoomType("double");
+    setNewRoomType("sharing");
     setNewRoomAc("non-ac");
     setNewRoomDetails("");
     setAddRoomDirty({ roomNumber: false, roomType: false, ac: false, details: false });
@@ -72,7 +72,8 @@ export default function WardenRooms() {
         const merged = (Array.isArray(roomDocs) ? roomDocs : []).map((rd) => {
           const roomNumber = String(rd?.roomNumber || "");
           const d = detailsByRoomNumber.get(roomNumber);
-          const roomType = String(rd?.roomType || "double").toLowerCase();
+          const raw = String(rd?.roomType || "sharing").toLowerCase();
+          const roomType = raw === "double" ? "sharing" : raw;
           const bedCount = roomType === "single" ? 1 : 2;
           const fallbackBeds =
             bedCount === 1
@@ -87,7 +88,7 @@ export default function WardenRooms() {
               : Array.isArray(rd?.beds) && rd.beds.length
                 ? rd.beds
                 : fallbackBeds;
-          return { ...rd, roomNumber, studentName: d?.studentName ?? null, beds };
+          return { ...rd, roomNumber, roomType, studentName: d?.studentName ?? null, beds };
         });
         merged.sort((a, b) => {
           const ak = String(a?.roomNumber || "").match(/(\d+)/)?.[1] ? Number(String(a.roomNumber).match(/(\d+)/)[1]) : a.roomNumber;
@@ -115,7 +116,7 @@ export default function WardenRooms() {
   const addRoomErrors = (() => {
     const err = {};
     if (!roomNoDigits) err.roomNumber = "Room number is required (digits only).";
-    if (!newRoomType) err.roomType = "Select single or double.";
+    if (!newRoomType) err.roomType = "Select single or sharing.";
     if (!newRoomAc) err.ac = "Select AC or Non-AC.";
     if (!String(newRoomDetails).trim()) err.details = "Other details are required.";
     return err;
@@ -213,12 +214,26 @@ export default function WardenRooms() {
     (acc, r) => {
       const t = String(r?.roomType || "").toLowerCase();
       if (t === "single") acc.single += 1;
-      else if (t === "double") acc.double += 1;
+      else if (t === "sharing" || t === "double") acc.sharing += 1;
       return acc;
     },
-    { single: 0, double: 0 },
+    { single: 0, sharing: 0 },
+  );
+  const acTypeCounts = (Array.isArray(filteredRoomsManage) ? filteredRoomsManage : []).reduce(
+    (acc, r) => {
+      const t = String(r?.acType || "").toLowerCase();
+      if (t === "ac") acc.ac += 1;
+      else acc.nonAc += 1;
+      return acc;
+    },
+    { ac: 0, nonAc: 0 },
   );
   const occupiedRoomsCount = (Array.isArray(filteredRoomsManage) ? filteredRoomsManage : []).filter((r) => (r?.beds || []).some((b) => b?.status === "Occupied")).length;
+  const bookedRoomsCount = (Array.isArray(filteredRoomsManage) ? filteredRoomsManage : []).filter((r) => {
+    const status = String(r?.status || "").toLowerCase();
+    if (status === "reserved" || status === "occupied") return true;
+    return (r?.beds || []).some((b) => String(b?.status || "").toLowerCase() === "occupied");
+  }).length;
   const totalRoomsCount = (Array.isArray(filteredRoomsManage) ? filteredRoomsManage : []).length;
   const availableRoomsCount = Math.max(0, totalRoomsCount - occupiedRoomsCount);
 
@@ -269,12 +284,150 @@ export default function WardenRooms() {
           </div>
         </div>
 
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
+            gap: "10px",
+            marginBottom: "12px",
+          }}
+        >
+          {[
+            {
+              label: "Single rooms",
+              sub: "1 bed per room",
+              n: roomTypeCounts.single,
+              top: "linear-gradient(90deg, #38bdf8, #6366f1)",
+              glow: "rgba(56, 189, 248, 0.2)",
+              topicStyle: {
+                display: "inline-block",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                padding: "5px 11px",
+                borderRadius: "8px",
+                color: "#e0f2fe",
+                background: "linear-gradient(135deg, rgba(56, 189, 248, 0.28), rgba(99, 102, 241, 0.2))",
+                border: "1px solid rgba(56, 189, 248, 0.55)",
+                boxShadow: "0 0 20px rgba(56, 189, 248, 0.18), inset 0 1px 0 rgba(255,255,255,0.12)",
+              },
+            },
+            {
+              label: "Sharing rooms",
+              sub: "2 beds per room",
+              n: roomTypeCounts.sharing,
+              top: "linear-gradient(90deg, #a78bfa, #c084fc)",
+              glow: "rgba(167, 139, 250, 0.2)",
+              topicStyle: {
+                display: "inline-block",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                padding: "5px 11px",
+                borderRadius: "8px",
+                color: "#f3e8ff",
+                background: "linear-gradient(135deg, rgba(167, 139, 250, 0.32), rgba(192, 132, 252, 0.22))",
+                border: "1px solid rgba(192, 132, 252, 0.55)",
+                boxShadow: "0 0 20px rgba(167, 139, 250, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+              },
+            },
+            {
+              label: "AC rooms",
+              sub: "air-conditioned",
+              n: acTypeCounts.ac,
+              top: "linear-gradient(90deg, #22d3ee, #0ea5e9)",
+              glow: "rgba(34, 211, 238, 0.2)",
+              topicStyle: {
+                display: "inline-block",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                padding: "5px 11px",
+                borderRadius: "8px",
+                color: "#cffafe",
+                background: "linear-gradient(135deg, rgba(34, 211, 238, 0.3), rgba(14, 165, 233, 0.2))",
+                border: "1px solid rgba(34, 211, 238, 0.55)",
+                boxShadow: "0 0 20px rgba(34, 211, 238, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+              },
+            },
+            {
+              label: "Non-AC rooms",
+              sub: "without A/C",
+              n: acTypeCounts.nonAc,
+              top: "linear-gradient(90deg, #94a3b8, #64748b)",
+              glow: "rgba(148, 163, 184, 0.18)",
+              topicStyle: {
+                display: "inline-block",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                padding: "5px 11px",
+                borderRadius: "8px",
+                color: "#e2e8f0",
+                background: "linear-gradient(135deg, rgba(148, 163, 184, 0.28), rgba(100, 116, 139, 0.2))",
+                border: "1px solid rgba(148, 163, 184, 0.55)",
+                boxShadow: "0 0 20px rgba(148, 163, 184, 0.18), inset 0 1px 0 rgba(255,255,255,0.1)",
+              },
+            },
+            {
+              label: "Booked rooms",
+              sub: "reserved + occupied",
+              n: bookedRoomsCount,
+              top: "linear-gradient(90deg, #f59e0b, #f97316)",
+              glow: "rgba(245, 158, 11, 0.2)",
+              topicStyle: {
+                display: "inline-block",
+                fontSize: "11px",
+                fontWeight: 800,
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                padding: "5px 11px",
+                borderRadius: "8px",
+                color: "#ffedd5",
+                background: "linear-gradient(135deg, rgba(245, 158, 11, 0.3), rgba(249, 115, 22, 0.22))",
+                border: "1px solid rgba(245, 158, 11, 0.55)",
+                boxShadow: "0 0 20px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255,255,255,0.1)",
+              },
+            },
+          ].map((c) => (
+            <div
+              key={c.label}
+              style={{
+                ...s.card,
+                padding: "14px 16px",
+                position: "relative",
+                overflow: "hidden",
+                border: "1px solid rgba(255,255,255,0.08)",
+                boxShadow: `0 8px 24px ${c.glow}, 0 0 0 1px rgba(255,255,255,0.04) inset`,
+              }}
+            >
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  height: "3px",
+                  background: c.top,
+                }}
+              />
+              <div style={c.topicStyle}>{c.label}</div>
+              <div style={{ fontSize: "28px", fontWeight: 900, color: T.textPrimary, marginTop: "10px", letterSpacing: "-0.03em" }}>{c.n}</div>
+              <div style={{ fontSize: "12px", color: T.textSecondary, marginTop: "2px" }}>{c.sub}</div>
+            </div>
+          ))}
+        </div>
+
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginBottom: "14px" }}>
           <MiniBarChart
             title="Room Types"
             data={[
               { label: "Single", value: roomTypeCounts.single },
-              { label: "Double", value: roomTypeCounts.double },
+              { label: "Sharing", value: roomTypeCounts.sharing },
             ]}
             color="#60a5fa"
             bg="rgba(96,165,250,0.16)"
@@ -334,7 +487,7 @@ export default function WardenRooms() {
                 <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                   {[
                     { v: "single", label: "Single" },
-                    { v: "double", label: "Double" },
+                    { v: "sharing", label: "Sharing" },
                   ].map(({ v, label }) => (
                     <label key={v} style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "14px", color: T.textSecondary, cursor: "pointer" }}>
                       <input
