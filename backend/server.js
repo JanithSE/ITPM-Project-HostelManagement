@@ -9,8 +9,10 @@ import usersRoutes from './routes/users.js'
 import hostelsRoutes from './routes/hostels.js'
 import bookingsRoutes from './routes/bookings.js'
 import paymentsRoutes from './routes/payments.js'
+import paymentNotificationRoutes from './routes/paymentNotificationRoutes.js'
 import inquiryRoutes from './routes/inquiry.js'
 import latepassRoutes from './routes/latepass.js'
+import latePassNotificationRoutes from './routes/latePassNotificationRoutes.js'
 import complainsRoutes from './routes/complains.js'
 import inventoryRoutes from './routes/inventory.js'
 import issuedItemsRoutes from './routes/issuedItems.js'
@@ -37,8 +39,10 @@ app.use('/api/users', usersRoutes)
 app.use('/api/hostels', hostelsRoutes)
 app.use('/api/bookings', bookingsRoutes)
 app.use('/api/payments', paymentsRoutes)
+app.use('/api/payment-notifications', paymentNotificationRoutes)
 app.use('/api/inquiry', inquiryRoutes)
 app.use('/api/latepass', latepassRoutes)
+app.use('/api/latepass-notifications', latePassNotificationRoutes)
 app.use('/api/complains', complainsRoutes)
 app.use('/api/inventory', inventoryRoutes)
 app.use('/api/issued-items', issuedItemsRoutes)
@@ -70,8 +74,8 @@ server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(
       `\nPort ${PORT} is already in use.\n` +
-        `Another backend is probably still running (e.g. another terminal or root "npm run dev").\n` +
-        `Fix: stop that process, or run: netstat -ano | findstr ":${PORT}" then taskkill /PID <pid> /F\n`
+      `Another backend is probably still running (e.g. another terminal or root "npm run dev").\n` +
+      `Fix: stop that process, or run: netstat -ano | findstr ":${PORT}" then taskkill /PID <pid> /F\n`
     )
     process.exit(1)
   }

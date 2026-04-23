@@ -65,10 +65,10 @@ export default function ResetPassword() {
                 disabled={Boolean(resetToken)}
                 title={resetToken ? 'Must match the email you verified' : ''}
               />
-              {resetToken ? (
-                <p className="auth-pro-subheading !mt-0">OTP verified. You can set a new password now.</p>
-              ) : null}
             </div>
+            {resetToken && (
+              <p className="auth-pro-subheading !mt-0">OTP verified. You can set a new password now.</p>
+            )}
             <div>
               <label htmlFor="reset-password" className="auth-pro-label">New Password</label>
               <input

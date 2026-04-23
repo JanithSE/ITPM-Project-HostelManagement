@@ -1,4 +1,7 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom'
+import LatePassNotificationBell from '../../components/latepass/LatePassNotificationBell'
+import PaymentNotificationBell from '../../components/payments/PaymentNotificationBell'
+import ThemeToggle from './ThemeToggle'
 
 export default function StudentNavbar() {
   const navigate = useNavigate()
@@ -28,7 +31,7 @@ export default function StudentNavbar() {
             <span className="site-logo-mark">UH</span>
             UniHostel
           </Link>
-          
+
           <div className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-2xl dark:bg-slate-900/50">
             {navLinks.map(({ to, label }) => (
               <NavLink
@@ -36,8 +39,7 @@ export default function StudentNavbar() {
                 to={to}
                 end={to === '/student'}
                 className={({ isActive }) =>
-                  `px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-                    isActive ? 'nav-item-active' : 'nav-item-inactive'
+                  `px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${isActive ? 'nav-item-active' : 'nav-item-inactive'
                   }`
                 }
               >
@@ -46,10 +48,13 @@ export default function StudentNavbar() {
             ))}
           </div>
 
-          <div className="flex items-center gap-3">
-             <button type="button" onClick={handleLogout} className="btn-secondary-outline !px-4 !py-2 !text-xs">
-                Log Out
-             </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <PaymentNotificationBell />
+            <LatePassNotificationBell />
+            <ThemeToggle />
+            <button type="button" onClick={handleLogout} className="btn-secondary-outline !px-4 !py-2 !text-xs shrink-0">
+              Log Out
+            </button>
           </div>
         </div>
       </nav>

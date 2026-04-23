@@ -26,6 +26,14 @@ function parseIssuePerBooking(raw) {
   return n
 }
 
+/** Int 0–100000; invalid or out of range → null */
+function parseReorderLevel(raw) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return undefined
+  const n = typeof raw === 'number' ? raw : Number(raw)
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n < 0 || n > 100000) return null
+  return n
+}
+
 export const listInventory = async (req, res) => {
   try {
     const items = await InventoryItem.find().sort({ name: 1 }).lean()
@@ -81,7 +89,11 @@ export const createInventoryItem = async (req, res) => {
     if (issuePerBooking === null) {
       return res.status(400).json({ error: 'issuePerBooking must be an integer from 0 to 500' })
     }
-    const payload = { ...req.body, quantity: qty, issuePerBooking: issuePerBooking ?? 0 }
+    const reorderLevel = parseReorderLevel(req.body?.reorderLevel)
+    if (reorderLevel === null) {
+      return res.status(400).json({ error: 'reorderLevel must be an integer from 0 to 100000' })
+    }
+    const payload = { ...req.body, quantity: qty, issuePerBooking: issuePerBooking ?? 0, reorderLevel: reorderLevel ?? 15 }
     if (condition !== undefined) payload.condition = condition
     const item = await InventoryItem.create(payload)
     res.status(201).json(item)
@@ -118,6 +130,13 @@ export const updateInventoryItem = async (req, res) => {
         return res.status(400).json({ error: 'issuePerBooking must be an integer from 0 to 500' })
       }
       req.body.issuePerBooking = issuePerBooking
+    }
+    if (req.body?.reorderLevel !== undefined) {
+      const reorderLevel = parseReorderLevel(req.body.reorderLevel)
+      if (reorderLevel === null) {
+        return res.status(400).json({ error: 'reorderLevel must be an integer from 0 to 100000' })
+      }
+      req.body.reorderLevel = reorderLevel
     }
     const item = await InventoryItem.findByIdAndUpdate(req.params.id, req.body, { new: true })
     if (!item) return res.status(404).json({ error: 'Item not found' })

@@ -24,6 +24,6 @@ router.post('/', requireRole('student'), latepassDocumentUploadMiddleware, creat
 router.put('/:id/edit-by-student', requireRole('student'), latepassDocumentUploadOptionalMiddleware, editLatepassByStudent)
 router.delete('/:id/delete-by-student', requireRole('student'), deleteLatepassByStudent)
 router.delete('/:id/delete-by-admin', requireRole('admin', 'warden'), deleteLatepassByAdmin)
-router.patch('/:id/status', requireRole('admin', 'warden'), patchLatepassStatus)
+router.patch('/:id/status', requireRole('admin'), patchLatepassStatus)
 
 export default router

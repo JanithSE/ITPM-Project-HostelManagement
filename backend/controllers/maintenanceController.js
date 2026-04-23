@@ -33,11 +33,7 @@ export const listMyMaintenance = async (req, res) => {
 
 export const createMaintenance = async (req, res) => {
   try {
-    const { studentId, title, description, location, priority } = req.body
-    const studentIdTrim = String(studentId || '').trim().toUpperCase()
-    if (!/^[A-Z]{2}\d{8}$/.test(studentIdTrim)) {
-      return res.status(400).json({ error: 'Student ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
-    }
+    const { title, description, location, priority } = req.body
 
     if (!title || !String(title).trim()) {
       return res.status(400).json({ error: 'Title is required' })
@@ -50,7 +46,6 @@ export const createMaintenance = async (req, res) => {
     }
 
     const item = await MaintenanceRequest.create({
-      studentId: studentIdTrim,
       title: String(title).trim(),
       description: String(description).trim(),
       location: location != null ? String(location).trim() : '',
@@ -92,8 +87,7 @@ export const updateMaintenanceStatus = async (req, res) => {
 
 export const updateMyMaintenance = async (req, res) => {
   try {
-    const { studentId, title, description, location, priority } = req.body || {}
-    const studentIdTrim = String(studentId || '').trim().toUpperCase()
+    const { title, description, location, priority } = req.body || {}
 
     const item = await MaintenanceRequest.findById(req.params.id)
     if (!item) return res.status(404).json({ error: 'Request not found' })
@@ -107,9 +101,6 @@ export const updateMyMaintenance = async (req, res) => {
     if (!title || !String(title).trim()) {
       return res.status(400).json({ error: 'Title is required' })
     }
-    if (!/^[A-Z]{2}\d{8}$/.test(studentIdTrim)) {
-      return res.status(400).json({ error: 'Student ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
-    }
     if (!description || !String(description).trim()) {
       return res.status(400).json({ error: 'Description is required' })
     }
@@ -117,7 +108,6 @@ export const updateMyMaintenance = async (req, res) => {
       return res.status(400).json({ error: 'Priority is required (low, medium, or high)' })
     }
 
-    item.studentId = studentIdTrim
     item.title = String(title).trim()
     item.description = String(description).trim()
     item.location = location != null ? String(location).trim() : ''

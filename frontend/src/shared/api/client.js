@@ -5,14 +5,46 @@ function getToken() {
   return localStorage.getItem('token')
 }
 
+const BACKEND_HINT =
+  'Start the API in another terminal: cd backend && npm run dev (must listen on port 5001). Keep this frontend terminal running.'
+
 function mapNetworkError(err) {
   const msg = err?.message || ''
   if (msg === 'Failed to fetch' || msg.includes('NetworkError') || err?.name === 'TypeError') {
-    return new Error(
-      'Cannot reach the server. Start the backend on port 5001 while the Vite app is running.'
-    )
+    return new Error(`Cannot reach the server. ${BACKEND_HINT}`)
   }
   return err
+}
+
+/** Vite proxy returns 500/502 when backend is down; body is often not JSON — avoid misleading "Internal Server Error". */
+function errorFromResponse(res, text, data) {
+  const apiMsg = typeof data?.error === 'string' && data.error.trim() ? data.error.trim() : ''
+  const apiMsg2 = typeof data?.message === 'string' && data.message.trim() ? data.message.trim() : ''
+  if (apiMsg) return apiMsg
+  if (apiMsg2) return apiMsg2
+
+  const raw = String(text || '')
+  const lower = raw.toLowerCase()
+  if (
+    res.status === 502 ||
+    res.status === 503 ||
+    res.status === 504 ||
+    (lower.includes('econnrefused') || lower.includes('aggregateerror')) ||
+    (res.status === 500 && (!raw.trim() || lower.includes('proxy error') || lower.includes('vite')))
+  ) {
+    return `Backend not running or not reachable on port 5001. ${BACKEND_HINT}`
+  }
+
+  if (res.status === 500 && !apiMsg && !apiMsg2) {
+    return `Server error. If the login just failed, ${BACKEND_HINT}`
+  }
+
+  const trimmed = raw.trim()
+  if (trimmed && trimmed.length < 1000 && !trimmed.startsWith('<') && !trimmed.startsWith('{') && !trimmed.startsWith('[')) {
+    return trimmed
+  }
+
+  return res.statusText || `Request failed (${res.status})`
 }
 
 export async function apiFetch(path, options = {}) {
@@ -36,17 +68,11 @@ export async function apiFetch(path, options = {}) {
   if (text) {
     try {
       data = JSON.parse(text)
-    } catch {}
+    } catch { }
   }
 
   if (!res.ok) {
-    const fromJson = data?.error || data?.message
-    if (fromJson) throw new Error(fromJson)
-    const trimmed = (text || '').trim()
-    if (trimmed && trimmed.length < 1000 && !trimmed.startsWith('<')) {
-      throw new Error(trimmed)
-    }
-    throw new Error(res.statusText || `Request failed (${res.status})`)
+    throw new Error(errorFromResponse(res, text, data))
   }
 
   return data
@@ -56,10 +82,10 @@ function parseFormResponse(res, text) {
   let data = {}
   try {
     data = text ? JSON.parse(text) : {}
-  } catch {}
+  } catch { }
 
   if (!res.ok) {
-    throw new Error(data?.error || res.statusText)
+    throw new Error(errorFromResponse(res, text, data))
   }
 
   return data
@@ -131,6 +157,10 @@ export const maintenanceApi = {
   create: (payload) =>
     apiFetch('/maintenance', { method: 'POST', body: JSON.stringify(payload) }),
   myList: () => apiFetch('/maintenance/my'),
+  updateMine: (id, payload) =>
+    apiFetch(`/maintenance/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeMine: (id) =>
+    apiFetch(`/maintenance/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/maintenance'),
   updateStatus: (id, status) =>
     apiFetch(`/maintenance/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
@@ -140,9 +170,15 @@ export const inquiryApi = {
   create: (payload) =>
     apiFetch('/inquiry', { method: 'POST', body: JSON.stringify(payload) }),
   myList: () => apiFetch('/inquiry/my'),
+  updateMine: (id, payload) =>
+    apiFetch(`/inquiry/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+  removeMine: (id) =>
+    apiFetch(`/inquiry/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/inquiry'),
   reply: (id, reply) =>
     apiFetch(`/inquiry/${id}/reply`, { method: 'PUT', body: JSON.stringify({ reply }) }),
+  comment: (id, text) =>
+    apiFetch(`/inquiry/${id}/comments`, { method: 'POST', body: JSON.stringify({ text }) }),
 }
 
 export const roomApi = {
@@ -197,15 +233,23 @@ export const paymentApi = {
   create: (formData) => apiPostForm('/payments', formData),
 }
 
+export const paymentNotificationApi = {
+  listMine: () => apiFetch('/payment-notifications/my'),
+  markRead: (id) => apiFetch(`/payment-notifications/${id}/read`, { method: 'PUT' }),
+  markAllRead: () => apiFetch('/payment-notifications/read-all', { method: 'PUT' }),
+  remove: (id) => apiFetch(`/payment-notifications/${id}`, { method: 'DELETE' }),
+}
+
 export const latepassApi = {
   listMine: () => apiFetch('/latepass/my'),
   listAdmin: () => apiFetch('/latepass/admin'),
   create: (formData) => apiPostForm('/latepass', formData),
 }
 
-export const notificationApi = {
-  listMine: () => apiFetch('/notifications/my'),
-  markRead: (id) => apiFetch(`/notifications/${id}/read`, { method: 'PATCH' }),
+export const latePassNotificationApi = {
+  listMine: () => apiFetch('/latepass-notifications/my'),
+  markRead: (id) => apiFetch(`/latepass-notifications/${id}/read`, { method: 'PUT' }),
+  markAllRead: () => apiFetch('/latepass-notifications/read-all', { method: 'PUT' }),
 }
 
 export const userApi = {
