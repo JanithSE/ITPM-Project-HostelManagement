@@ -17,6 +17,7 @@ import issuedItemsRoutes from './routes/issuedItems.js'
 import maintenanceRoutes from './routes/maintenance.js'
 import roomsRoutes from './routes/rooms.js'
 import notificationsRoutes from './routes/notifications.js'
+import chatRoutes from './routes/chat.js'
 
 await connectDB()
 
@@ -44,6 +45,7 @@ app.use('/api/issued-items', issuedItemsRoutes)
 app.use('/api/maintenance', maintenanceRoutes)
 app.use('/api/rooms', roomsRoutes)
 app.use('/api/notifications', notificationsRoutes)
+app.use('/api/chat', chatRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true })

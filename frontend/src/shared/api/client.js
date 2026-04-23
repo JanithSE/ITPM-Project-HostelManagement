@@ -105,9 +105,6 @@ export const authApi = {
   forgotPassword: (email) =>
     apiFetch('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (email, resetToken, password) =>
-<<<<<<< HEAD
-    apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ email, resetToken, password }) }),
-=======
     apiFetch('/auth/reset-password', {
       method: 'POST',
       body: JSON.stringify({ email, resetToken, password }),
@@ -115,7 +112,6 @@ export const authApi = {
   me: () => apiFetch('/auth/me'),
   patchMe: (payload) =>
     apiFetch('/auth/me', { method: 'PATCH', body: JSON.stringify(payload) }),
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
 
   // Backward-compatible aliases used by some auth screens.
   login: (email, password) =>
@@ -184,6 +180,15 @@ export const bookingApi = {
     }),
   delete: (id) =>
     apiFetch(`/bookings/${id}`, { method: 'DELETE' }),
+}
+
+export const bookingChatApi = {
+  sendMessage: ({ message, conversationId }) =>
+    apiFetch('/chat/booking/message', {
+      method: 'POST',
+      body: JSON.stringify({ message, conversationId }),
+    }),
+  getHistory: (conversationId) => apiFetch(`/chat/booking/history/${conversationId}`),
 }
 
 export const paymentApi = {

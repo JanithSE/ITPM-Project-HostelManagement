@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { bookingApi, roomApi } from '../../shared/api/client'
+import BookingChatWidget from './BookingChatWidget'
 
 function formatRoomLabel(room) {
   const rn = String(room.roomNumber || '').trim()
@@ -694,6 +695,8 @@ export default function StudentBooking() {
       </section>
 
       {error && <p className="auth-error" role="alert">{error}</p>}
+
+      <BookingChatWidget />
 
       {hostelScopeId ? (
         <div className="mb-6 flex flex-col gap-2 rounded-xl border border-primary-200 bg-primary-50/80 px-4 py-3 sm:flex-row sm:items-center sm:justify-between dark:border-primary-900/50 dark:bg-primary-950/30">

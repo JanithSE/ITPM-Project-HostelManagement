@@ -10,11 +10,7 @@ export default function ResetPassword() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState(() =>
-<<<<<<< HEAD
-    !location.state?.resetToken ? 'Verify your OTP first (use the link from Forgot Password).' : ''
-=======
     resetToken ? '' : 'Verify your OTP first (use the Forgot Password flow).'
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
   )
   const [loading, setLoading] = useState(false)
 
@@ -52,11 +48,7 @@ export default function ResetPassword() {
             <span className="auth-pro-panel-mark">UH</span>
             <div>
               <h1 className="auth-pro-heading">Reset Password</h1>
-<<<<<<< HEAD
               <p className="auth-pro-subheading !mt-0">Enter your new password. Your OTP was already verified.</p>
-=======
-              <p className="auth-pro-subheading !mt-0">Set your new password. OTP was already verified.</p>
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
             </div>
           </div>
           {error && <p className="auth-pro-error">{error}</p>}
@@ -71,15 +63,11 @@ export default function ResetPassword() {
                 className="auth-pro-input"
                 required
                 disabled={Boolean(resetToken)}
-<<<<<<< HEAD
                 title={resetToken ? 'Must match the email you verified' : ''}
               />
-=======
-              />
-            </div>
-            <div>
-              <p className="auth-pro-subheading !mt-0">OTP verified. You can set a new password now.</p>
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
+              {resetToken ? (
+                <p className="auth-pro-subheading !mt-0">OTP verified. You can set a new password now.</p>
+              ) : null}
             </div>
             <div>
               <label htmlFor="reset-password" className="auth-pro-label">New Password</label>

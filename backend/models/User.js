@@ -14,18 +14,17 @@ const userSchema = new mongoose.Schema(
     assignedHostel: { type: String, trim: true, default: '' },
     /** University / registration ID — used to match late-pass group requests */
     universityId: { type: String, trim: true, default: '' },
+    /** Academic year (1–4) for roommate matching; optional */
+    academicYear: { type: Number, min: 1, max: 4, default: null },
+    /** Semester 1 or 2; optional */
+    academicSemester: { type: Number, min: 1, max: 2, default: null },
     isVerified: { type: Boolean, default: false },
     otpCode: { type: String, default: '' },
     otpExpiresAt: { type: Date, default: null },
     otpPurpose: { type: String, enum: ['', 'registration', 'password_reset'], default: '' },
-<<<<<<< HEAD
-    /** SHA-256 hash of one-time token issued after password-reset OTP verification */
-    passwordResetTokenHash: { type: String, default: '' },
-=======
     /** SHA-256 hash of the one-time reset token issued after OTP verification (password reset flow). */
     passwordResetTokenHash: { type: String, default: '' },
     /** Expiry time for the one-time reset token issued after OTP verification (password reset flow). */
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     passwordResetExpiresAt: { type: Date, default: null },
   },
   { timestamps: true }

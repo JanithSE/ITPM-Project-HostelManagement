@@ -13,10 +13,7 @@ function signToken(user) {
 }
 
 const OTP_VALIDITY_MS = 5 * 60 * 1000
-<<<<<<< HEAD
 /** Window after OTP verification during which the user may submit a new password (opaque token, not email OTP). */
-=======
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
 const PASSWORD_RESET_TOKEN_VALIDITY_MS = 15 * 60 * 1000
 
 function normalizeEmail(email) {
@@ -32,28 +29,12 @@ function hashOtp(otpCode) {
 }
 
 function hashPasswordResetToken(rawToken) {
-<<<<<<< HEAD
-  return crypto.createHash('sha256').update(String(rawToken), 'utf8').digest('hex')
-}
-=======
   // Store only the hash, never the raw token.
   return crypto.createHash('sha256').update(String(rawToken), 'utf8').digest('hex')
 }
 
 function generatePasswordResetToken() {
   // 32 bytes => 64 hex chars. Good enough as an opaque one-time secret.
-  return crypto.randomBytes(32).toString('hex')
-}
-
-function createTransport() {
-  const emailUser = process.env.EMAIL_USER
-  const emailPass = process.env.EMAIL_PASS
-  if (!emailUser || !emailPass) {
-    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASS in backend/.env')
-  }
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
-
-function generatePasswordResetToken() {
   return crypto.randomBytes(32).toString('hex')
 }
 
@@ -120,10 +101,7 @@ async function issueOtpForUser(user, purpose) {
   user.otpPurpose = purpose
   user.otpExpiresAt = new Date(Date.now() + OTP_VALIDITY_MS)
   if (purpose === 'password_reset') {
-<<<<<<< HEAD
-=======
     // Invalidate any previous reset session for safety.
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     user.passwordResetTokenHash = ''
     user.passwordResetExpiresAt = null
   }
@@ -384,28 +362,13 @@ export const verifyOtp = async (req, res) => {
     }
 
     let resetToken = null
-<<<<<<< HEAD
-    if (otpPurpose === 'registration') {
-      user.isVerified = true
-=======
-
     if (otpPurpose === 'registration') {
       user.isVerified = true
       // Registration OTP is single-use: clear it immediately after verification.
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
       user.otpCode = ''
       user.otpPurpose = ''
       user.otpExpiresAt = null
     } else {
-<<<<<<< HEAD
-      resetToken = generatePasswordResetToken()
-      user.passwordResetTokenHash = hashPasswordResetToken(resetToken)
-      user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_VALIDITY_MS)
-      user.otpCode = ''
-      user.otpPurpose = ''
-      user.otpExpiresAt = null
-    }
-=======
       // Password reset OTP: do NOT delete otpCode/otpExpiresAt here.
       // Instead, issue a separate one-time resetToken for the reset step.
       resetToken = generatePasswordResetToken()
@@ -413,7 +376,6 @@ export const verifyOtp = async (req, res) => {
       user.passwordResetExpiresAt = new Date(Date.now() + PASSWORD_RESET_TOKEN_VALIDITY_MS)
     }
 
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     await user.save()
 
     return res.json({
@@ -465,27 +427,17 @@ export const resetPassword = async (req, res) => {
     if (!user) return res.status(404).json({ error: 'User not found' })
 
     if (!user.passwordResetTokenHash || !user.passwordResetExpiresAt) {
-<<<<<<< HEAD
-      return res.status(400).json({ error: 'No valid password reset session. Verify your OTP again.' })
-    }
-    if (user.passwordResetExpiresAt.getTime() < Date.now()) {
-      return res.status(400).json({ error: 'Password reset session expired. Request a new OTP.' })
-=======
       return res.status(400).json({ error: 'No valid password reset session. Verify OTP first.' })
     }
     if (user.passwordResetExpiresAt.getTime() < Date.now()) {
       return res.status(400).json({ error: 'Reset session expired. Verify OTP again.' })
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     }
     if (hashPasswordResetToken(tokenRaw) !== user.passwordResetTokenHash) {
       return res.status(400).json({ error: 'Invalid reset token' })
     }
 
     user.password = String(password)
-<<<<<<< HEAD
-=======
     // Clear both the reset token and OTP (OTP is no longer needed once password is updated).
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
     user.passwordResetTokenHash = ''
     user.passwordResetExpiresAt = null
     user.otpCode = ''
@@ -512,6 +464,8 @@ export const getMe = async (req, res) => {
         role: u.role,
         phoneNumber: u.phoneNumber || '',
         universityId: u.universityId || '',
+        academicYear: u.academicYear != null ? u.academicYear : null,
+        academicSemester: u.academicSemester != null ? u.academicSemester : null,
       },
     })
   } catch (err) {
@@ -524,13 +478,37 @@ export const patchMe = async (req, res) => {
   try {
     const u = req.user
     if (!u) return res.status(401).json({ error: 'Unauthorized' })
-    const { name, phoneNumber } = req.body || {}
+    const { name, phoneNumber, academicYear, academicSemester } = req.body || {}
     if (name != null) {
       const n = String(name).trim()
       if (!n) return res.status(400).json({ error: 'Name cannot be empty' })
       u.name = n
     }
     if (phoneNumber != null) u.phoneNumber = String(phoneNumber).trim()
+    if (u.role === 'student') {
+      if (academicYear != null) {
+        if (academicYear === '' || academicYear === null) {
+          u.academicYear = null
+        } else {
+          const y = Number(academicYear)
+          if (!Number.isInteger(y) || y < 1 || y > 4) {
+            return res.status(400).json({ error: 'academicYear must be between 1 and 4' })
+          }
+          u.academicYear = y
+        }
+      }
+      if (academicSemester != null) {
+        if (academicSemester === '' || academicSemester === null) {
+          u.academicSemester = null
+        } else {
+          const s = Number(academicSemester)
+          if (s !== 1 && s !== 2) {
+            return res.status(400).json({ error: 'academicSemester must be 1 or 2' })
+          }
+          u.academicSemester = s
+        }
+      }
+    }
     await u.save()
     return res.json({
       user: {
@@ -540,6 +518,8 @@ export const patchMe = async (req, res) => {
         role: u.role,
         phoneNumber: u.phoneNumber || '',
         universityId: u.universityId || '',
+        academicYear: u.academicYear != null ? u.academicYear : null,
+        academicSemester: u.academicSemester != null ? u.academicSemester : null,
       },
     })
   } catch (err) {

@@ -101,11 +101,7 @@ export function paymentProofUploadMiddleware(req, res, next) {
   })
 }
 
-<<<<<<< HEAD
-/** Payment proof only when request is multipart (e.g. JSON-only edits skip upload). */
-=======
 /** Optional proof on edit: parse multipart only when client sends multipart/form-data */
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
 export function paymentProofUploadOptionalMiddleware(req, res, next) {
   const ct = String(req.headers['content-type'] || '')
   if (ct.includes('multipart/form-data')) {
@@ -126,11 +122,7 @@ export function latepassDocumentUploadMiddleware(req, res, next) {
   })
 }
 
-<<<<<<< HEAD
-/** Late-pass document only when request is multipart. */
-=======
 /** Optional document on edit: multipart only when client sends multipart/form-data */
->>>>>>> 5c4db82c7f27ea923132d576ce43a59c4a46d9dd
 export function latepassDocumentUploadOptionalMiddleware(req, res, next) {
   const ct = String(req.headers['content-type'] || '')
   if (ct.includes('multipart/form-data')) {
