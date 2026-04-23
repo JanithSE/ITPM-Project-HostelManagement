@@ -2,11 +2,48 @@ import { useCallback, useEffect, useState } from 'react'
 import { maintenanceApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 
+/**
+ * VIVA: Student — Maintenance (frontend)
+ * - Validation: `validateForm` + per-field `touched` (real-time UX; backend re-validates in maintenanceController).
+ * - API: all calls go through `maintenanceApi` in `shared/api/client.js` (POST/PUT use multipart with optional `image`).
+ * - Image: file type/size check in browser; multer in `backend/middleware/upload.js` + file stored under `/uploads/maintenance/`.
+ * - Lock: non-`open` rows disable edit/delete; UI explains why.
+ * - Notifications: `success` / `msg` = user feedback after create/update/delete.
+ */
 const priorities = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
 ]
+
+const LOCKED_TOOLTIP = 'This request is locked because it is already in progress/resolved'
+const IMAGE_MAX_MB = 2
+const IMAGE_MAX_BYTES = IMAGE_MAX_MB * 1024 * 1024
+// Must stay aligned with backend: JPG/PNG only, 2MB max (see upload middleware).
+const IMAGE_ACCEPT = 'image/jpeg,image/png,.jpg,.jpeg,.png'
+
+function statusBadgeStyle(status) {
+  const s = String(status || '').toLowerCase()
+  if (s === 'open') {
+    return { background: '#14532d', color: '#dcfce7', border: '1px solid #22c55e' }
+  }
+  if (s === 'in_progress') {
+    return { background: '#713f12', color: '#fef9c3', border: '1px solid #eab308' }
+  }
+  if (s === 'resolved') {
+    return { background: '#450a0a', color: '#fecaca', border: '1px solid #ef4444' }
+  }
+  return { background: '#1f2937', color: '#e5e7eb', border: '1px solid #4b5563' }
+}
+
+function formatCreatedAt(value) {
+  if (!value) return '—'
+  const dt = new Date(value)
+  return {
+    date: dt.toLocaleDateString(),
+    time: dt.toLocaleTimeString(),
+  }
+}
 
 export default function StudentMaintenance() {
   const [title, setTitle] = useState('')
@@ -18,6 +55,11 @@ export default function StudentMaintenance() {
   const [msg, setMsg] = useState('')
   const [success, setSuccess] = useState('')
   const [editingId, setEditingId] = useState('')
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState('')
+  const [imageError, setImageError] = useState('')
+  const [viewerImage, setViewerImage] = useState('')
+  const [viewerTitle, setViewerTitle] = useState('')
   const [errors, setErrors] = useState({})
   const [touched, setTouched] = useState({
     title: false,
@@ -30,7 +72,8 @@ export default function StudentMaintenance() {
   const load = useCallback(async () => {
     setLoading(true)
     setMsg('')
-    setSuccess('')
+    // Do not clear `success` here: submit handler calls `load()` to refresh the table, and we still
+    // want the green success banner to stay visible (user feedback after API success).
     try {
       const data = await maintenanceApi.myList()
       setList(Array.isArray(data) ? data : [])
@@ -45,7 +88,7 @@ export default function StudentMaintenance() {
     load()
   }, [load])
 
-  // Validate on client side before calling backend API.
+  // VIVA: client-side validation (fast feedback) — must match rules enforced in createMaintenance / updateMyMaintenance.
   function validateForm(next = { title, description, location, priority }) {
     const nextErrors = {}
     const titleTrim = next.title.trim()
@@ -100,10 +143,41 @@ export default function StudentMaintenance() {
     return '#374151'
   }
 
+  function resetImageState() {
+    setImageFile(null)
+    setImagePreview('')
+    setImageError('')
+  }
+
+  function validateAndPreviewImage(file) {
+    if (!file) {
+      resetImageState()
+      return
+    }
+    const allowed = ['image/jpeg', 'image/png']
+    if (!allowed.includes(String(file.type).toLowerCase())) {
+      setImageFile(null)
+      setImagePreview('')
+      setImageError('Only JPG and PNG images are allowed.')
+      return
+    }
+    if (file.size > IMAGE_MAX_BYTES) {
+      setImageFile(null)
+      setImagePreview('')
+      setImageError(`Image must be ${IMAGE_MAX_MB}MB or smaller.`)
+      return
+    }
+    setImageError('')
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setMsg('')
     setSuccess('')
+    // Remember edit mode *before* clearing editingId, otherwise success text always says "submitted".
+    const wasEditing = Boolean(editingId)
     const allTouched = { title: true, description: true, location: true, priority: true }
     setTouched(allTouched)
     const nextErrors = validateForm()
@@ -134,6 +208,7 @@ export default function StudentMaintenance() {
           description: description.trim(),
           location: location.trim(),
           priority,
+          imageFile,
         })
       } else {
         // Student creates a new maintenance request.
@@ -142,6 +217,7 @@ export default function StudentMaintenance() {
           description: description.trim(),
           location: location.trim(),
           priority,
+          imageFile,
         })
       }
       // Reset form state after successful submit.
@@ -150,9 +226,11 @@ export default function StudentMaintenance() {
       setLocation('')
       setPriority('medium')
       setEditingId('')
+      resetImageState()
       setErrors({})
       setTouched({ title: false, description: false, location: false, priority: false })
-      setSuccess(editingId ? 'Request updated successfully.' : 'Request submitted successfully.')
+      // Notification: confirm what happened; shown as green banner in UI.
+      setSuccess(wasEditing ? 'Request updated successfully.' : 'Request submitted successfully.')
       // Reload table so latest request appears without manual refresh.
       await load()
     } catch (e) {
@@ -168,6 +246,9 @@ export default function StudentMaintenance() {
     setDescription(row.description || '')
     setLocation(row.location || '')
     setPriority(row.priority || 'medium')
+    setImageFile(null)
+    setImagePreview(row.imageUrl || '')
+    setImageError('')
     setErrors({})
     setTouched({ title: false, description: false, location: false, priority: false })
   }
@@ -178,6 +259,7 @@ export default function StudentMaintenance() {
     setDescription('')
     setLocation('')
     setPriority('medium')
+    resetImageState()
     setErrors({})
     setTouched({ title: false, description: false, location: false, priority: false })
   }
@@ -195,6 +277,10 @@ export default function StudentMaintenance() {
     } catch (e) {
       setMsg(e.message || 'Delete failed')
     }
+  }
+
+  function isEditable(row) {
+    return row.status === 'open'
   }
 
   return (
@@ -290,8 +376,29 @@ export default function StudentMaintenance() {
             <span style={{ color: '#dc2626' }}>{touched.priority ? errors.priority || '' : ''}</span>
           </div>
         </div>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <label style={{ display: 'block', marginBottom: 4 }}>Upload Image (optional)</label>
+          <input
+            type="file"
+            accept={IMAGE_ACCEPT}
+            onChange={(e) => validateAndPreviewImage(e.target.files?.[0])}
+            style={{ width: '100%' }}
+          />
+          <div style={{ marginTop: 4, fontSize: 12, color: imageError ? '#dc2626' : '#94a3b8' }}>
+            {imageError || `Allowed: JPG/PNG, max ${IMAGE_MAX_MB}MB`}
+          </div>
+          {imagePreview && (
+            <div style={{ marginTop: 8 }}>
+              <img
+                src={imagePreview}
+                alt="Selected maintenance preview"
+                style={{ width: 120, height: 84, objectFit: 'cover', borderRadius: 8, border: '1px solid #334155' }}
+              />
+            </div>
+          )}
+        </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <button type="submit" className="btn-primary-action" disabled={!isFormValid}>
+          <button type="submit" className="btn-primary-action" disabled={!isFormValid || Boolean(imageError)}>
             {editingId ? 'Update Request' : 'Submit Request'}
           </button>
           {editingId && (
@@ -310,14 +417,15 @@ export default function StudentMaintenance() {
       <button type="button" className="btn-table-primary" style={{ marginBottom: 8 }} onClick={load} disabled={loading}>
         Refresh
       </button>
-      <div className="table-wrap">
-        <table className="table-admin">
+      <div className="table-wrap maintenance-table-wrap">
+        <table className="table-admin maintenance-table">
           <thead>
             <tr>
               <th>Title</th>
               <th>Location</th>
               <th>Priority</th>
               <th>Status</th>
+              <th>Image</th>
               <th>Created</th>
               <th>Actions</th>
             </tr>
@@ -325,36 +433,209 @@ export default function StudentMaintenance() {
           <tbody>
             {list.length === 0 && !loading && (
               <tr>
-                <td colSpan={6}>No requests yet.</td>
+                <td colSpan={7}>No requests yet.</td>
               </tr>
             )}
-            {list.map((row) => (
-              <tr key={row._id}>
-                <td>{row.title}</td>
-                <td>{row.location || '—'}</td>
-                <td>{row.priority}</td>
-                <td>{row.status}</td>
-                {/* createdAt is auto-generated by MongoDB timestamps*/}
-                <td>{row.createdAt ? new Date(row.createdAt).toLocaleString() : '—'}</td>
+            {list.map((row) => {
+              const created = formatCreatedAt(row.createdAt)
+              const editable = isEditable(row)
+              return (
+              <tr
+                key={row._id}
+                style={editable ? undefined : { background: 'rgba(15, 23, 42, 0.42)', opacity: 0.86 }}
+              >
+                <td className="maintenance-cell-wrap">{row.title}</td>
+                <td className="maintenance-cell-wrap">{row.location || '—'}</td>
+                <td className="maintenance-cell-wrap">{row.priority}</td>
                 <td>
-                  {row.status === 'open' ? (
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="button" className="btn-table-primary" onClick={() => startEdit(row)}>
-                        Edit
-                      </button>
-                      <button type="button" className="btn-delete-table" onClick={() => removeRow(row)}>
-                        Delete
+                  <span
+                    style={{
+                      ...statusBadgeStyle(row.status),
+                      padding: '2px 10px',
+                      borderRadius: 999,
+                      fontWeight: 700,
+                      fontSize: 12,
+                      textTransform: 'capitalize',
+                      display: 'inline-flex',
+                    }}
+                  >
+                    {row.status === 'in_progress' ? 'In Progress' : row.status}
+                  </span>
+                </td>
+                <td className="maintenance-cell-wrap">
+                  {row.imageUrl ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <img
+                        src={row.imageUrl}
+                        alt="Maintenance"
+                        style={{ width: 64, height: 46, objectFit: 'cover', borderRadius: 6, border: '1px solid #334155' }}
+                      />
+                      <button
+                        type="button"
+                        className="btn-table-primary"
+                        style={{ padding: '4px 8px', fontSize: 11 }}
+                        onClick={() => {
+                          setViewerImage(row.imageUrl)
+                          setViewerTitle(row.title || 'Maintenance Image')
+                        }}
+                      >
+                        View Image
                       </button>
                     </div>
                   ) : (
-                    'Locked'
+                    <span style={{ color: '#94a3b8' }}>No image</span>
+                  )}
+                </td>
+                {/* createdAt is auto-generated by MongoDB timestamps*/}
+                <td className="maintenance-created-cell">
+                  {created === '—' ? '—' : (
+                    <>
+                      <span>{created.date}</span>
+                      <span>{created.time}</span>
+                    </>
+                  )}
+                </td>
+                <td className="maintenance-actions-cell">
+                  <div
+                    className="maintenance-actions-wrap"
+                    title={editable ? '' : LOCKED_TOOLTIP}
+                  >
+                    <button
+                      type="button"
+                      className="btn-table-primary"
+                      onClick={() => startEdit(row)}
+                      disabled={!editable}
+                      title={editable ? 'Edit request' : LOCKED_TOOLTIP}
+                      style={editable ? undefined : { opacity: 0.55, cursor: 'not-allowed' }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-delete-table"
+                      onClick={() => removeRow(row)}
+                      disabled={!editable}
+                      title={editable ? 'Delete request' : LOCKED_TOOLTIP}
+                      style={editable ? undefined : { opacity: 0.55, cursor: 'not-allowed' }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                  {!editable && (
+                    <div className="maintenance-lock-note">
+                      {LOCKED_TOOLTIP}
+                    </div>
                   )}
                 </td>
               </tr>
-            ))}
+            )})}
           </tbody>
         </table>
       </div>
+      <div className="maintenance-cards">
+        {list.length === 0 && !loading && (
+          <div className="maintenance-card-empty">No requests yet.</div>
+        )}
+        {list.map((row) => {
+          const editable = isEditable(row)
+          const created = formatCreatedAt(row.createdAt)
+          return (
+            <article
+              key={`card-${row._id}`}
+              className={`maintenance-card ${editable ? '' : 'maintenance-card-locked'}`.trim()}
+            >
+              <div className="maintenance-card-row">
+                <span className="maintenance-card-label">Title</span>
+                <span className="maintenance-card-value">{row.title}</span>
+              </div>
+              <div className="maintenance-card-row">
+                <span className="maintenance-card-label">Location</span>
+                <span className="maintenance-card-value">{row.location || '—'}</span>
+              </div>
+              <div className="maintenance-card-row">
+                <span className="maintenance-card-label">Priority</span>
+                <span className="maintenance-card-value">{row.priority}</span>
+              </div>
+              <div className="maintenance-card-row">
+                <span className="maintenance-card-label">Status</span>
+                <span
+                  style={{
+                    ...statusBadgeStyle(row.status),
+                    padding: '2px 10px',
+                    borderRadius: 999,
+                    fontWeight: 700,
+                    fontSize: 12,
+                    textTransform: 'capitalize',
+                    display: 'inline-flex',
+                  }}
+                >
+                  {row.status === 'in_progress' ? 'In Progress' : row.status}
+                </span>
+              </div>
+              <div className="maintenance-card-row">
+                <span className="maintenance-card-label">Created</span>
+                <span className="maintenance-card-value">
+                  {created === '—' ? '—' : `${created.date} ${created.time}`}
+                </span>
+              </div>
+              <div className="maintenance-card-row">
+                <span className="maintenance-card-label">Image</span>
+                <span className="maintenance-card-value" style={{ textAlign: 'left' }}>
+                  {row.imageUrl ? (
+                    <button
+                      type="button"
+                      className="btn-table-primary"
+                      style={{ padding: '4px 8px', fontSize: 11 }}
+                      onClick={() => {
+                        setViewerImage(row.imageUrl)
+                        setViewerTitle(row.title || 'Maintenance Image')
+                      }}
+                    >
+                      View Image
+                    </button>
+                  ) : 'No image'}
+                </span>
+              </div>
+              <div className="maintenance-card-actions" title={editable ? '' : LOCKED_TOOLTIP}>
+                <button
+                  type="button"
+                  className="btn-table-primary"
+                  onClick={() => startEdit(row)}
+                  disabled={!editable}
+                  title={editable ? 'Edit request' : LOCKED_TOOLTIP}
+                  style={editable ? undefined : { opacity: 0.55, cursor: 'not-allowed' }}
+                >
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="btn-delete-table"
+                  onClick={() => removeRow(row)}
+                  disabled={!editable}
+                  title={editable ? 'Delete request' : LOCKED_TOOLTIP}
+                  style={editable ? undefined : { opacity: 0.55, cursor: 'not-allowed' }}
+                >
+                  Delete
+                </button>
+              </div>
+              {!editable && <p className="maintenance-lock-note">{LOCKED_TOOLTIP}</p>}
+            </article>
+          )
+        })}
+      </div>
+      {viewerImage && (
+        <div className="image-modal-backdrop" onClick={() => setViewerImage('')}>
+          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="image-modal-header">
+              <strong>{viewerTitle || 'Uploaded Image'}</strong>
+              <button type="button" className="btn-table-secondary" onClick={() => setViewerImage('')}>
+                Close
+              </button>
+            </div>
+            <img src={viewerImage} alt="Enlarged maintenance upload" className="image-modal-image" />
+          </div>
+        </div>
+      )}
     </div>
     </div>
   )
