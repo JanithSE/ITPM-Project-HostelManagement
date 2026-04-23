@@ -16,6 +16,7 @@ const inquirySchema = new mongoose.Schema(
     subject: { type: String, required: true, trim: true },
     message: { type: String, required: true },
     status: { type: String, enum: ['open', 'replied', 'closed'], default: 'open' },
+    imageUrl: { type: String, default: '' },
     reply: { type: String },
     repliedAt: { type: Date },
     comments: { type: [inquiryCommentSchema], default: [] },
