@@ -1,4 +1,38 @@
+/**
+ * VIVA: Inquiry — backend (Express controllers)
+ * - Mounted at `app.use('/api/inquiry', inquiryRoutes)` in server.js.
+ * - Student: create/list own/update/delete only when open and no admin reply yet; admin: list all + reply.
+ * - Validation: Campus ID format, required subject/message; reply flow sets status to `replied`.
+ * - Image: optional multer upload; `imageUrl` under `uploads/inquiries/`; cleanup on replace/delete.
+ */
 import Inquiry from '../models/Inquiry.js'
+import fs from 'fs'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+const uploadsRoot = path.join(__dirname, '..', 'uploads')
+
+function uploadedImageUrl(reqFile) {
+  if (!reqFile?.filename) return ''
+  return `/uploads/inquiries/${reqFile.filename}`
+}
+
+async function removeImageByUrl(imageUrl) {
+  if (!imageUrl || typeof imageUrl !== 'string') return
+  if (!imageUrl.startsWith('/uploads/')) return
+  const relPath = imageUrl.replace('/uploads/', '')
+  const absPath = path.normalize(path.join(uploadsRoot, relPath))
+  if (!absPath.startsWith(uploadsRoot)) return
+  try {
+    await fs.promises.unlink(absPath)
+  } catch (err) {
+    if (err?.code !== 'ENOENT') {
+      console.error('Failed to remove uploaded image:', err.message)
+    }
+  }
+}
 
 function inquiryPopulate(query) {
   return query
@@ -29,14 +63,18 @@ export const listMyInquiries = async (req, res) => {
 export const createInquiry = async (req, res) => {
   try {
     const { campusId, subject, message } = req.body
+    const newImageUrl = uploadedImageUrl(req.file)
     const campusIdTrim = String(campusId || '').trim().toUpperCase()
     if (!/^[A-Z]{2}\d{8}$/.test(campusIdTrim)) {
+      await removeImageByUrl(newImageUrl)
       return res.status(400).json({ error: 'Campus ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
     }
     if (!subject || !String(subject).trim()) {
+      await removeImageByUrl(newImageUrl)
       return res.status(400).json({ error: 'Subject is required' })
     }
     if (!message || !String(message).trim()) {
+      await removeImageByUrl(newImageUrl)
       return res.status(400).json({ error: 'Message is required' })
     }
     const inquiry = await Inquiry.create({
@@ -44,6 +82,7 @@ export const createInquiry = async (req, res) => {
       campusId: campusIdTrim,
       subject: String(subject).trim(),
       message: String(message).trim(),
+      imageUrl: newImageUrl,
       status: 'open',
       comments: [
         {
@@ -117,30 +156,40 @@ export const addInquiryComment = async (req, res) => {
 export const updateMyInquiry = async (req, res) => {
   try {
     const { campusId, subject, message } = req.body || {}
+    const newImageUrl = uploadedImageUrl(req.file)
     const campusIdTrim = String(campusId || '').trim().toUpperCase()
     const inquiry = await Inquiry.findById(req.params.id)
     if (!inquiry) return res.status(404).json({ error: 'Inquiry not found' })
 
     if (String(inquiry.from) !== String(req.user._id)) {
+      await removeImageByUrl(newImageUrl)
       return res.status(403).json({ error: 'Forbidden' })
     }
     if (inquiry.status !== 'open' || inquiry.reply) {
+      await removeImageByUrl(newImageUrl)
       return res.status(400).json({ error: 'Only open inquiries without replies can be updated' })
     }
 
     if (!subject || !String(subject).trim()) {
+      await removeImageByUrl(newImageUrl)
       return res.status(400).json({ error: 'Subject is required' })
     }
     if (!/^[A-Z]{2}\d{8}$/.test(campusIdTrim)) {
+      await removeImageByUrl(newImageUrl)
       return res.status(400).json({ error: 'Campus ID must be 2 uppercase letters + 8 digits (example: AB12345678)' })
     }
     if (!message || !String(message).trim()) {
+      await removeImageByUrl(newImageUrl)
       return res.status(400).json({ error: 'Message is required' })
     }
 
     inquiry.campusId = campusIdTrim
     inquiry.subject = String(subject).trim()
     inquiry.message = String(message).trim()
+    if (req.file) {
+      await removeImageByUrl(inquiry.imageUrl)
+      inquiry.imageUrl = newImageUrl
+    }
     await inquiry.save()
 
     const populated = await inquiryPopulate(Inquiry.findById(inquiry._id))
@@ -162,6 +211,7 @@ export const deleteMyInquiry = async (req, res) => {
       return res.status(400).json({ error: 'Only open inquiries without replies can be deleted' })
     }
 
+    await removeImageByUrl(inquiry.imageUrl)
     await inquiry.deleteOne()
     res.json({ ok: true })
   } catch (err) {

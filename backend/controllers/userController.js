@@ -15,8 +15,8 @@ export const createUser = async (req, res) => {
     if (!name || !email || !password || !role) {
       return res.status(400).json({ error: 'Name, email, password and role required' })
     }
-    if (!['student', 'admin'].includes(role)) {
-      return res.status(400).json({ error: 'Role must be student or admin' })
+    if (!['student', 'admin', 'warden'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be student, admin, or warden' })
     }
     const existing = await User.findOne({ email })
     if (existing) return res.status(400).json({ error: 'Email already registered' })
@@ -39,7 +39,7 @@ export const getUserById = async (req, res) => {
 
 export const updateUser = async (req, res) => {
   try {
-    const { name, email, role, password } = req.body
+    const { name, email, role, password, academicYear, academicSemester } = req.body
     const user = await User.findById(req.params.id)
     if (!user) return res.status(404).json({ error: 'User not found' })
 
@@ -47,6 +47,28 @@ export const updateUser = async (req, res) => {
     if (email != null) user.email = email
     if (role != null) user.role = role
     if (password != null) user.password = password
+    if (user.role === 'student' && (academicYear != null || academicSemester != null)) {
+      if (academicYear != null) {
+        if (academicYear === '' || academicYear === null) user.academicYear = null
+        else {
+          const y = Number(academicYear)
+          if (!Number.isInteger(y) || y < 1 || y > 4) {
+            return res.status(400).json({ error: 'academicYear must be between 1 and 4' })
+          }
+          user.academicYear = y
+        }
+      }
+      if (academicSemester != null) {
+        if (academicSemester === '' || academicSemester === null) user.academicSemester = null
+        else {
+          const s = Number(academicSemester)
+          if (s !== 1 && s !== 2) {
+            return res.status(400).json({ error: 'academicSemester must be 1 or 2' })
+          }
+          user.academicSemester = s
+        }
+      }
+    }
 
     await user.save()
     const safeUser = user.toObject()

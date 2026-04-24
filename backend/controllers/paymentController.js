@@ -7,7 +7,7 @@ import Payment, {
 import { PAYMENT_AMOUNT_LKR, getExpectedAmountLkr } from '../config/paymentPricing.js'
 import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
 import { notifyAdminsAndWardens, notifyStudent } from '../services/paymentNotificationService.js'
-import { sendPaymentAcceptedEmail, sendPaymentRejectedEmail } from '../services/emailService.js'
+import { sendPaymentCompletedEmail, sendPaymentRejectedEmail } from '../services/emailService.js'
 
 function normalizePaymentStatus(input) {
   if (!input) return null
@@ -155,14 +155,14 @@ function serializePayment(p) {
 
 export const getPaymentById = async (req, res) => {
   try {
-    if (!['student', 'admin'].includes(req.user.role)) {
+    if (!['student', 'admin', 'warden'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' })
     }
 
     const payment = await Payment.findById(req.params.id).populate('student', 'name email universityId')
     if (!payment) return res.status(404).json({ error: 'Payment not found' })
 
-    if (req.user.role === 'admin') {
+    if (req.user.role === 'admin' || req.user.role === 'warden') {
       return res.json(serializePayment(payment))
     }
     const ownerId = payment.student?._id ?? payment.student
@@ -351,20 +351,16 @@ export const patchPaymentStatus = async (req, res) => {
       }
 
       if (nextStatus === 'completed') {
-        console.log(`[PaymentController] Triggering completion email for payment ${payment._id}`)
         try {
-          await sendPaymentAcceptedEmail({
+          await sendPaymentCompletedEmail({
             to: populated?.student?.email,
             studentName: populated?.student?.name || payment.studentName,
-            monthLabel: monthLabel(payment.month),
+            paymentId: String(payment._id),
             amount: payment.amount,
-            roomNo: payment.roomNo,
-            roomType: payment.roomType,
-            facilityType: payment.facilityType,
-            adminRemarks: payment.adminRemarks,
+            monthLabel: monthLabel(payment.month),
           })
         } catch (emailErr) {
-          console.error('[payment acceptance email]', emailErr.message)
+          console.error('[payment completion email]', emailErr?.message || emailErr)
         }
       } else if (nextStatus === 'rejected') {
         try {

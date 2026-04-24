@@ -11,12 +11,16 @@ const paymentsDir = path.join(backendRoot, 'uploads', 'payments')
 const latepassDir = path.join(backendRoot, 'uploads', 'latepass')
 const hostelsDir = path.join(backendRoot, 'uploads', 'hostels')
 const bookingsDir = path.join(backendRoot, 'uploads', 'bookings')
+const maintenanceDir = path.join(backendRoot, 'uploads', 'maintenance')
+const inquiriesDir = path.join(backendRoot, 'uploads', 'inquiries')
 
 // ✅ create all folders
 fs.mkdirSync(paymentsDir, { recursive: true })
 fs.mkdirSync(latepassDir, { recursive: true })
 fs.mkdirSync(hostelsDir, { recursive: true })
 fs.mkdirSync(bookingsDir, { recursive: true })
+fs.mkdirSync(maintenanceDir, { recursive: true })
+fs.mkdirSync(inquiriesDir, { recursive: true })
 
 const ALLOWED_EXT = new Set(['.jpg', '.jpeg', '.png', '.webp', '.pdf'])
 const ALLOWED_MIME = new Set([
@@ -50,6 +54,20 @@ function hostelImageFilter(req, file, cb) {
     if (HOSTEL_IMAGE_EXT.has(ext)) return cb(null, true)
   }
   cb(new Error('Only JPEG, PNG, and WebP images are allowed for hostel photos'))
+}
+
+const REQUEST_IMAGE_EXT = new Set(['.jpg', '.jpeg', '.png'])
+const REQUEST_IMAGE_MIME = new Set(['image/jpeg', 'image/png'])
+
+function requestImageFilter(req, file, cb) {
+  const ext = path.extname(file.originalname || '').toLowerCase()
+  const mime = String(file.mimetype || '').toLowerCase()
+
+  if (REQUEST_IMAGE_MIME.has(mime)) return cb(null, true)
+  if ((!mime || mime === 'application/octet-stream') && REQUEST_IMAGE_EXT.has(ext)) {
+    return cb(null, true)
+  }
+  cb(new Error('Only JPG and PNG images are allowed'))
 }
 
 function makeStorage(destDir) {
@@ -86,6 +104,18 @@ const bookingMulter = multer({
   storage: makeStorage(bookingsDir),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: imageOrPdfFilter,
+})
+
+const maintenanceImageMulter = multer({
+  storage: makeStorage(maintenanceDir),
+  limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+  fileFilter: requestImageFilter,
+})
+
+const inquiryImageMulter = multer({
+  storage: makeStorage(inquiriesDir),
+  limits: { fileSize: 2 * 1024 * 1024, files: 1 },
+  fileFilter: requestImageFilter,
 })
 
 // ✅ Middleware
@@ -160,6 +190,39 @@ export function bookingDocumentsUploadMiddleware(req, res, next) {
     }
     next()
   })
+}
+
+function uploadSingleRequestImage(multerInstance, fieldName) {
+  return (req, res, next) => {
+    multerInstance.single(fieldName)(req, res, (err) => {
+      if (err) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({ error: 'Image must be 2 MB or smaller' })
+        }
+        return res.status(400).json({ error: err.message || 'Image upload failed' })
+      }
+      next()
+    })
+  }
+}
+
+export const maintenanceImageUploadMiddleware = uploadSingleRequestImage(maintenanceImageMulter, 'image')
+export const inquiryImageUploadMiddleware = uploadSingleRequestImage(inquiryImageMulter, 'image')
+
+export function maintenanceImageUploadOptionalMiddleware(req, res, next) {
+  const ct = String(req.headers['content-type'] || '')
+  if (ct.includes('multipart/form-data')) {
+    return maintenanceImageUploadMiddleware(req, res, next)
+  }
+  next()
+}
+
+export function inquiryImageUploadOptionalMiddleware(req, res, next) {
+  const ct = String(req.headers['content-type'] || '')
+  if (ct.includes('multipart/form-data')) {
+    return inquiryImageUploadMiddleware(req, res, next)
+  }
+  next()
 }
 
 /** Optional hostel image upload */

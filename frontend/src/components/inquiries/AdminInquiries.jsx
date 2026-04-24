@@ -3,6 +3,13 @@ import { inquiryApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 import { inDateRange, exportInquiriesPdf } from '../../utils/reportExport'
 
+/**
+ * VIVA: Admin — Inquiry
+ * - Data: `inquiryApi.listAll` + `reply` to send admin message (JSON body `{ reply }`).
+ * - Validation: minimum reply length, student email check, block duplicate reply when already replied.
+ * - Notifications: `success` / `msg` for feedback; `activityLog` is a small local history for demo.
+ * - Image: `imageUrl` on inquiry record; open in modal to review student evidence.
+ */
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function statusBadgeClass(status) {
@@ -31,6 +38,8 @@ export default function AdminInquiries() {
   const [reportStatus, setReportStatus] = useState('all')
   const [reportFromDate, setReportFromDate] = useState('')
   const [reportToDate, setReportToDate] = useState('')
+  const [viewerImage, setViewerImage] = useState('')
+  const [viewerTitle, setViewerTitle] = useState('')
 
   const filteredList = useMemo(
     () =>
@@ -334,6 +343,30 @@ export default function AdminInquiries() {
                     {row.message}
                   </div>
                 </div>
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-400 mb-1">Uploaded image</p>
+                  {row.imageUrl ? (
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={row.imageUrl}
+                        alt="Inquiry upload"
+                        className="h-14 w-20 rounded-md object-cover border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        className="btn-table-primary px-3 py-1.5 text-xs"
+                        onClick={() => {
+                          setViewerImage(row.imageUrl)
+                          setViewerTitle(row.subject || 'Inquiry Image')
+                        }}
+                      >
+                        View Image
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No image uploaded</p>
+                  )}
+                </div>
 
                 {row.reply && (
                   <div className="mb-4">
@@ -382,6 +415,19 @@ export default function AdminInquiries() {
           })}
         </ul>
       </div>
+      {viewerImage && (
+        <div className="image-modal-backdrop" onClick={() => setViewerImage('')}>
+          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="image-modal-header">
+              <strong>{viewerTitle || 'Uploaded Image'}</strong>
+              <button type="button" className="btn-table-secondary" onClick={() => setViewerImage('')}>
+                Close
+              </button>
+            </div>
+            <img src={viewerImage} alt="Enlarged inquiry upload" className="image-modal-image" />
+          </div>
+        </div>
+      )}
     </div>
     </div>
   )

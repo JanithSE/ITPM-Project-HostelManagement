@@ -14,6 +14,10 @@ const userSchema = new mongoose.Schema(
     assignedHostel: { type: String, trim: true, default: '' },
     /** University / registration ID — used to match late-pass group requests */
     universityId: { type: String, trim: true, default: '' },
+    /** Academic year (1–4) for roommate matching; optional */
+    academicYear: { type: Number, min: 1, max: 4, default: null },
+    /** Semester 1 or 2; optional */
+    academicSemester: { type: Number, min: 1, max: 2, default: null },
     isVerified: { type: Boolean, default: false },
     otpCode: { type: String, default: '' },
     otpExpiresAt: { type: Date, default: null },

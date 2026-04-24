@@ -179,7 +179,7 @@ export const wardenNavItems = [
   { label: "Issued items", icon: "📋" },
   { label: "Students", icon: "◉" },
   { label: "Rooms", icon: "⬡" },
-  { label: "Leave", icon: "◫" },
+  { label: "Maintenance", icon: "🛠️" },
   { label: "Reports", icon: "◰" },
 ];
 

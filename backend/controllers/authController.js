@@ -464,6 +464,8 @@ export const getMe = async (req, res) => {
         role: u.role,
         phoneNumber: u.phoneNumber || '',
         universityId: u.universityId || '',
+        academicYear: u.academicYear != null ? u.academicYear : null,
+        academicSemester: u.academicSemester != null ? u.academicSemester : null,
       },
     })
   } catch (err) {
@@ -476,13 +478,37 @@ export const patchMe = async (req, res) => {
   try {
     const u = req.user
     if (!u) return res.status(401).json({ error: 'Unauthorized' })
-    const { name, phoneNumber } = req.body || {}
+    const { name, phoneNumber, academicYear, academicSemester } = req.body || {}
     if (name != null) {
       const n = String(name).trim()
       if (!n) return res.status(400).json({ error: 'Name cannot be empty' })
       u.name = n
     }
     if (phoneNumber != null) u.phoneNumber = String(phoneNumber).trim()
+    if (u.role === 'student') {
+      if (academicYear != null) {
+        if (academicYear === '' || academicYear === null) {
+          u.academicYear = null
+        } else {
+          const y = Number(academicYear)
+          if (!Number.isInteger(y) || y < 1 || y > 4) {
+            return res.status(400).json({ error: 'academicYear must be between 1 and 4' })
+          }
+          u.academicYear = y
+        }
+      }
+      if (academicSemester != null) {
+        if (academicSemester === '' || academicSemester === null) {
+          u.academicSemester = null
+        } else {
+          const s = Number(academicSemester)
+          if (s !== 1 && s !== 2) {
+            return res.status(400).json({ error: 'academicSemester must be 1 or 2' })
+          }
+          u.academicSemester = s
+        }
+      }
+    }
     await u.save()
     return res.json({
       user: {
@@ -492,6 +518,8 @@ export const patchMe = async (req, res) => {
         role: u.role,
         phoneNumber: u.phoneNumber || '',
         universityId: u.universityId || '',
+        academicYear: u.academicYear != null ? u.academicYear : null,
+        academicSemester: u.academicSemester != null ? u.academicSemester : null,
       },
     })
   } catch (err) {

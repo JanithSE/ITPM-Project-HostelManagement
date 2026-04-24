@@ -140,8 +140,8 @@ export default function CreateUser() {
                     : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900'
                 }`}
               >
-                <p className="font-semibold text-slate-900 dark:text-slate-100">User</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Basic user access with limited permissions</p>
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Student</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Student account with standard hostel access</p>
               </button>
               <button
                 type="button"
@@ -155,10 +155,18 @@ export default function CreateUser() {
                 <p className="font-semibold text-slate-900 dark:text-slate-100">Admin</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">Administrative access with extended permissions</p>
               </button>
-              <div className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/40">
-                <p className="font-semibold text-slate-500 dark:text-slate-300">Super Admin</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Not assignable from this panel</p>
-              </div>
+              <button
+                type="button"
+                onClick={() => setForm((p) => ({ ...p, role: 'warden' }))}
+                className={`w-full rounded-xl border px-4 py-3 text-left transition ${
+                  form.role === 'warden'
+                    ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20'
+                    : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900'
+                }`}
+              >
+                <p className="font-semibold text-slate-900 dark:text-slate-100">Warden</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Hostel operations and resident oversight</p>
+              </button>
 
               <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-900">
                 <div className="mb-2 flex items-center justify-between">
