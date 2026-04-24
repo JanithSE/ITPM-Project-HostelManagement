@@ -18,6 +18,11 @@ import inventoryRoutes from './routes/inventory.js'
 import issuedItemsRoutes from './routes/issuedItems.js'
 import maintenanceRoutes from './routes/maintenance.js'
 import roomsRoutes from './routes/rooms.js'
+<<<<<<< Updated upstream
+=======
+import chatRoutes from './routes/chat.js'
+import exportRoutes from './routes/export.js'
+>>>>>>> Stashed changes
 
 await connectDB()
 
@@ -46,6 +51,11 @@ app.use('/api/inventory', inventoryRoutes)
 app.use('/api/issued-items', issuedItemsRoutes)
 app.use('/api/maintenance', maintenanceRoutes)
 app.use('/api/rooms', roomsRoutes)
+<<<<<<< Updated upstream
+=======
+app.use('/api/chat', chatRoutes)
+app.use('/api/export', exportRoutes)
+>>>>>>> Stashed changes
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true })
