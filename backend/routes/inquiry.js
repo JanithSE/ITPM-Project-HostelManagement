@@ -1,3 +1,7 @@
+/**
+ * VIVA: Inquiry API routes — HTTP path layer between React (`inquiryApi`) and `inquiryController`.
+ * Pattern: auth -> role check -> (optional image parse) -> controller.
+ */
 import express from 'express'
 import {
   listAllInquiries,
@@ -9,19 +13,20 @@ import {
   deleteMyInquiry,
 } from '../controllers/inquiryController.js'
 import { authMiddleware, requireRole } from '../middleware/auth.js'
+import { inquiryImageUploadOptionalMiddleware } from '../middleware/upload.js'
 
 const router = express.Router()
 
 router.use(authMiddleware)
 
 // POST /api/inquiry — student
-router.post('/', requireRole('student'), createInquiry)
+router.post('/', requireRole('student'), inquiryImageUploadOptionalMiddleware, createInquiry)
 
 // GET /api/inquiry/my — student
 router.get('/my', requireRole('student'), listMyInquiries)
 
 // PUT /api/inquiry/:id/my — student: update own open inquiry
-router.put('/:id/my', requireRole('student'), updateMyInquiry)
+router.put('/:id/my', requireRole('student'), inquiryImageUploadOptionalMiddleware, updateMyInquiry)
 
 // DELETE /api/inquiry/:id/my — student: delete own open inquiry
 router.delete('/:id/my', requireRole('student'), deleteMyInquiry)

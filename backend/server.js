@@ -18,6 +18,7 @@ import inventoryRoutes from './routes/inventory.js'
 import issuedItemsRoutes from './routes/issuedItems.js'
 import maintenanceRoutes from './routes/maintenance.js'
 import roomsRoutes from './routes/rooms.js'
+import chatRoutes from './routes/chat.js'
 
 // ✅ both added
 import chatRoutes from './routes/chat.js'
@@ -34,6 +35,7 @@ app.use(express.json())
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Serves maintenance/inquiry images and other uploads; URLs like "/uploads/maintenance/..." match `imageUrl` in DB.
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 app.use('/api/auth', authRoutes)
@@ -48,8 +50,10 @@ app.use('/api/latepass-notifications', latePassNotificationRoutes)
 app.use('/api/complains', complainsRoutes)
 app.use('/api/inventory', inventoryRoutes)
 app.use('/api/issued-items', issuedItemsRoutes)
+// Frontend calls `maintenanceApi` -> base URL `/api/maintenance` -> routes/maintenance.js -> maintenanceController.js
 app.use('/api/maintenance', maintenanceRoutes)
 app.use('/api/rooms', roomsRoutes)
+app.use('/api/chat', chatRoutes)
 
 // ✅ both routes enabled
 app.use('/api/chat', chatRoutes)

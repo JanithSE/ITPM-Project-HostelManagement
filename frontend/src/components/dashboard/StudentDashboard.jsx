@@ -35,6 +35,8 @@ export default function StudentDashboard() {
       address: '',
       dateOfBirth: '',
       profilePicture: '',
+      academicYear: '',
+      academicSemester: '',
     }
     const saved = localStorage.getItem('studentProfile')
     if (saved) {
@@ -65,6 +67,14 @@ export default function StudentDashboard() {
             fullName: name || prev.fullName,
             email: email || prev.email,
             phoneNumber: prev.phoneNumber || phone,
+            academicYear:
+              u.academicYear != null && u.academicYear !== ''
+                ? String(u.academicYear)
+                : prev.academicYear || '',
+            academicSemester:
+              u.academicSemester != null && u.academicSemester !== ''
+                ? String(u.academicSemester)
+                : prev.academicSemester || '',
           }
           try {
             localStorage.setItem('studentProfile', JSON.stringify(next))
@@ -78,6 +88,12 @@ export default function StudentDashboard() {
           fullName: name || prev.fullName,
           email: email || prev.email,
           phoneNumber: prev.phoneNumber || phone,
+          academicYear:
+            u.academicYear != null && u.academicYear !== '' ? String(u.academicYear) : prev.academicYear || '',
+          academicSemester:
+            u.academicSemester != null && u.academicSemester !== ''
+              ? String(u.academicSemester)
+              : prev.academicSemester || '',
         }))
       } catch {
         // No / invalid token — keep localStorage fallbacks
@@ -180,6 +196,8 @@ export default function StudentDashboard() {
       await authApi.patchMe({
         name: next.fullName,
         phoneNumber: next.phoneNumber || '',
+        academicYear: next.academicYear === '' ? null : next.academicYear,
+        academicSemester: next.academicSemester === '' ? null : next.academicSemester,
       })
     } catch {
       // Still persist locally if server is unreachable
@@ -434,6 +452,39 @@ export default function StudentDashboard() {
                       onChange={(e) => setProfileDraft((p) => ({ ...p, phoneNumber: e.target.value }))}
                       placeholder="e.g. 0771234567"
                     />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="pf-year" className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Study year
+                    </label>
+                    <select
+                      id="pf-year"
+                      className={profileFieldClass}
+                      value={profileDraft.academicYear}
+                      onChange={(e) => setProfileDraft((p) => ({ ...p, academicYear: e.target.value }))}
+                    >
+                      <option value="">Not set</option>
+                      <option value="1">Year 1</option>
+                      <option value="2">Year 2</option>
+                      <option value="3">Year 3</option>
+                      <option value="4">Year 4</option>
+                    </select>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Used for roommate matching in booking chat.</p>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="pf-sem" className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                      Semester
+                    </label>
+                    <select
+                      id="pf-sem"
+                      className={profileFieldClass}
+                      value={profileDraft.academicSemester}
+                      onChange={(e) => setProfileDraft((p) => ({ ...p, academicSemester: e.target.value }))}
+                    >
+                      <option value="">Not set</option>
+                      <option value="1">Semester 1</option>
+                      <option value="2">Semester 2</option>
+                    </select>
                   </div>
                   <div className="space-y-2">
                     <span className="block text-[11px] font-bold uppercase tracking-widest text-slate-500 dark:text-slate-400">

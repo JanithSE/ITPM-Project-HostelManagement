@@ -15,6 +15,7 @@ const maintenanceSchema = new mongoose.Schema(
       enum: ['open', 'in_progress', 'resolved'],
       default: 'open',
     },
+    imageUrl: { type: String, default: '' },
     reportedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   },
   { timestamps: true }

@@ -1,3 +1,12 @@
+// VIVA: Frontend–backend connection (this file is the main “join” layer)
+// -------------------------------------------------------------------
+// 1) API_BASE: In dev, Vite proxies /api -> backend (e.g. port 5001). In prod, VITE_API_URL can point
+//    to a full API origin. All requests start here, then go to routes like /api/maintenance, /api/inquiry.
+// 2) apiFetch: JSON + JWT (Bearer token) for most calls.
+// 3) apiPostForm / apiFormWithMethod: multipart/form-data (no JSON Content-Type) for image uploads; field
+//    name is "image" to match multer in backend/middleware/upload.js.
+// 4) maintenanceApi / inquiryApi: thin wrappers; React pages call only these, not raw URLs.
+// -------------------------------------------------------------------
 // Use relative /api in dev (proxied to backend); set VITE_API_URL for production
 const API_BASE = import.meta.env.VITE_API_URL || '/api'
 
@@ -157,6 +166,37 @@ export async function apiFormWithMethod(path, formData, method = 'POST') {
   return parseFormResponse(res, text)
 }
 
+// Build FormData for POST/PUT; backend expects multipart for create/update with optional "image" file.
+function appendIfPresent(formData, key, value) {
+  if (value == null) return
+  formData.append(key, String(value))
+}
+
+// Maintenance: maps to createMaintenance / updateMyMaintenance in maintenanceController (fields + file).
+function toMaintenanceFormData(payload = {}) {
+  const form = new FormData()
+  appendIfPresent(form, 'title', payload.title)
+  appendIfPresent(form, 'description', payload.description)
+  appendIfPresent(form, 'location', payload.location)
+  appendIfPresent(form, 'priority', payload.priority)
+  if (payload.imageFile instanceof File) {
+    form.append('image', payload.imageFile)
+  }
+  return form
+}
+
+// Inquiry: maps to createInquiry / updateMyInquiry in inquiryController (fields + file).
+function toInquiryFormData(payload = {}) {
+  const form = new FormData()
+  appendIfPresent(form, 'campusId', payload.campusId)
+  appendIfPresent(form, 'subject', payload.subject)
+  appendIfPresent(form, 'message', payload.message)
+  if (payload.imageFile instanceof File) {
+    form.append('image', payload.imageFile)
+  }
+  return form
+}
+
 /* ================= APIs ================= */
 
 export const authApi = {
@@ -197,12 +237,13 @@ export const hostelApi = {
   deleteHostel: (id) => apiFetch(`/hostels/${id}`, { method: 'DELETE' }),
 }
 
+// Maintenance module — see backend: routes/maintenance.js + controllers/maintenanceController.js
 export const maintenanceApi = {
   create: (payload) =>
-    apiFetch('/maintenance', { method: 'POST', body: JSON.stringify(payload) }),
+    apiPostForm('/maintenance', toMaintenanceFormData(payload)),
   myList: () => apiFetch('/maintenance/my'),
   updateMine: (id, payload) =>
-    apiFetch(`/maintenance/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+    apiFormWithMethod(`/maintenance/${id}/my`, toMaintenanceFormData(payload), 'PUT'),
   removeMine: (id) =>
     apiFetch(`/maintenance/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/maintenance'),
@@ -210,12 +251,13 @@ export const maintenanceApi = {
     apiFetch(`/maintenance/${id}`, { method: 'PUT', body: JSON.stringify({ status }) }),
 }
 
+// Inquiry module — see backend: routes/inquiry.js + controllers/inquiryController.js
 export const inquiryApi = {
   create: (payload) =>
-    apiFetch('/inquiry', { method: 'POST', body: JSON.stringify(payload) }),
+    apiPostForm('/inquiry', toInquiryFormData(payload)),
   myList: () => apiFetch('/inquiry/my'),
   updateMine: (id, payload) =>
-    apiFetch(`/inquiry/${id}/my`, { method: 'PUT', body: JSON.stringify(payload) }),
+    apiFormWithMethod(`/inquiry/${id}/my`, toInquiryFormData(payload), 'PUT'),
   removeMine: (id) =>
     apiFetch(`/inquiry/${id}/my`, { method: 'DELETE' }),
   listAll: () => apiFetch('/inquiry'),
@@ -271,6 +313,15 @@ export const bookingApi = {
     const ext = params.type === 'pdf' ? 'pdf' : 'xlsx'
     return apiFetchBlob(`/export/bookings${suffix}`, { method: 'GET' }, `bookings-export.${ext}`)
   },
+}
+
+export const bookingChatApi = {
+  sendMessage: ({ message, conversationId }) =>
+    apiFetch('/chat/booking/message', {
+      method: 'POST',
+      body: JSON.stringify({ message, conversationId }),
+    }),
+  getHistory: (conversationId) => apiFetch(`/chat/booking/history/${conversationId}`),
 }
 
 export const paymentApi = {

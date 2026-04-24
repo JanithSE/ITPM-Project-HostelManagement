@@ -1,14 +1,48 @@
 import nodemailer from 'nodemailer'
 
+function parseBool(v, fallback = false) {
+  if (v == null) return fallback
+  const s = String(v).trim().toLowerCase()
+  if (['1', 'true', 'yes', 'on'].includes(s)) return true
+  if (['0', 'false', 'no', 'off'].includes(s)) return false
+  return fallback
+}
+
+function getFromAddress() {
+  return process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER
+}
+
 function createTransport() {
+  const smtpHost = String(process.env.SMTP_HOST || '').trim()
+  const smtpUser = String(process.env.SMTP_USER || '').trim()
+  const smtpPass = String(process.env.SMTP_PASS || '').trim()
+  const smtpPort = Number.parseInt(String(process.env.SMTP_PORT || '587'), 10)
+  const smtpSecure = parseBool(process.env.SMTP_SECURE, smtpPort === 465)
+
+  // Preferred path: generic SMTP provider (works with non-Gmail addresses).
+  if (smtpHost && smtpUser && smtpPass) {
+    console.log('[EmailService] Creating SMTP transport for host:', smtpHost)
+    return nodemailer.createTransport({
+      host: smtpHost,
+      port: Number.isFinite(smtpPort) ? smtpPort : 587,
+      secure: smtpSecure,
+      auth: { user: smtpUser, pass: smtpPass },
+    })
+  }
+
+  // Backward-compatible fallback: Gmail credentials.
   const emailUser = process.env.EMAIL_USER
   const emailPass = process.env.EMAIL_PASS
   if (!emailUser || !emailPass) {
-    console.error('[EmailService] MISSING CREDENTIALS. Please set EMAIL_USER and EMAIL_PASS in backend/.env')
-    throw new Error('Email service not configured. Set EMAIL_USER and EMAIL_PASS in backend/.env')
+    console.error(
+      '[EmailService] MISSING CREDENTIALS. Set SMTP_HOST/SMTP_USER/SMTP_PASS (preferred) or EMAIL_USER/EMAIL_PASS in backend/.env',
+    )
+    throw new Error(
+      'Email service not configured. Set SMTP_* (preferred) or EMAIL_USER/EMAIL_PASS in backend/.env',
+    )
   }
 
-  console.log('[EmailService] Creating transport for:', emailUser)
+  console.log('[EmailService] Creating Gmail transport for:', emailUser)
   return nodemailer.createTransport({
     service: 'gmail',
     auth: { user: emailUser, pass: emailPass },
@@ -47,7 +81,7 @@ export async function sendBookingRejectedEmail({
   `
 
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: getFromAddress(),
     to,
     subject: 'UniHostel Booking Rejected - Document Fix Required',
     html,
@@ -80,7 +114,7 @@ export async function sendDocumentRejectedEmail({
     </div>
   `
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: getFromAddress(),
     to,
     subject: `UniHostel Document Rejected: ${documentName || 'Booking Document'}`,
     html,
@@ -96,17 +130,14 @@ function escapeHtml(s) {
 }
 
 /**
- * Sent when an admin marks a payment as accepted (status: completed).
+ * Sent when an admin marks a payment as completed/confirmed.
  */
-export async function sendPaymentAcceptedEmail({
+export async function sendPaymentCompletedEmail({
   to,
   studentName,
-  monthLabel: monthLabelText,
+  paymentId,
   amount,
-  roomNo,
-  roomType,
-  facilityType,
-  adminRemarks,
+  monthLabel: monthLabelText,
 }) {
   if (!to) return
 
@@ -116,35 +147,31 @@ export async function sendPaymentAcceptedEmail({
       ? Number(amount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
       : String(amount ?? '-')
 
-  const remarksBlock = adminRemarks
-    ? `<li><strong>Notes:</strong> ${escapeHtml(adminRemarks)}</li>`
-    : ''
-
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 620px; margin: 0 auto;">
-      <h2>Payment Accepted</h2>
-      <p>Hello ${escapeHtml(studentName || 'Student')},</p>
-      <p>Your hostel fee payment has been <strong>accepted</strong>. Thank you.</p>
+      <h2 style="color: #0f766e;">Payment Confirmed</h2>
+      <p>Dear ${escapeHtml(studentName || 'Student')},</p>
+      <p>
+        Your payment has been verified and your booking payment is now confirmed.
+      </p>
       <ul>
+        <li><strong>Payment ID:</strong> ${escapeHtml(paymentId || '-')}</li>
         <li><strong>Month:</strong> ${escapeHtml(monthLabelText || '-')}</li>
-        <li><strong>Amount (LKR):</strong> ${escapeHtml(amt)}</li>
-        <li><strong>Room:</strong> ${escapeHtml(roomNo || '-')}</li>
-        <li><strong>Room type:</strong> ${escapeHtml(roomType || '-')}</li>
-        <li><strong>Facility:</strong> ${escapeHtml(facilityType || '-')}</li>
-        ${remarksBlock}
+        <li><strong>Amount Paid (LKR):</strong> ${escapeHtml(amt)}</li>
+        <li><strong>Status:</strong> Completed</li>
       </ul>
-      <p>You can view this record anytime in your student dashboard.</p>
+      <p>Thank you for your payment.</p>
       <p>UniHostel Team</p>
     </div>
   `
 
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: getFromAddress(),
     to,
-    subject: `UniHostel: Payment accepted for ${monthLabelText || 'your booking'}`,
+    subject: 'Payment Confirmation - Hostel Management System',
     html,
   })
-  console.log(`[EmailService] SUCCESS: Accepted email sent to ${to}`)
+  console.log(`[EmailService] SUCCESS: Completed payment email sent to ${to}`)
 }
 
 /**
@@ -186,7 +213,7 @@ export async function sendPaymentRejectedEmail({
   `
 
   await transporter.sendMail({
-    from: process.env.EMAIL_USER,
+    from: getFromAddress(),
     to,
     subject: `UniHostel: Payment rejected for ${monthLabelText || 'your booking'}`,
     html,

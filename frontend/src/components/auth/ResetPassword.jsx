@@ -10,7 +10,7 @@ export default function ResetPassword() {
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState(() =>
-    resetToken ? '' : 'Verify your OTP first (use the link from Forgot Password).'
+    resetToken ? '' : 'Verify your OTP first (use the Forgot Password flow).'
   )
   const [loading, setLoading] = useState(false)
 
@@ -48,9 +48,7 @@ export default function ResetPassword() {
             <span className="auth-pro-panel-mark">UH</span>
             <div>
               <h1 className="auth-pro-heading">Reset Password</h1>
-              <p className="auth-pro-subheading !mt-0">
-                Enter your new password. Your OTP was already verified.
-              </p>
+              <p className="auth-pro-subheading !mt-0">Enter your new password. Your OTP was already verified.</p>
             </div>
           </div>
           {error && <p className="auth-pro-error">{error}</p>}

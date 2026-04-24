@@ -3,6 +3,14 @@ import { maintenanceApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 import { inDateRange, exportMaintenancePdf } from '../../utils/reportExport'
 
+/**
+ * VIVA: Admin — Maintenance
+ * - Data: `maintenanceApi.listAll` + `updateStatus` (JSON) for workflow open → in_progress → resolved.
+ * - Validation (UI): staff name before in_progress, completion note before resolved; `window.confirm` on complete.
+ * - Activity log: local state for viva/demos (not persisted; backend only stores `status` today).
+ * - Reports: filtered list + `exportMaintenancePdf` (client-side PDF).
+ * - Image: from student `imageUrl`; modal for full-size view.
+ */
 function statusOptions(current) {
   // Enforce forward-only status transitions in the admin UI.
   if (current === 'open') return ['open', 'in_progress']
@@ -55,6 +63,8 @@ export default function AdminMaintenance() {
   const [reportStatus, setReportStatus] = useState('all')
   const [reportFromDate, setReportFromDate] = useState('')
   const [reportToDate, setReportToDate] = useState('')
+  const [viewerImage, setViewerImage] = useState('')
+  const [viewerTitle, setViewerTitle] = useState('')
 
   const filteredList = useMemo(
     () =>
@@ -345,6 +355,30 @@ export default function AdminMaintenance() {
                     </p>
                   </div>
                 </div>
+                <div className="mb-4">
+                  <p className="text-xs font-medium text-gray-400 mb-1">Uploaded image</p>
+                  {row.imageUrl ? (
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={row.imageUrl}
+                        alt="Maintenance upload"
+                        className="h-14 w-20 rounded-md object-cover border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        className="btn-table-primary px-3 py-1.5 text-xs"
+                        onClick={() => {
+                          setViewerImage(row.imageUrl)
+                          setViewerTitle(row.title || 'Maintenance Image')
+                        }}
+                      >
+                        View Image
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-gray-500">No image uploaded</p>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-3 py-3 px-4 rounded-lg bg-slate-50 border border-gray-100 mb-4">
                   <div
@@ -375,6 +409,19 @@ export default function AdminMaintenance() {
           ))}
         </ul>
       </div>
+      {viewerImage && (
+        <div className="image-modal-backdrop" onClick={() => setViewerImage('')}>
+          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="image-modal-header">
+              <strong>{viewerTitle || 'Uploaded Image'}</strong>
+              <button type="button" className="btn-table-secondary" onClick={() => setViewerImage('')}>
+                Close
+              </button>
+            </div>
+            <img src={viewerImage} alt="Enlarged maintenance upload" className="image-modal-image" />
+          </div>
+        </div>
+      )}
     </div>
     </div>
   )

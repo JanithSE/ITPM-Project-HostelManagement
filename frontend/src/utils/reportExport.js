@@ -30,6 +30,67 @@ function formatMaintStatus(value) {
   return String(value || '').replace(/_/g, ' ')
 }
 
+function formatInquiryStatus(value) {
+  return String(value || '').replace(/_/g, ' ')
+}
+
+function clampText(value, max = 220) {
+  const text = String(value || '').trim()
+  if (!text) return '—'
+  if (text.length <= max) return text
+  return `${text.slice(0, max - 1)}...`
+}
+
+function buildPdfHeader(doc, title, count) {
+  const generatedAt = new Date().toLocaleString()
+  doc.setFontSize(15)
+  doc.setTextColor(15, 23, 42)
+  doc.text(title, 40, 40)
+  doc.setFontSize(9)
+  doc.setTextColor(71, 85, 105)
+  doc.text(`Generated: ${generatedAt}`, 40, 56)
+  doc.text(`Total records: ${count}`, 40, 70)
+  doc.setTextColor(0, 0, 0)
+}
+
+function commonPdfTableOptions(doc, head, body, columnStyles) {
+  autoTable(doc, {
+    startY: 82,
+    head: [head],
+    body,
+    theme: 'grid',
+    margin: { left: 30, right: 30 },
+    styles: {
+      fontSize: 8,
+      cellPadding: 4,
+      valign: 'top',
+      lineColor: [203, 213, 225],
+      lineWidth: 0.3,
+      overflow: 'linebreak',
+    },
+    headStyles: {
+      fillColor: [30, 58, 138],
+      textColor: 255,
+      fontStyle: 'bold',
+      halign: 'left',
+      fontSize: 8,
+    },
+    bodyStyles: {
+      textColor: [15, 23, 42],
+      halign: 'left',
+    },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles,
+    didDrawPage: () => {
+      const pageHeight = doc.internal.pageSize.getHeight()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      doc.setFontSize(8)
+      doc.setTextColor(100, 116, 139)
+      doc.text(`Page ${doc.internal.getNumberOfPages()}`, pageWidth - 62, pageHeight - 14)
+    },
+  })
+}
+
 /** @param {Array} rows maintenance API rows */
 export function exportMaintenanceCsv(rows) {
   const headers = ['Title', 'Student ID', 'Location', 'Priority', 'Status', 'Student Name', 'Student Email', 'Created At']
@@ -179,64 +240,60 @@ function openPrintWindow(title, tableInner) {
 
 export function exportMaintenancePdf(rows) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
-  doc.setFontSize(14)
-  doc.text('Maintenance Report', 40, 40)
-  doc.setFontSize(9)
-  doc.setTextColor(80, 80, 80)
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 56)
-  doc.setTextColor(0, 0, 0)
+  buildPdfHeader(doc, 'Maintenance Report', rows.length)
 
   const body = rows.map((row) => [
-    String(row.title || '').slice(0, 120),
+    row._id || '—',
     row.studentId || '—',
-    String(row.location || '').slice(0, 48),
-    row.priority || '—',
+    clampText(row.title, 90),
+    clampText(row.description, 160),
     formatMaintStatus(row.status),
-    row.reportedBy?.name || '—',
-    row.reportedBy?.email || '—',
     row.createdAt ? new Date(row.createdAt).toLocaleString() : '—',
   ])
 
-  autoTable(doc, {
-    startY: 68,
-    head: [['Title', 'Student ID', 'Location', 'Priority', 'Status', 'Student', 'Email', 'Created']],
+  commonPdfTableOptions(
+    doc,
+    ['ID', 'Student ID', 'Title', 'Message', 'Status', 'Date'],
     body,
-    styles: { fontSize: 7, cellPadding: 2 },
-    headStyles: { fillColor: [30, 58, 138], textColor: 255 },
-    margin: { left: 40, right: 40 },
-  })
+    {
+      0: { cellWidth: 94, fontSize: 7 },
+      1: { cellWidth: 68, halign: 'center' },
+      2: { cellWidth: 140 },
+      3: { cellWidth: 330 },
+      4: { cellWidth: 70, halign: 'center' },
+      5: { cellWidth: 92, halign: 'center' },
+    }
+  )
 
   doc.save(`maintenance-report-${new Date().toISOString().slice(0, 10)}.pdf`)
 }
 
 export function exportInquiriesPdf(rows) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'pt', format: 'a4' })
-  doc.setFontSize(14)
-  doc.text('Inquiry Report', 40, 40)
-  doc.setFontSize(9)
-  doc.setTextColor(80, 80, 80)
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 56)
-  doc.setTextColor(0, 0, 0)
+  buildPdfHeader(doc, 'Inquiry Report', rows.length)
 
   const body = rows.map((row) => [
+    row._id || '—',
     row.campusId || '—',
-    String(row.from?.name || '—').slice(0, 40),
-    String(row.from?.email || '—').slice(0, 48),
-    String(row.subject || '—').slice(0, 80),
-    String(row.message || '—').slice(0, 200),
-    row.status || '—',
-    String(row.reply || '—').slice(0, 200),
+    clampText(row.subject, 120),
+    clampText(row.message, 240),
+    formatInquiryStatus(row.status || '—'),
     row.createdAt ? new Date(row.createdAt).toLocaleString() : '—',
   ])
 
-  autoTable(doc, {
-    startY: 68,
-    head: [['Campus ID', 'Name', 'Email', 'Subject', 'Message', 'Status', 'Reply', 'Created']],
+  commonPdfTableOptions(
+    doc,
+    ['ID', 'Campus ID', 'Subject', 'Message', 'Status', 'Date'],
     body,
-    styles: { fontSize: 7, cellPadding: 2 },
-    headStyles: { fillColor: [30, 58, 138], textColor: 255 },
-    margin: { left: 40, right: 40 },
-  })
+    {
+      0: { cellWidth: 96, fontSize: 7 },
+      1: { cellWidth: 72, halign: 'center' },
+      2: { cellWidth: 180 },
+      3: { cellWidth: 312 },
+      4: { cellWidth: 72, halign: 'center' },
+      5: { cellWidth: 92, halign: 'center' },
+    }
+  )
 
   doc.save(`inquiries-report-${new Date().toISOString().slice(0, 10)}.pdf`)
 }
