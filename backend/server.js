@@ -18,11 +18,10 @@ import inventoryRoutes from './routes/inventory.js'
 import issuedItemsRoutes from './routes/issuedItems.js'
 import maintenanceRoutes from './routes/maintenance.js'
 import roomsRoutes from './routes/rooms.js'
-<<<<<<< Updated upstream
-=======
+
+// ✅ both added
 import chatRoutes from './routes/chat.js'
 import exportRoutes from './routes/export.js'
->>>>>>> Stashed changes
 
 await connectDB()
 
@@ -32,9 +31,9 @@ const PORT = process.env.PORT || 5001
 app.use(cors({ origin: true, credentials: true }))
 app.use(express.json())
 
-// Serve uploaded proof files (for payment proofUrl)
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
+
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
 
 app.use('/api/auth', authRoutes)
@@ -51,22 +50,19 @@ app.use('/api/inventory', inventoryRoutes)
 app.use('/api/issued-items', issuedItemsRoutes)
 app.use('/api/maintenance', maintenanceRoutes)
 app.use('/api/rooms', roomsRoutes)
-<<<<<<< Updated upstream
-=======
+
+// ✅ both routes enabled
 app.use('/api/chat', chatRoutes)
 app.use('/api/export', exportRoutes)
->>>>>>> Stashed changes
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true })
 })
 
-// 404 for unknown API routes
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Not Found' })
 })
 
-// Global error handler (for async route errors that slip through)
 app.use((err, req, res, next) => {
   console.error(err)
   res.status(500).json({ error: err.message || 'Internal server error' })
@@ -80,8 +76,7 @@ server.on('error', (err) => {
   if (err.code === 'EADDRINUSE') {
     console.error(
       `\nPort ${PORT} is already in use.\n` +
-      `Another backend is probably still running (e.g. another terminal or root "npm run dev").\n` +
-      `Fix: stop that process, or run: netstat -ano | findstr ":${PORT}" then taskkill /PID <pid> /F\n`
+      `Another backend is probably still running.\n`
     )
     process.exit(1)
   }
