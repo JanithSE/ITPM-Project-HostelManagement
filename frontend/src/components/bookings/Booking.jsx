@@ -37,6 +37,14 @@ export default function Booking() {
   const [editingBookingId, setEditingBookingId] = useState('')
   const [viewBooking, setViewBooking] = useState(null)
   const [docBusyKey, setDocBusyKey] = useState('')
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false)
+  const [exportFormat, setExportFormat] = useState('excel')
+  const [exportRange, setExportRange] = useState('week')
+  const [exportDateField, setExportDateField] = useState('createdAt')
+  const [exportFrom, setExportFrom] = useState('')
+  const [exportTo, setExportTo] = useState('')
+  const [exportLoading, setExportLoading] = useState(false)
+  const [exportError, setExportError] = useState('')
   const [editForm, setEditForm] = useState({
     status: 'pending',
     fromDate: '',
@@ -218,31 +226,62 @@ export default function Booking() {
     }
   }
 
-  function handleExport() {
-    if (!filtered.length) {
-      toast.error('No bookings to export')
-      return
+  function openExportModal() {
+    setExportError('')
+    setIsExportModalOpen(true)
+  }
+
+  function closeExportModal() {
+    if (exportLoading) return
+    setIsExportModalOpen(false)
+    setExportError('')
+  }
+
+  async function handleExportSubmit(e) {
+    e.preventDefault()
+    setExportError('')
+    if (exportRange === 'custom') {
+      if (!exportFrom || !exportTo) {
+        const msg = 'Please select both From and To dates'
+        setExportError(msg)
+        toast.error(msg)
+        return
+      }
+      if (new Date(exportFrom) > new Date(exportTo)) {
+        const msg = 'From date cannot be after To date'
+        setExportError(msg)
+        toast.error(msg)
+        return
+      }
     }
-    const rows = filtered.map((b) => ({
-      id: String(b._id || '').slice(-6).toUpperCase(),
-      student: b.student?.name || b.student?.email || '',
-      hostel: b.hostel?.name || '',
-      room: b.roomNumber || '',
-      bed: b.bedNumber || '',
-      fromDate: formatDate(b.fromDate),
-      toDate: formatDate(b.toDate),
-      status: b.status || '',
-      note: String(b.note || '').replaceAll(',', ' '),
-    }))
-    const header = Object.keys(rows[0]).join(',')
-    const csv = [header, ...rows.map((r) => Object.values(r).join(','))].join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `bookings-${new Date().toISOString().slice(0, 10)}.csv`
-    a.click()
-    URL.revokeObjectURL(url)
+    try {
+      setExportLoading(true)
+      const result = await bookingApi.export({
+        type: exportFormat,
+        range: exportRange,
+        dateField: exportDateField,
+        from: exportRange === 'custom' ? exportFrom : undefined,
+        to: exportRange === 'custom' ? exportTo : undefined,
+      })
+
+      const blobUrl = URL.createObjectURL(result.blob)
+      const a = document.createElement('a')
+      a.href = blobUrl
+      a.download = result.filename
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(blobUrl)
+
+      toast.success('Export started')
+      setIsExportModalOpen(false)
+    } catch (err) {
+      const msg = err.message || 'Failed to export bookings'
+      setExportError(msg)
+      toast.error(msg)
+    } finally {
+      setExportLoading(false)
+    }
   }
 
   async function reviewDocument(documentKey, status) {
@@ -358,7 +397,7 @@ export default function Booking() {
             </option>
           ))}
         </select>
-        <button type="button" onClick={handleExport} className="btn-table-secondary rounded-full px-5">
+        <button type="button" onClick={openExportModal} className="btn-table-secondary rounded-full px-5">
           Export
         </button>
       </div>
@@ -622,6 +661,93 @@ export default function Booking() {
                 })}
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <h2 className="mb-4 text-xl font-bold text-slate-900 dark:text-slate-100">Export bookings</h2>
+            <form onSubmit={handleExportSubmit} className="space-y-3">
+              <div>
+                <label className="auth-label">Format</label>
+                <select
+                  className="auth-input"
+                  value={exportFormat}
+                  onChange={(e) => setExportFormat(e.target.value)}
+                >
+                  <option value="excel">Export as Excel (.xlsx)</option>
+                  <option value="pdf">Export as PDF (.pdf)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="auth-label">Filter by date field</label>
+                <select
+                  className="auth-input"
+                  value={exportDateField}
+                  onChange={(e) => setExportDateField(e.target.value)}
+                >
+                  <option value="createdAt">Booking created date</option>
+                  <option value="fromDate">Stay start date</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="auth-label">Date range</label>
+                <select
+                  className="auth-input"
+                  value={exportRange}
+                  onChange={(e) => setExportRange(e.target.value)}
+                >
+                  <option value="day">Last 1 day</option>
+                  <option value="week">Last 1 week</option>
+                  <option value="month">Last 1 month</option>
+                  <option value="custom">Custom date range</option>
+                </select>
+              </div>
+
+              {exportRange === 'custom' && (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="auth-label">From date</label>
+                    <input
+                      type="date"
+                      className="auth-input"
+                      value={exportFrom}
+                      onChange={(e) => setExportFrom(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="auth-label">To date</label>
+                    <input
+                      type="date"
+                      className="auth-input"
+                      min={exportFrom || undefined}
+                      value={exportTo}
+                      onChange={(e) => setExportTo(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {exportError && <p className="auth-error mb-0">{exportError}</p>}
+
+              <div className="flex gap-2 pt-2">
+                <button type="submit" disabled={exportLoading} className="btn-table-primary flex-1">
+                  {exportLoading ? 'Exporting...' : 'Download file'}
+                </button>
+                <button
+                  type="button"
+                  className="btn-table-secondary flex-1"
+                  onClick={closeExportModal}
+                  disabled={exportLoading}
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

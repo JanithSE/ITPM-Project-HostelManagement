@@ -87,6 +87,50 @@ export async function apiFetch(path, options = {}) {
   return data
 }
 
+function parseFilename(contentDisposition, fallbackName) {
+  if (!contentDisposition) return fallbackName
+  const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i)
+  if (utf8Match?.[1]) return decodeURIComponent(utf8Match[1]).replace(/["]/g, '')
+  const basicMatch = contentDisposition.match(/filename="?([^";]+)"?/i)
+  if (basicMatch?.[1]) return basicMatch[1]
+  return fallbackName
+}
+
+export async function apiFetchBlob(path, options = {}, fallbackName = 'download.bin') {
+  const url = `${API_BASE}${path}`
+  const headers = {
+    ...options.headers,
+  }
+  const token = getToken()
+  if (token) headers.Authorization = `Bearer ${token}`
+
+  let res
+  try {
+    res = await fetch(url, { ...options, headers })
+  } catch (err) {
+    throw mapNetworkError(err)
+  }
+
+  if (!res.ok) {
+    const text = await res.text()
+    let data = {}
+    if (text) {
+      try {
+        data = JSON.parse(text)
+      } catch { }
+    }
+    throw new Error(errorFromResponse(res, text, data))
+  }
+
+  const blob = await res.blob()
+  const disposition = res.headers.get('Content-Disposition') || ''
+  return {
+    blob,
+    filename: parseFilename(disposition, fallbackName),
+    contentType: res.headers.get('Content-Type') || blob.type || 'application/octet-stream',
+  }
+}
+
 function parseFormResponse(res, text) {
   let data = {}
   try {
@@ -258,6 +302,17 @@ export const bookingApi = {
     }),
   delete: (id) =>
     apiFetch(`/bookings/${id}`, { method: 'DELETE' }),
+  export: (params = {}) => {
+    const qs = new URLSearchParams()
+    if (params.type) qs.set('type', String(params.type))
+    if (params.range) qs.set('range', String(params.range))
+    if (params.dateField) qs.set('dateField', String(params.dateField))
+    if (params.from) qs.set('from', String(params.from))
+    if (params.to) qs.set('to', String(params.to))
+    const suffix = qs.toString() ? `?${qs.toString()}` : ''
+    const ext = params.type === 'pdf' ? 'pdf' : 'xlsx'
+    return apiFetchBlob(`/export/bookings${suffix}`, { method: 'GET' }, `bookings-export.${ext}`)
+  },
 }
 
 export const bookingChatApi = {
