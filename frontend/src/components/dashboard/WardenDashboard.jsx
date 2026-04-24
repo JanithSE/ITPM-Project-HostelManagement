@@ -6,6 +6,7 @@ import WardenInventory from "../inventory/WardenInventory";
 import WardenRooms from "../rooms/WardenRooms";
 import WardenStudents from "../Students/wardenStudents";
 import WardenIssuedItems from "../inventory/WardenIssuedItems";
+import AdminMaintenance from "../maintenance/AdminMaintenance";
 import {
   useWardenTheme,
   getTimeGreeting,
@@ -42,6 +43,93 @@ function normalizeWardenRoomTypeForStats(r) {
   return "sharing";
 }
 
+function toSafeNumber(value, fallback = 0) {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeInventoryRecord(item) {
+  const name = String(item?.name || item?.category || "Item").trim();
+  const quantity = toSafeNumber(item?.availableQuantity ?? item?.quantity, 0);
+  const reorderLevel = Math.max(0, toSafeNumber(item?.reorderLevel, 15));
+  const issued = toSafeNumber(item?.issuedTotal, 0);
+  const total = toSafeNumber(item?.totalStock, quantity + issued);
+  return {
+    id: String(item?._id || item?.id || name),
+    name,
+    quantity,
+    reorderLevel,
+    issued,
+    total,
+  };
+}
+
+function createInventoryBotReply(rawInput, inventoryItems) {
+  const text = String(rawInput || "").trim();
+  const query = text.toLowerCase();
+  const normalizedQuery = query.replace(/\binventroy\b/g, "inventory");
+  const items = (Array.isArray(inventoryItems) ? inventoryItems : []).map(normalizeInventoryRecord);
+
+  if (!text) return "Please type a question about inventory items.";
+  const isGreeting =
+    normalizedQuery === "hi" ||
+    normalizedQuery === "hello" ||
+    normalizedQuery === "hey" ||
+    normalizedQuery.includes("good morning") ||
+    normalizedQuery.includes("good afternoon") ||
+    normalizedQuery.includes("good evening");
+  if (isGreeting) {
+    return "Good to see you! I can help with inventory item list, total stock, low-stock alerts, or quantity of a specific item.";
+  }
+  if (!items.length) return "I cannot see inventory items right now. Please refresh and try again.";
+
+  const lowItems = items.filter((it) => it.quantity <= it.reorderLevel);
+  const totalUnits = items.reduce((sum, it) => sum + it.quantity, 0);
+
+  if (normalizedQuery.includes("low stock") || normalizedQuery.includes("restock") || normalizedQuery.includes("reorder")) {
+    if (!lowItems.length) return "Great news: no items are currently at or below reorder level.";
+    return `Low-stock items: ${lowItems.slice(0, 6).map((it) => `${it.name} (${it.quantity})`).join(", ")}.`;
+  }
+
+  const asksForItemList =
+    (normalizedQuery.includes("what") || normalizedQuery.includes("which") || normalizedQuery.includes("show") || normalizedQuery.includes("list")) &&
+    normalizedQuery.includes("item") &&
+    (normalizedQuery.includes("inventory") || normalizedQuery.includes("in stock") || normalizedQuery.includes("available"));
+  if (asksForItemList) {
+    const names = items.map((it) => it.name).filter(Boolean);
+    if (!names.length) return "No inventory items found right now.";
+    return `Current inventory items: ${names.slice(0, 12).join(", ")}${names.length > 12 ? `, and ${names.length - 12} more.` : "."}`;
+  }
+
+  const asksFullStockList =
+    (normalizedQuery.includes("full stock") || normalizedQuery.includes("all stock") || normalizedQuery.includes("full inventory")) &&
+    (normalizedQuery.includes("item") || normalizedQuery.includes("inventory") || normalizedQuery.includes("stock"));
+  if (asksFullStockList) {
+    const lines = items
+      .slice(0, 20)
+      .map((it) => `${it.name}: available ${it.quantity}, issued ${it.issued}, total ${it.total}`)
+      .join("; ");
+    return `Full stock snapshot: ${lines}${items.length > 20 ? `; and ${items.length - 20} more items.` : "."}`;
+  }
+
+  if (normalizedQuery.includes("total item") || normalizedQuery.includes("how many item")) {
+    return `You have ${items.length} inventory item types with ${totalUnits} total units available.`;
+  }
+
+  if (normalizedQuery.includes("highest") || normalizedQuery.includes("most stock")) {
+    const top = [...items].sort((a, b) => b.quantity - a.quantity)[0];
+    return `${top.name} has the highest stock right now (${top.quantity} units).`;
+  }
+
+  const matched = items.find((it) => normalizedQuery.includes(it.name.toLowerCase()));
+  if (matched) {
+    const lowTag = matched.quantity <= matched.reorderLevel ? "This item is at or below reorder level." : "Stock level looks healthy.";
+    return `${matched.name} currently has ${matched.quantity} units. Reorder level is ${matched.reorderLevel}. ${lowTag}`;
+  }
+
+  return "I can help with: low-stock items, total items, highest stock, or stock of a specific item name.";
+}
+
 function WardenDashboardHome() {
   const navigate = useNavigate();
   const outlet = useWardenDashboardOutlet();
@@ -51,11 +139,27 @@ function WardenDashboardHome() {
   const roomsLoading = outlet?.roomsLoading ?? false;
   const roomsError = outlet?.roomsError ?? "";
   const lowInventoryAlerts = Array.isArray(outlet?.lowInventoryAlerts) ? outlet.lowInventoryAlerts : [];
+  const inventoryItems = Array.isArray(outlet?.inventoryItems) ? outlet.inventoryItems : [];
   const setHomeActiveTab = outlet?.setHomeActiveTab;
   const dashboardNow = outlet?.now instanceof Date && !Number.isNaN(outlet.now.getTime()) ? outlet.now : new Date();
   const { T, s, mode } = useWardenTheme();
 
   const [confirmedStudentCount, setConfirmedStudentCount] = useState(0);
+  const [chatInput, setChatInput] = useState("");
+  const [chatSending, setChatSending] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const [voiceReplyEnabled, setVoiceReplyEnabled] = useState(true);
+  const [chatMessages, setChatMessages] = useState([
+    {
+      id: "welcome",
+      role: "bot",
+      text: "Great to see you! I am your Inventory Assistant. Ask me about item list, total stock, low-stock alerts, or quantity of a specific item.",
+    },
+  ]);
+  const chatScrollRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +209,44 @@ function WardenDashboardHome() {
       cancelled = true;
     };
   }, [active]);
+
+  useEffect(() => {
+    chatScrollRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [chatMessages, chatSending]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const canRecognize = typeof SpeechRecognition === "function";
+    const canSpeak = typeof window.speechSynthesis !== "undefined";
+    setVoiceSupported(canRecognize);
+    setSpeechSupported(canSpeak);
+    if (!canRecognize) return;
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onresult = (event) => {
+      const transcript = String(event?.results?.[0]?.[0]?.transcript || "").trim();
+      if (!transcript) return;
+      setChatInput(transcript);
+      submitInventoryChat(transcript);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognitionRef.current = recognition;
+
+    return () => {
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // no-op
+      }
+      recognitionRef.current = null;
+    };
+  }, []);
 
   const warden = useMemo(() => {
     try {
@@ -182,7 +324,7 @@ function WardenDashboardHome() {
     { label: "Rooms", sub: "Beds & blocks", icon: "⬡", path: "/warden/rooms" },
     { label: "Students", sub: "Roster", icon: "◉", path: "/warden/students" },
     { label: "Issued items", sub: "Returns", icon: "📋", path: "/warden/issued-items" },
-    { label: "Leave", sub: "Requests", icon: "◫", path: null, isLeave: true },
+    { label: "Maintenance", sub: "Requests", icon: "🛠️", path: "/warden/maintenance" },
   ];
 
   const snapshotCards = [
@@ -303,6 +445,273 @@ function WardenDashboardHome() {
     transition: "transform 0.15s ease, box-shadow 0.15s ease",
   };
 
+  async function submitInventoryChat(message) {
+    const text = String(message || "").trim();
+    if (!text || chatSending) return;
+    setChatMessages((prev) => [...prev, { id: `u-${Date.now()}`, role: "user", text }]);
+    setChatInput("");
+    setChatSending(true);
+    window.setTimeout(async () => {
+      let reply = "";
+      try {
+        const data = await apiFetch("/inventory/chat", {
+          method: "POST",
+          body: JSON.stringify({ message: text }),
+        });
+        reply = String(data?.reply || "").trim();
+      } catch {
+        // Fallback to local rules if AI endpoint is unavailable.
+      }
+      if (!reply) {
+        let itemsForReply = inventoryItems;
+        if (!Array.isArray(itemsForReply) || !itemsForReply.length) {
+          try {
+            const data = await apiFetch("/inventory");
+            itemsForReply = Array.isArray(data) ? data : [];
+          } catch {
+            itemsForReply = [];
+          }
+        }
+        reply = createInventoryBotReply(text, itemsForReply);
+      }
+      setChatMessages((prev) => [...prev, { id: `b-${Date.now()}`, role: "bot", text: reply }]);
+      if (voiceReplyEnabled && speechSupported && typeof window !== "undefined") {
+        try {
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(reply);
+          utterance.rate = 1;
+          utterance.pitch = 1;
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          // no-op for browsers with partial API support
+        }
+      }
+      setChatSending(false);
+    }, 360);
+  }
+
+  function toggleListening() {
+    if (!voiceSupported || !recognitionRef.current) return;
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+    try {
+      recognitionRef.current.start();
+      setIsListening(true);
+    } catch {
+      setIsListening(false);
+    }
+  }
+
+  const inventoryChatbotCard = (
+    <div
+      style={{
+        ...s.card,
+        padding: "18px 20px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "12px",
+        background:
+          mode === "light"
+            ? "linear-gradient(135deg, rgba(236,253,245,0.95), rgba(224,242,254,0.92))"
+            : "linear-gradient(135deg, rgba(6,78,59,0.22), rgba(15,23,42,0.96) 42%, rgba(3,105,161,0.2))",
+        border: mode === "light" ? "1px solid rgba(16,185,129,0.32)" : "1px solid rgba(45,212,191,0.36)",
+        boxShadow:
+          mode === "light"
+            ? "0 10px 26px rgba(6,95,70,0.08)"
+            : "0 12px 30px rgba(0,0,0,0.35), 0 0 0 1px rgba(45,212,191,0.1) inset",
+      }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: "15px", color: mode === "light" ? "#065f46" : "#99f6e4" }}>Inventory chatbot</div>
+          <div style={{ fontSize: "12px", color: T.textMuted, marginTop: "4px" }}>
+            Ask questions about item stock, low inventory, and restock priorities.
+          </div>
+            <div style={{ fontSize: "11px", color: mode === "light" ? "#0f766e" : "#a7f3d0", marginTop: "6px" }}>
+              Quick guide: try "show inventory items", "total stock", "low stock items", or "quantity of chairs".
+            </div>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate("/warden/inventory")}
+          style={{
+            whiteSpace: "nowrap",
+            background: T.accentLight,
+            border: `1px solid ${T.accentBorder}`,
+            borderRadius: "10px",
+            padding: "6px 12px",
+            fontSize: "12px",
+            fontWeight: 800,
+            color: T.accent,
+            cursor: "pointer",
+            fontFamily: "inherit",
+          }}
+        >
+          Open Inventory
+        </button>
+      </div>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+        {["Show low stock items", "How many total items are available?", "Which item has highest stock?"].map((q) => (
+          <button
+            key={q}
+            type="button"
+            onClick={() => submitInventoryChat(q)}
+            style={{
+              borderRadius: "999px",
+              border: `1px solid ${T.inputBorder}`,
+              background: T.inputBg,
+              color: T.textSecondary,
+              fontSize: "12px",
+              fontWeight: 700,
+              padding: "6px 10px",
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {q}
+          </button>
+        ))}
+      </div>
+
+      <div
+        style={{
+          borderRadius: "12px",
+          border: `1px solid ${T.inputBorder}`,
+          background: T.inputBg,
+          padding: "12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+          maxHeight: "240px",
+          overflowY: "auto",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            gap: "8px",
+          }}
+        >
+          {chatMessages.map((m) => (
+            <div
+              key={m.id}
+              style={{
+                alignSelf: m.role === "user" ? "flex-end" : "flex-start",
+                maxWidth: "85%",
+                padding: "8px 10px",
+                borderRadius: "10px",
+                fontSize: "13px",
+                lineHeight: 1.45,
+                background: m.role === "user" ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : T.cardBg,
+                color: m.role === "user" ? "#fff" : T.textSecondary,
+                border: m.role === "user" ? "none" : `1px solid ${T.cardBorder}`,
+              }}
+            >
+              {m.text}
+            </div>
+          ))}
+          {chatSending ? <div style={{ fontSize: "12px", color: T.textMuted }}>Assistant is typing...</div> : null}
+          <div ref={chatScrollRef} />
+        </div>
+      </div>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submitInventoryChat(chatInput);
+        }}
+        style={{ display: "flex", gap: "8px", alignItems: "center" }}
+      >
+        <input
+          value={chatInput}
+          onChange={(e) => setChatInput(e.target.value)}
+          placeholder="Ask: stock of pillow, low stock items, total units..."
+          style={{
+            flex: 1,
+            borderRadius: "10px",
+            border: `1px solid ${T.inputBorder}`,
+            background: T.inputBg,
+            color: T.textPrimary,
+            padding: "10px 12px",
+            fontSize: "13px",
+            outline: "none",
+          }}
+        />
+        <button
+          type="button"
+          onClick={toggleListening}
+          disabled={!voiceSupported}
+          title={voiceSupported ? (isListening ? "Stop listening" : "Start voice input") : "Voice input is not supported in this browser"}
+          style={{
+            borderRadius: "10px",
+            border: `1px solid ${T.inputBorder}`,
+            background: isListening ? "linear-gradient(135deg, rgba(239,68,68,0.22), rgba(239,68,68,0.1))" : T.inputBg,
+            color: isListening ? (mode === "light" ? "#b91c1c" : "#fecaca") : T.textSecondary,
+            fontWeight: 800,
+            fontSize: "13px",
+            padding: "10px 12px",
+            cursor: voiceSupported ? "pointer" : "not-allowed",
+            opacity: voiceSupported ? 1 : 0.6,
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {isListening ? "Listening..." : "Voice"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setVoiceReplyEnabled((v) => !v)}
+          disabled={!speechSupported}
+          title={speechSupported ? "Toggle spoken replies" : "Voice output is not supported in this browser"}
+          style={{
+            borderRadius: "10px",
+            border: `1px solid ${T.inputBorder}`,
+            background: voiceReplyEnabled ? "linear-gradient(135deg, rgba(99,102,241,0.2), rgba(168,85,247,0.14))" : T.inputBg,
+            color: voiceReplyEnabled ? (mode === "light" ? "#4338ca" : "#ddd6fe") : T.textSecondary,
+            fontWeight: 800,
+            fontSize: "12px",
+            padding: "10px 11px",
+            cursor: speechSupported ? "pointer" : "not-allowed",
+            opacity: speechSupported ? 1 : 0.6,
+            fontFamily: "inherit",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {voiceReplyEnabled ? "Voice On" : "Voice Off"}
+        </button>
+        <button
+          type="submit"
+          disabled={!String(chatInput || "").trim() || chatSending}
+          style={{
+            borderRadius: "10px",
+            border: "none",
+            background: "linear-gradient(135deg, #6366f1, #a855f7)",
+            color: "#fff",
+            fontWeight: 800,
+            fontSize: "13px",
+            padding: "10px 14px",
+            cursor: !String(chatInput || "").trim() || chatSending ? "not-allowed" : "pointer",
+            opacity: !String(chatInput || "").trim() || chatSending ? 0.6 : 1,
+            fontFamily: "inherit",
+          }}
+        >
+          Send
+        </button>
+      </form>
+      {!voiceSupported || !speechSupported ? (
+        <div style={{ fontSize: "11px", color: T.textMuted }}>
+          {!voiceSupported ? "Voice input is unavailable in this browser. " : ""}
+          {!speechSupported ? "Spoken replies are unavailable in this browser." : ""}
+        </div>
+      ) : null}
+    </div>
+  );
+
   return (
     <>
       <div
@@ -349,10 +758,7 @@ function WardenDashboardHome() {
                 key={q.label}
                 type="button"
                 onClick={() => {
-                  if (q.isLeave) {
-                    navigate("/warden");
-                    setHomeActiveTab?.("Leave");
-                  } else if (q.path) navigate(q.path);
+                  if (q.path) navigate(q.path);
                 }}
                 style={{
                   ...qaBase,
@@ -397,6 +803,8 @@ function WardenDashboardHome() {
           </div>
         ))}
       </div>
+
+      {inventoryChatbotCard}
 
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "14px" }}>
         <div style={{ ...s.card, padding: "18px 20px" }}>
@@ -633,6 +1041,7 @@ function WardenDashboardHome() {
           </div>
         )}
       </div>
+
     </>
   );
 }
@@ -657,6 +1066,7 @@ export default function WardenDashboard() {
     },
   });
   const [roomDetails, setRoomDetails] = useState([]);
+  const [inventoryItems, setInventoryItems] = useState([]);
   const [lowInventoryAlerts, setLowInventoryAlerts] = useState([]);
   const lowAlertedIdsRef = useRef(new Set());
 
@@ -747,6 +1157,7 @@ export default function WardenDashboard() {
       try {
         const items = await apiFetch("/inventory");
         const all = Array.isArray(items) ? items : [];
+        if (!cancelled) setInventoryItems(all);
         const low = all.filter((it) => {
           const qty = Number(it?.availableQuantity ?? it?.quantity);
           const reorder = Number.isFinite(Number(it?.reorderLevel)) ? Math.max(0, Number(it.reorderLevel)) : 15;
@@ -754,7 +1165,10 @@ export default function WardenDashboard() {
         });
         if (!cancelled) setLowInventoryAlerts(low);
       } catch {
-        if (!cancelled) setLowInventoryAlerts([]);
+        if (!cancelled) {
+          setInventoryItems([]);
+          setLowInventoryAlerts([]);
+        }
       }
     }
     loadLowInventoryAlerts();
@@ -810,13 +1224,15 @@ export default function WardenDashboard() {
   const onRoomsPage = path.endsWith("/rooms");
   const onStudentsPage = path.endsWith("/students");
   const onIssuedItemsPage = path.endsWith("/issued-items");
-  const onHome = !onInventoryPage && !onRoomsPage && !onStudentsPage && !onIssuedItemsPage;
+  const onMaintenancePage = path.endsWith("/maintenance");
+  const onHome = !onInventoryPage && !onRoomsPage && !onStudentsPage && !onIssuedItemsPage && !onMaintenancePage;
 
   function isNavActive(label) {
     if (label === "Inventory") return onInventoryPage;
     if (label === "Rooms") return onRoomsPage;
     if (label === "Students") return onStudentsPage;
     if (label === "Issued items") return onIssuedItemsPage;
+    if (label === "Maintenance") return onMaintenancePage;
     return onHome && homeActiveTab === label;
   }
 
@@ -825,6 +1241,7 @@ export default function WardenDashboard() {
     else if (label === "Rooms") navigate("/warden/rooms");
     else if (label === "Students") navigate("/warden/students");
     else if (label === "Issued items") navigate("/warden/issued-items");
+    else if (label === "Maintenance") navigate("/warden/maintenance");
     else {
       navigate("/warden");
       setHomeActiveTab(label);
@@ -839,10 +1256,11 @@ export default function WardenDashboard() {
       roomsOverview,
       roomsLoading,
       roomsError,
+      inventoryItems,
       lowInventoryAlerts,
       now,
     }),
-    [homeActiveTab, roomDetails, roomsOverview, roomsLoading, roomsError, lowInventoryAlerts, now],
+    [homeActiveTab, roomDetails, roomsOverview, roomsLoading, roomsError, inventoryItems, lowInventoryAlerts, now],
   );
 
   return (
@@ -875,7 +1293,7 @@ export default function WardenDashboard() {
         <nav style={{ flex: 1, padding: "4px 8px", display: "flex", flexDirection: "column", gap: "1px", overflowY: "auto" }}>
           {wardenNavItems.map((item) => {
             const navActive = isNavActive(item.label);
-            const badge = item.label === "Leave" ? 5 : null;
+            const badge = null;
             return (
               <button
                 key={item.label}
@@ -932,6 +1350,9 @@ export default function WardenDashboard() {
             borderBottom: `1px solid ${T.headerBarBorder}`,
             boxShadow: mode === "light" ? "0 8px 30px rgba(15,23,42,0.06)" : "0 12px 40px rgba(0,0,0,0.2)",
             backdropFilter: "blur(20px) saturate(150%)",
+            position: "relative",
+            zIndex: 1300,
+            isolation: "isolate",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -1006,7 +1427,20 @@ export default function WardenDashboard() {
           </div>
         </header>
 
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "18px 22px", display: "flex", flexDirection: "column", gap: "16px", background: "transparent" }}>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            padding: "18px 22px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "16px",
+            background: "transparent",
+            position: "relative",
+            zIndex: 1,
+          }}
+        >
           <WardenDashboardProvider value={outletContext}>
             <Routes>
               <Route index element={<WardenDashboardHome />} />
@@ -1014,6 +1448,7 @@ export default function WardenDashboard() {
               <Route path="rooms" element={<WardenRooms />} />
               <Route path="students" element={<WardenStudents />} />
               <Route path="issued-items" element={<WardenIssuedItems />} />
+              <Route path="maintenance" element={<AdminMaintenance />} />
             </Routes>
           </WardenDashboardProvider>
         </div>

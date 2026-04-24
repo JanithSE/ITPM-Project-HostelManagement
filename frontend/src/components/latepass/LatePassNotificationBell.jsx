@@ -60,7 +60,7 @@ export default function LatePassNotificationBell({ className = '', buttonClassNa
   }, [])
 
   return (
-    <div ref={rootRef} className={`relative z-[210] ${className}`}>
+    <div ref={rootRef} className={`relative isolate z-[1000] ${className}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

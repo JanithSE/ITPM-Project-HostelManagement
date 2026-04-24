@@ -30,10 +30,10 @@ router.put('/:id/my', requireRole('student'), maintenanceImageUploadOptionalMidd
 // DELETE /api/maintenance/:id/my — student: delete own open request
 router.delete('/:id/my', requireRole('student'), deleteMyMaintenance)
 
-// GET /api/maintenance — admin: all requests
-router.get('/', requireRole('admin'), listMaintenance)
+// GET /api/maintenance — admin/warden: all requests
+router.get('/', requireRole('admin', 'warden'), listMaintenance)
 
-// PUT /api/maintenance/:id — admin: update status (open → in_progress → resolved)
-router.put('/:id', requireRole('admin'), updateMaintenanceStatus)
+// PUT /api/maintenance/:id — admin/warden: update status (open → in_progress → resolved)
+router.put('/:id', requireRole('admin', 'warden'), updateMaintenanceStatus)
 
 export default router
