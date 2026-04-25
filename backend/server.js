@@ -19,7 +19,6 @@ import inventoryRoutes from './routes/inventory.js'
 import issuedItemsRoutes from './routes/issuedItems.js'
 import maintenanceRoutes from './routes/maintenance.js'
 import roomsRoutes from './routes/rooms.js'
-import chatRoutes from './routes/chat.js'
 
 await connectDB()
 
