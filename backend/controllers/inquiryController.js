@@ -6,6 +6,7 @@
  * - Image: optional multer upload; `imageUrl` under `uploads/inquiries/`; cleanup on replace/delete.
  */
 import Inquiry from '../models/Inquiry.js'
+import Notification from '../models/Notification.js'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -32,6 +33,22 @@ async function removeImageByUrl(imageUrl) {
       console.error('Failed to remove uploaded image:', err.message)
     }
   }
+}
+
+/** Avoids long quoted subjects (e.g. "Inquiry from Name (email)") in push-style notifications. */
+function inquiryReplyNotificationMessage(inquiry) {
+  const subject = String(inquiry.subject || '').trim()
+  const fromTemplate = subject.match(/^Inquiry from\s+(.+?)\s+\(([^)]+)\)\s*$/i)
+  if (fromTemplate) {
+    return `An admin replied to your inquiry — ${fromTemplate[1].trim()}`
+  }
+  if (subject.length > 0 && subject.length <= 48) {
+    return `An admin replied — “${subject}”`
+  }
+  if (subject.length > 48) {
+    return `An admin replied — “${subject.slice(0, 45)}…”`
+  }
+  return 'An admin replied to your inquiry.'
 }
 
 function inquiryPopulate(query) {
@@ -116,6 +133,22 @@ export const replyToInquiry = async (req, res) => {
       text: String(reply).trim(),
     })
     await inquiry.save()
+
+    const notifMessage = inquiryReplyNotificationMessage(inquiry)
+    try {
+      if (inquiry.from) {
+        await Notification.create({
+          userId: inquiry.from,
+          message: notifMessage,
+          type: 'inquiry_reply',
+          isRead: false,
+          inquiryId: inquiry._id,
+        })
+      }
+    } catch (notifyErr) {
+      console.error('Failed to create inquiry reply notification:', notifyErr?.message || notifyErr)
+    }
+
     const populated = await inquiryPopulate(Inquiry.findById(inquiry._id))
     res.json(populated)
   } catch (err) {

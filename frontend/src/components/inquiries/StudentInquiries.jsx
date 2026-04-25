@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { inquiryApi } from '../../shared/api/client'
 import hostelImage from '../../assets/hostel.jpg'
 
@@ -35,6 +36,9 @@ function statusBadgeStyle(status) {
 }
 
 export default function StudentInquiries() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const focusInquiryId = searchParams.get('inquiryId')
+
   function isInquiryLocked(row) {
     const status = String(row?.status || '').toLowerCase()
     return status === 'replied' || status === 'closed' || Boolean(row?.reply)
@@ -84,6 +88,27 @@ export default function StudentInquiries() {
   useEffect(() => {
     load()
   }, [load])
+
+  // Deep-link from inquiry reply notification: scroll to row and brief highlight, then clear query
+  useEffect(() => {
+    if (!focusInquiryId || list.length === 0) return
+    const el = document.getElementById(`inquiry-row-${focusInquiryId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('inquiry-row-highlight')
+    const t = window.setTimeout(() => {
+      el.classList.remove('inquiry-row-highlight')
+    }, 2200)
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.delete('inquiryId')
+        return next
+      },
+      { replace: true }
+    )
+    return () => window.clearTimeout(t)
+  }, [focusInquiryId, list, setSearchParams])
 
   // Client-side validation keeps obvious invalid inputs out of the API.
   function validateForm(next = { campusId, name, email, message }) {
@@ -451,6 +476,7 @@ export default function StudentInquiries() {
               return (
               <tr
                 key={row._id}
+                id={`inquiry-row-${row._id}`}
                 style={locked ? { background: 'rgba(15, 23, 42, 0.42)', opacity: 0.86 } : undefined}
               >
                 <td style={{ whiteSpace: 'nowrap' }}>{row.campusId || '—'}</td>
