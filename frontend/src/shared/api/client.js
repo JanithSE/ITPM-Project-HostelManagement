@@ -337,6 +337,12 @@ export const paymentNotificationApi = {
   remove: (id) => apiFetch(`/payment-notifications/${id}`, { method: 'DELETE' }),
 }
 
+// Student: inquiry-reply notifications (see backend/routes/notifications.js, models/Notification.js)
+export const notificationApi = {
+  listMine: () => apiFetch('/notifications'),
+  markRead: (id) => apiFetch(`/notifications/${id}/read`, { method: 'PUT' }),
+}
+
 export const latepassApi = {
   listMine: () => apiFetch('/latepass/my'),
   listAdmin: () => apiFetch('/latepass/admin'),

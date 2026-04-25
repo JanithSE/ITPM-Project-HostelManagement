@@ -13,16 +13,13 @@ import paymentNotificationRoutes from './routes/paymentNotificationRoutes.js'
 import inquiryRoutes from './routes/inquiry.js'
 import latepassRoutes from './routes/latepass.js'
 import latePassNotificationRoutes from './routes/latePassNotificationRoutes.js'
+import notificationRoutes from './routes/notifications.js'
 import complainsRoutes from './routes/complains.js'
 import inventoryRoutes from './routes/inventory.js'
 import issuedItemsRoutes from './routes/issuedItems.js'
 import maintenanceRoutes from './routes/maintenance.js'
 import roomsRoutes from './routes/rooms.js'
 import chatRoutes from './routes/chat.js'
-
-// ✅ both added
-import chatRoutes from './routes/chat.js'
-import exportRoutes from './routes/export.js'
 
 await connectDB()
 
@@ -47,6 +44,7 @@ app.use('/api/payment-notifications', paymentNotificationRoutes)
 app.use('/api/inquiry', inquiryRoutes)
 app.use('/api/latepass', latepassRoutes)
 app.use('/api/latepass-notifications', latePassNotificationRoutes)
+app.use('/api/notifications', notificationRoutes)
 app.use('/api/complains', complainsRoutes)
 app.use('/api/inventory', inventoryRoutes)
 app.use('/api/issued-items', issuedItemsRoutes)
@@ -54,10 +52,6 @@ app.use('/api/issued-items', issuedItemsRoutes)
 app.use('/api/maintenance', maintenanceRoutes)
 app.use('/api/rooms', roomsRoutes)
 app.use('/api/chat', chatRoutes)
-
-// ✅ both routes enabled
-app.use('/api/chat', chatRoutes)
-app.use('/api/export', exportRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ ok: true })

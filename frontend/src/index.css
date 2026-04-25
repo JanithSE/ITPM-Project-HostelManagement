@@ -594,6 +594,12 @@
     vertical-align: top;
   }
 
+  .inquiry-row-highlight {
+    outline: 2px solid rgb(56 189 248);
+    outline-offset: 2px;
+    transition: outline 0.2s ease;
+  }
+
   .inquiry-long-text {
     display: flex;
     flex-direction: column;
