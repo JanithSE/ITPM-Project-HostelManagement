@@ -1,3 +1,4 @@
+/** Present `createdAt` in local short date/time string. */
 function formatWhen(isoDate) {
   const dt = new Date(isoDate)
   if (Number.isNaN(dt.getTime())) return ''
@@ -10,6 +11,7 @@ function formatWhen(isoDate) {
   })
 }
 
+/** Dropdown body: list rows, mark-all control, per-row mark-read + dismiss. */
 export default function PaymentNotificationDropdown({
   notifications = [],
   loading = false,

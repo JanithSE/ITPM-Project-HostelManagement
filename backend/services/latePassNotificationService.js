@@ -1,6 +1,10 @@
+/**
+ * Inserts late-pass notification documents when requests are created or status changes.
+ */
 import User from '../models/User.js'
 import LatePassNotification from '../models/latePassNotificationModel.js'
 
+/** Maps app role to notification `roleTarget` enum for inbox queries. */
 function mapRoleToTarget(role) {
   const value = String(role || '').toLowerCase()
   if (value === 'admin') return 'ADMIN'
@@ -9,6 +13,7 @@ function mapRoleToTarget(role) {
   return null
 }
 
+/** New late pass: notify every admin and warden with a row in their inbox. */
 export async function notifyAdminsAndWardens(message, latePassId, createdBy) {
   const users = await User.find({ role: { $in: ['admin', 'warden'] } }, { _id: 1, role: 1 }).lean()
   if (!users.length) return { inserted: 0 }
@@ -33,6 +38,7 @@ export async function notifyAdminsAndWardens(message, latePassId, createdBy) {
   return { inserted: inserted.length }
 }
 
+/** Status update: one notification for the submitting student account. */
 export async function notifyStudent(userId, message, latePassId, createdBy) {
   if (!userId) return null
   return LatePassNotification.create({

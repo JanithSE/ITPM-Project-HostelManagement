@@ -1,6 +1,11 @@
+/**
+ * Creates in-app rows when payments are submitted or status changes.
+ * Admins/wardens get new-request alerts; students get status updates.
+ */
 import User from '../models/User.js'
 import PaymentNotification from '../models/paymentNotificationModel.js'
 
+/** App role → `roleTarget` string used when querying a user’s payment notification inbox. */
 function mapRoleToTarget(role) {
   const value = String(role || '').toLowerCase()
   if (value === 'admin') return 'ADMIN'
@@ -9,6 +14,8 @@ function mapRoleToTarget(role) {
   return null
 }
 
+
+/** Fan-out one notification per admin/warden when a student submits a payment. */
 export async function notifyAdminsAndWardens(message, paymentId, month, createdBy) {
   const users = await User.find({ role: { $in: ['admin', 'warden'] } }, { _id: 1, role: 1 }).lean()
   if (!users.length) return { inserted: 0 }
@@ -34,6 +41,7 @@ export async function notifyAdminsAndWardens(message, paymentId, month, createdB
   return { inserted: inserted.length }
 }
 
+/** Single notification to the paying student (e.g. status change). */
 export async function notifyStudent(userId, message, paymentId, month, createdBy) {
   if (!userId) return null
   return PaymentNotification.create({

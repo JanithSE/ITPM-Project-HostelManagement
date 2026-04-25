@@ -1,3 +1,7 @@
+/**
+ * Late pass request: one document per form submission, embedded `students` rows (multi-guest).
+ * Legacy single-student fields kept for older records.
+ */
 import mongoose from 'mongoose'
 
 const studentRowSchema = new mongoose.Schema(

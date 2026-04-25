@@ -1,16 +1,23 @@
+/**
+ * In-app payment notifications: list for current user, mark read, mark all read, delete one.
+ * Each row is scoped by userId + roleTarget + type=PAYMENT.
+ */
 import PaymentNotification from '../models/paymentNotificationModel.js'
 import { mapRoleToTarget } from '../services/paymentNotificationService.js'
 
+/** Mongo filter so users only see their own payment-notification inbox. */
 function buildViewerFilter(user) {
   const roleTarget = mapRoleToTarget(user?.role)
   if (!roleTarget) return null
   return { userId: user._id, roleTarget, type: 'PAYMENT' }
 }
 
+/** Count unread rows for the same viewer filter (bell badge). */
 async function getUnreadCount(filter) {
   return PaymentNotification.countDocuments({ ...filter, read: false })
 }
 
+/** GET — paginated-ish list (100) + unread count for bell UI. */
 export async function getMyPaymentNotifications(req, res) {
   try {
     const filter = buildViewerFilter(req.user)
@@ -28,6 +35,7 @@ export async function getMyPaymentNotifications(req, res) {
   }
 }
 
+/** PUT — mark one notification read; returns updated unread count. */
 export async function markPaymentNotificationAsRead(req, res) {
   try {
     const filter = buildViewerFilter(req.user)
@@ -47,6 +55,7 @@ export async function markPaymentNotificationAsRead(req, res) {
   }
 }
 
+/** PUT — mark entire inbox read for this user/role. */
 export async function markAllPaymentNotificationsAsRead(req, res) {
   try {
     const filter = buildViewerFilter(req.user)
@@ -59,6 +68,7 @@ export async function markAllPaymentNotificationsAsRead(req, res) {
   }
 }
 
+/** DELETE — remove one row if it belongs to the caller. */
 export async function deletePaymentNotification(req, res) {
   try {
     console.log('[Backend] Deleting notification:', req.params.id, 'for user:', req.user._id)

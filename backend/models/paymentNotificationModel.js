@@ -1,3 +1,7 @@
+/**
+ * In-app notification document for payment events (subset of fields used by bell API).
+ * Collection name `paymentnotifications` is explicit for legacy DB compatibility.
+ */
 import mongoose from 'mongoose'
 
 const paymentNotificationSchema = new mongoose.Schema(
@@ -6,6 +10,7 @@ const paymentNotificationSchema = new mongoose.Schema(
     message: { type: String, required: true, trim: true },
     roleTarget: {
       type: String,
+      
       enum: ['ADMIN', 'WARDEN', 'STUDENT'],
       required: true,
       index: true,

@@ -1,3 +1,6 @@
+/**
+ * Navbar bell: polls payment notifications, toggles dropdown, mark read / mark all / remove one.
+ */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { paymentNotificationApi } from '../../shared/api/client'
 import PaymentNotificationPanel from './PaymentNotificationPanel'
@@ -10,6 +13,7 @@ export default function PaymentNotificationBell({ className = '', buttonClassNam
   const [unreadCount, setUnreadCount] = useState(0)
   const rootRef = useRef(null)
 
+  /** Initial + interval refresh (25s) for badge + list. */
   const loadNotifications = useCallback(async () => {
     try {
       setError('')

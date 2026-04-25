@@ -1,3 +1,4 @@
+/** Routes for payment bell: list, mark read, mark all read, delete. Student/admin/warden allowed. */
 import express from 'express'
 import {
   getMyPaymentNotifications,

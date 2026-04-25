@@ -1,3 +1,7 @@
+/**
+ * Admin late pass dashboard: search, date filter, KPI tiles, table, PDF export,
+ * modal PATCH status, row delete (backend allows only rejected/invalid for delete).
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { jsPDF } from 'jspdf'
@@ -12,6 +16,7 @@ const STATUS_OPTIONS = [
   { value: 'rejected', label: 'Rejected' },
 ]
 
+/** Map stored status + legacy `approved` into select/filter buckets. */
 function latepassSelectStatus(status) {
   const s = String(status || '').toLowerCase()
   if (s === 'approved' || s === 'completed') return 'completed'
@@ -47,6 +52,7 @@ function buildStudentsPdfLine(students) {
     .join(' | ')
 }
 
+/** Multi-token search across visible row text (labels + student rows). */
 function latepassRowMatchesQuery(row, query) {
   const q = query.trim().toLowerCase()
   if (!q) return true
@@ -74,6 +80,7 @@ function latepassRowMatchesQuery(row, query) {
   return words.every((w) => haystack.includes(w))
 }
 
+/** Export filtered rows as landscape PDF for records. */
 function downloadLatepassPdfReport(rows) {
   if (!rows.length) {
     toast.error('No late pass data to download.')
@@ -193,6 +200,7 @@ export default function AdminLatepass() {
     [list, searchQuery, filterDate],
   )
 
+  /** GET `/latepass/admin` full list. */
   const load = useCallback(async () => {
     setError('')
     setLoading(true)
@@ -212,6 +220,7 @@ export default function AdminLatepass() {
     load()
   }, [load])
 
+  /** Open modal with normalized status + existing remarks for one row. */
   function openEdit(row) {
     setEditingId(row._id)
     setEditDraft({
@@ -220,6 +229,7 @@ export default function AdminLatepass() {
     })
   }
 
+  /** PATCH `/latepass/:id/status` from modal. */
   async function submitEdit(e) {
     e.preventDefault()
     if (!editingId) return
@@ -241,6 +251,7 @@ export default function AdminLatepass() {
 
 
 
+  /** DELETE via admin route (server allows rejected or invalid/test only). */
   async function deleteLatepass(id) {
     const ok = window.confirm('Delete this late pass request? This action cannot be undone.')
     if (!ok) return

@@ -1,3 +1,4 @@
+/** Late pass notification API (read-only inbox + mark read). No per-item delete. */
 import express from 'express'
 import {
   getMyLatePassNotifications,

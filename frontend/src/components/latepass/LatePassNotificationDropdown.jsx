@@ -1,3 +1,4 @@
+/** Short local timestamp for each notification row. */
 function formatWhen(isoDate) {
   const dt = new Date(isoDate)
   if (Number.isNaN(dt.getTime())) return ''
@@ -10,6 +11,7 @@ function formatWhen(isoDate) {
   })
 }
 
+/** Read-only list UI with mark-read on row click and mark-all header action. */
 export default function LatePassNotificationDropdown({
   notifications = [],
   loading = false,

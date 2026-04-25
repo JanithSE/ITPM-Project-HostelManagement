@@ -1,3 +1,6 @@
+/**
+ * Late pass bell: polls notifications, toggles panel, mark read / mark all (no delete API).
+ */
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { latePassNotificationApi } from '../../shared/api/client'
 import LatePassNotificationPanel from './LatePassNotificationPanel'
@@ -10,6 +13,7 @@ export default function LatePassNotificationBell({ className = '', buttonClassNa
   const [unreadCount, setUnreadCount] = useState(0)
   const rootRef = useRef(null)
 
+  /** Fetch inbox + unread count on mount and every 25s. */
   const loadNotifications = useCallback(async () => {
     try {
       setError('')

@@ -1,6 +1,6 @@
 /**
  * Expected monthly payment in LKR per room type + facility.
- * Keep in sync with frontend `PAYMENT_AMOUNT_LKR` in AddPayment.jsx.
+ * Keep in sync with frontend default pricing in `AddPayment.jsx` (API may override via GET /pricing).
  */
 export const PAYMENT_AMOUNT_LKR = {
   single: { fan: 18000, ac: 24000 },
@@ -8,6 +8,7 @@ export const PAYMENT_AMOUNT_LKR = {
   '3 person': { fan: 11000, ac: 15000 },
 }
 
+/** Lookup expected LKR for valid pair; null if keys missing from the table. */
 export function getExpectedAmountLkr(roomType, facilityType) {
   const row = PAYMENT_AMOUNT_LKR[roomType]
   if (!row) return null

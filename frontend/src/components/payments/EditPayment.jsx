@@ -1,3 +1,7 @@
+/**
+ * Dedicated student edit screen for pending payments (subset of fields vs full create form).
+ * Server returns `fieldErrors` on validation failure.
+ */
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -25,6 +29,7 @@ function inputClassWithError(base, hasError) {
   return hasError ? `${base} ${invalidInputRing}` : base
 }
 
+/** Same UTC month triple as backend payment month rule. */
 function paymentMonthBoundsUtc() {
   const d = new Date()
   const y = d.getUTCFullYear()
@@ -37,6 +42,7 @@ function paymentMonthBoundsUtc() {
   return { previous, current, next }
 }
 
+/** Display YYYY-MM as long month + year (UTC). */
 function formatYmLong(ym) {
   if (!/^\d{4}-\d{2}$/.test(ym)) return ym
   const [y, mo] = ym.split('-').map(Number)
@@ -44,6 +50,7 @@ function formatYmLong(ym) {
   return d.toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
+/** Client-side type/size guard before optional re-upload. */
 function proofFileLooksValid(file) {
   if (!file || file.size > PROOF_MAX_BYTES) return false
   const name = (file.name || '').toLowerCase()
@@ -55,6 +62,7 @@ function proofFileLooksValid(file) {
   return false
 }
 
+/** Normalize amount string for FormData (two decimals). */
 function formatAmountTwoDecimals(raw) {
   const n = Number.parseFloat(String(raw).replace(/,/g, ''))
   if (Number.isNaN(n) || n <= 0) return ''
@@ -110,6 +118,7 @@ export default function EditPayment() {
     }
   }, [id, navigate])
 
+  /** PUT `/payments/:id/edit-by-student` with optional new proof file. */
   async function handleSubmit(e) {
     e.preventDefault()
     if (proofFile && !proofFileLooksValid(proofFile)) {
