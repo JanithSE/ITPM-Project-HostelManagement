@@ -1,3 +1,7 @@
+/**
+ * Payment HTTP handlers: student submissions, admin/warden review, and shared helpers.
+ * Validation mirrors business rules (month window, amount vs pricing, booking room match on create).
+ */
 import Booking from '../models/Booking.js'
 import Payment, {
   PAYMENT_FACILITY_TYPES,
@@ -9,6 +13,7 @@ import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
 import { notifyAdminsAndWardens, notifyStudent } from '../services/paymentNotificationService.js'
 import { sendPaymentCompletedEmail, sendPaymentRejectedEmail } from '../services/emailService.js'
 
+/** Map API/body status strings to stored enum values; returns null if unknown. */
 function normalizePaymentStatus(input) {
   if (!input) return null
   const s = String(input).toLowerCase()
@@ -20,6 +25,7 @@ function normalizePaymentStatus(input) {
   return null
 }
 
+/** Public URL path for an uploaded proof file (multer provides `filename`). */
 function proofPathFromFile(file) {
   if (!file) return null
   return `/uploads/payments/${file.filename}`
@@ -29,12 +35,14 @@ const ROOM_NO_MAX_LEN = 15
 /** Letter/digit start; rest alnum or hyphen; no other symbols */
 const ROOM_NO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9\-]{0,14})?$/
 
+/** Collapse internal whitespace for display/storage consistency. */
 function normalizeWhitespaceName(s) {
   return String(s ?? '')
     .trim()
     .replace(/\s+/g, ' ')
 }
 
+/** Strip spaces and uppercase so booking room and form room compare reliably. */
 function normalizeRoomNo(s) {
   return String(s ?? '')
     .trim()
@@ -55,11 +63,13 @@ function getPaymentMonthBoundsUtc() {
   return { previous, current, next }
 }
 
+/** Delegates to shared person-name rules after whitespace normalization. */
 function validateStudentNameField(raw) {
   const name = normalizeWhitespaceName(raw)
   return validatePersonNameNormalized(name)
 }
 
+/** Room number: required, max length, allowed character pattern. */
 function validateRoomNoField(raw) {
   const trimmed = String(raw ?? '').trim()
   if (!trimmed) return { ok: false, message: 'Room number is required.', value: trimmed }
@@ -72,6 +82,7 @@ function validateRoomNoField(raw) {
   return { ok: true, value: trimmed }
 }
 
+/** Billing month YYYY-MM must be valid and within previous/current/next UTC month. */
 function validateMonthField(raw) {
   const month = String(raw ?? '').trim()
   if (!month || !/^\d{4}-\d{2}$/.test(month)) {
@@ -92,11 +103,13 @@ function validateMonthField(raw) {
   return { ok: true, value: month }
 }
 
+/** Loose float compare for LKR amounts vs configured pricing. */
 function amountsMatch(expected, actual, eps = 0.005) {
   if (expected == null || !Number.isFinite(actual)) return false
   return Math.abs(Number(actual) - Number(expected)) < eps
 }
 
+/** Human-readable month name from YYYY-MM for notifications/emails. */
 function monthLabel(month) {
   const value = String(month || '').trim()
   const m = /^(\d{4})-(\d{2})$/.exec(value)
@@ -108,6 +121,7 @@ function monthLabel(month) {
   return dt.toLocaleString('en-US', { month: 'long' })
 }
 
+/** GET — students: static pricing map for the fee form. */
 export const getPaymentPricing = async (req, res) => {
   try {
     if (req.user.role !== 'student') {
@@ -119,6 +133,7 @@ export const getPaymentPricing = async (req, res) => {
   }
 }
 
+/** GET — students: own payments, newest first. */
 export const getMyPayments = async (req, res) => {
   try {
     if (req.user.role !== 'student') {
@@ -133,6 +148,7 @@ export const getMyPayments = async (req, res) => {
   }
 }
 
+/** GET — admins/wardens (via route): all payments. */
 export const getAdminPayments = async (req, res) => {
   try {
     const payments = await Payment.find({})
@@ -153,6 +169,7 @@ function serializePayment(p) {
   return o
 }
 
+/** GET — student sees own row; admin/warden sees any. */
 export const getPaymentById = async (req, res) => {
   try {
     if (!['student', 'admin', 'warden'].includes(req.user.role)) {
@@ -175,6 +192,7 @@ export const getPaymentById = async (req, res) => {
   }
 }
 
+/** 400 helper: first message + per-field map for forms. */
 function sendValidationError(res, fieldErrors) {
   const first = Object.values(fieldErrors).find(Boolean)
   return res.status(400).json({
@@ -183,6 +201,10 @@ function sendValidationError(res, fieldErrors) {
   })
 }
 
+/**
+ * POST — student: multipart with proof file.
+ * Validates fields, amount vs pricing, duplicate month, active booking + room match, then notifies staff.
+ */
 export const createPayment = async (req, res) => {
   const fieldErrors = {}
 
@@ -318,6 +340,10 @@ export const createPayment = async (req, res) => {
   }
 }
 
+/**
+ * PATCH — admin/warden: set status (and optional remarks).
+ * On real status change: in-app notify student; email on completed/rejected.
+ */
 export const patchPaymentStatus = async (req, res) => {
   try {
     const payment = await Payment.findById(req.params.id)
@@ -384,6 +410,10 @@ export const patchPaymentStatus = async (req, res) => {
   }
 }
 
+/**
+ * PUT — student: edit own pending payment (month/types/amount/reference; optional new proof).
+ * Re-validates amount vs pricing and duplicate month excluding this document.
+ */
 export const editPaymentByStudent = async (req, res) => {
   const fieldErrors = {}
   try {
@@ -486,6 +516,7 @@ export const editPaymentByStudent = async (req, res) => {
   }
 }
 
+/** DELETE — student: remove own pending payment only. */
 export const deletePaymentByStudent = async (req, res) => {
   try {
     if (req.user.role !== 'student') {
@@ -509,7 +540,7 @@ export const deletePaymentByStudent = async (req, res) => {
   }
 }
 
-/** @deprecated */
+/** @deprecated Legacy names — keep imports stable across older code. */
 export const getAllPayments = getAdminPayments
 export const updatePaymentStatus = patchPaymentStatus
 export const listPayments = getAdminPayments

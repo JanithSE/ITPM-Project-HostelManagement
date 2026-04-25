@@ -1,3 +1,6 @@
+/**
+ * In-app notification for late pass workflow. Collection `latepassnotifications`.
+ */
 import mongoose from 'mongoose'
 
 const latePassNotificationSchema = new mongoose.Schema(

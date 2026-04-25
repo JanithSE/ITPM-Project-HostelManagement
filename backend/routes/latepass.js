@@ -1,3 +1,7 @@
+/**
+ * Late pass REST routes. Auth on all; upload middleware on create/edit-with-file.
+ * Status PATCH is admin-only; admin delete uses separate path with role check in controller.
+ */
 import express from 'express'
 import {
   getMyLatepass,
@@ -18,6 +22,7 @@ router.use(authMiddleware)
 
 router.get('/my', requireRole('student'), getMyLatepass)
 router.get('/admin', requireRole('admin', 'warden'), getAdminLatepass)
+// Detail: access rules inside controller (admin vs student)
 router.get('/:id', getLatepassById)
 
 router.post('/', requireRole('student'), latepassDocumentUploadMiddleware, createLatepass)

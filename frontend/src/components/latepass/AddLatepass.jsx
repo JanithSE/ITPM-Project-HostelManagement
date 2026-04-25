@@ -9,6 +9,11 @@ import {
   PERSON_NAME_MIN,
 } from '../../shared/validation/personName.js'
 
+/**
+ * Late pass create (and edit-by-id): dynamic student rows, date calendar, after-8pm rule,
+ * guardian LK phone, document upload; validation aligned with `latepassController.js`.
+ */
+
 const PROOF_MAX_BYTES = 5 * 1024 * 1024
 const MAX_STUDENTS = 10
 const REASON_MIN = 10
@@ -26,6 +31,8 @@ const textareaClass =
   'late-pass-form__textarea w-full min-h-[100px] resize-y rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-slate-900 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-primary-400 dark:focus:bg-slate-900'
 const fileInputClass =
   'late-pass-form__input--file block w-full text-sm text-slate-600 file:mr-4 file:rounded-full file:border-0 file:bg-primary-50 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-primary-700 hover:file:bg-primary-100 dark:text-slate-400 dark:file:bg-primary-900/40 dark:file:text-primary-300'
+
+// --- Date helpers (local YYYY-MM-DD, same rules as backend `localYmd` / window) ---
 
 function localYmd(d = new Date()) {
   const y = d.getFullYear()
@@ -126,6 +133,8 @@ const invalidInputRing =
 function inputClassWithError(base, hasError) {
   return hasError ? `${base} ${invalidInputRing}` : base
 }
+
+// --- Per-field live validators (keys match API `fieldErrors`) ---
 
 function liveValidateStudentId(raw, { blur = false } = {}) {
   const id = String(raw ?? '').trim()
@@ -276,6 +285,8 @@ function computeStudentRowsLiveErrors(students) {
 
   return err
 }
+
+// --- Form page (create or edit existing pending pass) ---
 
 export default function AddLatepass() {
   const navigate = useNavigate()

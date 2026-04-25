@@ -1,3 +1,7 @@
+/**
+ * Mongoose model for hostel fee payments (student submission + admin review).
+ * Enum strings must stay aligned with `paymentController` and frontend payment forms.
+ */
 import mongoose from 'mongoose'
 
 const ROOM_TYPES = ['single', '2 person', '3 person']

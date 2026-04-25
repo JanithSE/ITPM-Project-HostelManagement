@@ -1,3 +1,7 @@
+/**
+ * Student payment form (also handles edit-by-id route): pricing, month picker (UTC window),
+ * live validation, duplicate-month hints, optional booking prefill, multipart submit.
+ */
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useLocation, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -37,6 +41,8 @@ const TRANSACTION_TYPES = [
 const inputClass =
   'w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3.5 py-2.5 text-slate-900 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/25 dark:border-slate-600 dark:bg-slate-800/50 dark:text-slate-100 dark:focus:border-primary-400 dark:focus:bg-slate-900'
 
+// --- Month window (must match backend `validateMonthField`) ---
+
 /** Previous, current, and next calendar month as YYYY-MM (UTC), for payment month picker. */
 function paymentMonthBoundsUtc() {
   const d = new Date()
@@ -54,6 +60,8 @@ function allowedPaymentMonthsSet() {
   const { previous, current, next } = paymentMonthBoundsUtc()
   return new Set([previous, current, next])
 }
+
+// --- Calendar UI helpers ---
 
 /** Three-letter month names; index = UTC month 0–11 (matches YYYY-MM keys). */
 const MONTH_ABBREV_UTC = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -86,7 +94,7 @@ function monthKeysAlreadyPaid(paymentsList) {
   return [...keys]
 }
 
-/** e.g. 2026-03 → "March 2026" (UTC, matches payment month keys) */
+/** e.g. 2026-03 → "March 2026" (UTC, matches payment month keys). */
 function formatYmLong(ym) {
   if (!/^\d{4}-\d{2}$/.test(ym)) return ym
   const [y, mo] = ym.split('-').map(Number)
@@ -101,6 +109,8 @@ function getExpectedAmount(pricing, roomType, facilityType) {
   const n = row[facilityType]
   return typeof n === 'number' ? n : null
 }
+
+// --- Proof file + amount helpers ---
 
 function proofFileLooksValid(file) {
   if (!file || file.size > PROOF_MAX_BYTES) return false
@@ -123,6 +133,8 @@ function amountsMatch(expected, actual, eps = 0.005) {
   if (expected == null || !Number.isFinite(actual)) return false
   return Math.abs(Number(actual) - Number(expected)) < eps
 }
+
+// --- Live field validators (inline errors while typing) ---
 
 /** Inline live validation: show while typing. Use `blur: true` for required-if-empty. */
 const invalidInputRing =
@@ -212,6 +224,8 @@ function liveValidateProof(file, { blur = false } = {}) {
   }
   return undefined
 }
+
+// --- Page component ---
 
 export default function AddPayment() {
   const navigate = useNavigate()
@@ -421,6 +435,7 @@ export default function AddPayment() {
     }
   }, [pricing, roomType, facilityType, isEditMode])
 
+  /** Full form validation on submit (server still authoritative). */
   function validate() {
     const err = {}
     const nameErr = getPersonNameError(studentName, { blur: true })
@@ -493,6 +508,7 @@ export default function AddPayment() {
     return err
   }
 
+  /** POST new payment or PUT student edit; merges API `fieldErrors` on failure. */
   async function handleSubmit(e) {
     e.preventDefault()
     const err = validate()

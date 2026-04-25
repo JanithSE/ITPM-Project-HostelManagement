@@ -1,3 +1,6 @@
+/**
+ * Admin/warden payment board: filters, search, PDF export, modal to PATCH status + remarks.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
 import { jsPDF } from 'jspdf'
@@ -24,6 +27,7 @@ function formatMoneyCompact(n) {
   return formatMoney(value).replace('.00', '')
 }
 
+/** Normalize legacy statuses for select + filters (`paid` → completed, etc.). */
 function paymentSelectStatus(status) {
   const s = String(status || '').toLowerCase()
   if (s === 'paid' || s === 'completed') return 'completed'
@@ -60,6 +64,7 @@ function SubmittedCell({ value }) {
   )
 }
 
+/** Landscape PDF table of currently filtered rows. */
 function downloadPaymentPdfReport(rows) {
   if (!rows.length) {
     toast.error('No payment data to download.')
@@ -145,6 +150,7 @@ export default function AdminPayments() {
 
 
 
+  /** GET `/payments/admin` for staff table. */
   const load = useCallback(async () => {
     setError('')
     setLoading(true)
@@ -163,6 +169,7 @@ export default function AdminPayments() {
     load()
   }, [load])
 
+  /** Open status/remark modal for one payment row. */
   function openEdit(payment) {
     setEditingId(payment._id)
     setEditDraft({
@@ -171,6 +178,7 @@ export default function AdminPayments() {
     })
   }
 
+  /** PATCH `/payments/:id/status` then reload table. */
   async function submitEdit(e) {
     e.preventDefault()
     if (!editingId) return

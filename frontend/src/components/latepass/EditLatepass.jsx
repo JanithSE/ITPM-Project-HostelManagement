@@ -1,3 +1,7 @@
+/**
+ * Student edit screen for a pending late pass: date/time/reason/guardian + optional new document.
+ * Student list rows are not editable here (matches backend `editLatepassByStudent` scope).
+ */
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -18,6 +22,7 @@ function inputClassWithError(base, hasError) {
   return hasError ? `${base} ${invalidInputRing}` : base
 }
 
+/** Today as YYYY-MM-DD in local timezone (date input bounds). */
 function localYmd(d = new Date()) {
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -114,6 +119,7 @@ export default function EditLatepass() {
     }
   }, [id, navigate])
 
+  /** Client checks before PUT; server returns `fieldErrors` for edge cases. */
   function validate() {
     const err = {}
     if (!date) err.date = 'Date is required.'
@@ -141,6 +147,7 @@ export default function EditLatepass() {
     return err
   }
 
+  /** PUT `/latepass/:id/edit-by-student` with optional replacement document. */
   async function handleSubmit(e) {
     e.preventDefault()
     const err = validate()

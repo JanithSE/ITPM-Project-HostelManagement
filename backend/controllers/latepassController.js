@@ -1,7 +1,12 @@
+/**
+ * Late pass HTTP handlers: multi-student requests, document upload, date/time rules,
+ * admin status updates, student edit/delete, admin cleanup delete for rejected/test data.
+ */
 import LatePass from '../models/LatePass.js'
 import { validatePersonNameNormalized } from '../utils/personNameValidation.js'
 import { notifyAdminsAndWardens, notifyStudent } from '../services/latePassNotificationService.js'
 
+/** Normalize body status; maps legacy `approved` to `completed`. */
 function normalizeLatepassStatus(input) {
   if (!input) return null
   const s = String(input).toLowerCase()
@@ -12,11 +17,13 @@ function normalizeLatepassStatus(input) {
   return null
 }
 
+/** Stored path under `/uploads/latepass/` for multer-saved files. */
 function documentPathFromFile(file) {
   if (!file) return null
   return `/uploads/latepass/${file.filename}`
 }
 
+/** Escape user input before embedding in RegExp for duplicate student checks. */
 function escapeRegex(s) {
   return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -29,6 +36,7 @@ function localYmd(d = new Date()) {
   return `${y}-${m}-${day}`
 }
 
+/** Add N calendar days to a YYYY-MM-DD string in local timezone. */
 function addDaysToYmd(ymdStr, days) {
   const [y, mo, d] = ymdStr.split('-').map(Number)
   const dt = new Date(y, mo - 1, d)
@@ -36,7 +44,7 @@ function addDaysToYmd(ymdStr, days) {
   return localYmd(dt)
 }
 
-/** Accept YYYY-MM-DD or parseable ISO; returns { ok, ymd, message } */
+/** Accept YYYY-MM-DD or parseable ISO; returns { ok, ymd, message }. */
 function parseLatepassDateInput(raw) {
   const s = String(raw ?? '').trim()
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
@@ -53,6 +61,7 @@ function parseLatepassDateInput(raw) {
   return { ok: true, ymd: localYmd(d) }
 }
 
+/** Parse HH:mm to minutes-from-midnight; null if invalid. */
 function parseTimeToMinutes(s) {
   const m = /^(\d{1,2}):(\d{2})$/.exec(String(s ?? '').trim())
   if (!m) return null
@@ -78,6 +87,7 @@ function normalizeWhitespaceName(s) {
     .replace(/\s+/g, ' ')
 }
 
+/** Strip formatting; convert +94… to leading 0 for LK mobile comparison. */
 function normalizeGuardianPhone(raw) {
   let s = String(raw ?? '').trim().replace(/[\s\-()]/g, '')
   if (s.startsWith('+')) s = s.slice(1)
@@ -87,10 +97,12 @@ function normalizeGuardianPhone(raw) {
   return s
 }
 
+/** Sri Lanka mobile-style: 0 + 9 digits, first digit after 0 not zero. */
 function isValidLkGuardianPhone(normalized) {
   return /^0[1-9]\d{8}$/.test(normalized)
 }
 
+/** Parse `students` from multipart JSON string into an array or null. */
 function parseStudentsJson(raw) {
   if (raw == null) return null
   let parsed
@@ -103,6 +115,7 @@ function parseStudentsJson(raw) {
   return parsed
 }
 
+/** 400 with first error string + `fieldErrors` map (supports per-row student_* keys). */
 function sendValidationError(res, fieldErrors) {
   const first =
     Object.values(fieldErrors).find(Boolean) || 'Please correct the errors below.'
@@ -112,11 +125,13 @@ function sendValidationError(res, fieldErrors) {
   })
 }
 
+/** Reject obvious placeholder words in names/IDs/reasons. */
 function hasTestLikeKeyword(v) {
   const s = String(v ?? '').toLowerCase()
   return /(^|\b)(test|dummy|sample|invalid)(\b|$)/i.test(s)
 }
 
+/** Used by admin delete: junk submissions eligible for removal. */
 function isInvalidOrTestLatepass(pass) {
   if (!pass) return false
   if (!Array.isArray(pass.students) || pass.students.length === 0) return true
@@ -131,6 +146,9 @@ function isInvalidOrTestLatepass(pass) {
   return false
 }
 
+/**
+ * GET — student: passes created by user, linked legacy `student`, or containing their `universityId`.
+ */
 export const getMyLatepass = async (req, res) => {
   try {
     if (req.user.role !== 'student') {
@@ -161,6 +179,7 @@ export const getMyLatepass = async (req, res) => {
   }
 }
 
+/** GET — staff: all late passes (route restricts role). */
 export const getAdminLatepass = async (req, res) => {
   try {
     const passes = await LatePass.find({})
@@ -173,6 +192,7 @@ export const getAdminLatepass = async (req, res) => {
   }
 }
 
+/** API shape: fill `documentFile`, map legacy `returnTime` → `arrivingTime`, ensure `students` array. */
 function serializeLatepass(doc) {
   const o = doc.toObject ? doc.toObject() : { ...doc }
   o.documentFile = o.documentFile || ''
@@ -183,6 +203,7 @@ function serializeLatepass(doc) {
   return o
 }
 
+/** GET — admin sees any; student only if creator, legacy link, or listed in `students`. */
 export const getLatepassById = async (req, res) => {
   try {
     const pass = await LatePass.findById(req.params.id)
@@ -214,6 +235,10 @@ export const getLatepassById = async (req, res) => {
   }
 }
 
+/**
+ * POST — student: multipart + JSON `students` array.
+ * Validates rows, date window, after-8pm rule, duplicates per student/day, then notifies admins/wardens.
+ */
 export const createLatepass = async (req, res) => {
   const fieldErrors = {}
 
@@ -428,6 +453,7 @@ export const createLatepass = async (req, res) => {
   }
 }
 
+/** PATCH — admin: status + optional remarks; notifies student user on status change. */
 export const patchLatepassStatus = async (req, res) => {
   try {
     const pass = await LatePass.findById(req.params.id)
@@ -468,6 +494,10 @@ export const patchLatepassStatus = async (req, res) => {
   }
 }
 
+/**
+ * PUT — student: edit own pending pass (date/time/reason/guardian/optional new document).
+ * Re-runs duplicate check for existing student IDs on the new date.
+ */
 export const editLatepassByStudent = async (req, res) => {
   const fieldErrors = {}
   try {
@@ -603,6 +633,7 @@ export const editLatepassByStudent = async (req, res) => {
   }
 }
 
+/** DELETE — student: own pending request only. */
 export const deleteLatepassByStudent = async (req, res) => {
   try {
     if (req.user.role !== 'student') {
@@ -626,6 +657,7 @@ export const deleteLatepassByStudent = async (req, res) => {
   }
 }
 
+/** DELETE — admin/warden: only rejected or invalid/test rows (cleanup). */
 export const deleteLatepassByAdmin = async (req, res) => {
   try {
     if (req.user.role !== 'admin') {
@@ -648,6 +680,7 @@ export const deleteLatepassByAdmin = async (req, res) => {
   }
 }
 
+/** @deprecated Aliases for older imports. */
 export const getAllLatepass = getAdminLatepass
 export const updateLatepassStatus = patchLatepassStatus
 export const listLatepasses = getAdminLatepass

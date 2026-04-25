@@ -1,17 +1,23 @@
+/**
+ * Student late pass list: cards on mobile, table on md+, search, edit/delete when pending.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import axiosClient, { getAxiosErrorMessage } from '../../shared/api/axiosClient'
 import StatusBadge from '../../shared/components/StatusBadge'
 
+/** Prefer `arrivingTime`; older rows may only have `returnTime`. */
 function arrivingLabel(row) {
   return row.arrivingTime || row.returnTime || '—'
 }
 
+/** Uploaded supporting document path for “View” links. */
 function docHref(row) {
   return row.documentFile || ''
 }
 
+/** Pass `date` field to locale short string. */
 function formatDate(d) {
   if (!d) return '—'
   return new Date(d).toLocaleDateString(undefined, {
@@ -45,6 +51,7 @@ function WrappableText({ children, empty = '—' }) {
   )
 }
 
+/** Compact list of embedded `students` for a late pass row. */
 function StudentsList({ students }) {
   if (!students?.length) {
     return <span className="text-slate-400 dark:text-slate-500">—</span>
@@ -66,6 +73,7 @@ function StudentsList({ students }) {
   )
 }
 
+/** Mobile layout: single card with actions for one late pass row. */
 function LatepassCard({ row, onDelete }) {
   const href = docHref(row)
   const isPending = String(row?.status || '').toLowerCase() === 'pending'
@@ -203,6 +211,7 @@ export default function StudentLatepass() {
     })
   }, [list, searchQuery])
 
+  /** GET `/latepass/my` (creator + legacy links + ID in `students`). */
   const load = useCallback(async () => {
     setError('')
     setLoading(true)
@@ -221,6 +230,7 @@ export default function StudentLatepass() {
     load()
   }, [load])
 
+  /** DELETE pending request owned by current student. */
   async function handleDelete(id) {
     const ok = window.confirm('Delete this late pass request? This action cannot be undone.')
     if (!ok) return

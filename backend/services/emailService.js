@@ -1,5 +1,11 @@
 import nodemailer from 'nodemailer'
 
+/**
+ * Transports:
+ * - Payment completion/rejection: `PAYMENT_SMTP_*` when set, else same as general.
+ * - Booking/document and general: `SMTP_*` (or `EMAIL_USER` / `EMAIL_PASS` Gmail fallback).
+ * OTP only uses `EMAIL_USER` / `EMAIL_PASS` in `authController.js` (unchanged here).
+ */
 function parseBool(v, fallback = false) {
   if (v == null) return fallback
   const s = String(v).trim().toLowerCase()
@@ -10,6 +16,31 @@ function parseBool(v, fallback = false) {
 
 function getFromAddress() {
   return process.env.SMTP_FROM || process.env.EMAIL_USER || process.env.SMTP_USER
+}
+
+function getPaymentFromAddress() {
+  return (
+    process.env.PAYMENT_SMTP_FROM ||
+    process.env.PAYMENT_SMTP_USER ||
+    getFromAddress()
+  )
+}
+
+/** Payment-only SMTP; returns null if not fully configured (caller falls back to `createTransport`). */
+function createPaymentEmailTransport() {
+  const h = String(process.env.PAYMENT_SMTP_HOST || '').trim()
+  const u = String(process.env.PAYMENT_SMTP_USER || '').trim()
+  const p = String(process.env.PAYMENT_SMTP_PASS || '').trim()
+  if (!h || !u || !p) return null
+  const port = Number.parseInt(String(process.env.PAYMENT_SMTP_PORT || '587'), 10)
+  const secure = parseBool(process.env.PAYMENT_SMTP_SECURE, port === 465)
+  console.log('[EmailService] Payment mail: SMTP transport for host:', h)
+  return nodemailer.createTransport({
+    host: h,
+    port: Number.isFinite(port) ? port : 587,
+    secure,
+    auth: { user: u, pass: p },
+  })
 }
 
 function createTransport() {
@@ -141,7 +172,9 @@ export async function sendPaymentCompletedEmail({
 }) {
   if (!to) return
 
-  const transporter = createTransport()
+  const paymentTx = createPaymentEmailTransport()
+  const transporter = paymentTx || createTransport()
+  const from = paymentTx ? getPaymentFromAddress() : getFromAddress()
   const amt =
     amount != null && Number.isFinite(Number(amount))
       ? Number(amount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -166,7 +199,7 @@ export async function sendPaymentCompletedEmail({
   `
 
   await transporter.sendMail({
-    from: getFromAddress(),
+    from,
     to,
     subject: 'Payment Confirmation - Hostel Management System',
     html,
@@ -187,7 +220,9 @@ export async function sendPaymentRejectedEmail({
 }) {
   if (!to) return
 
-  const transporter = createTransport()
+  const paymentTx = createPaymentEmailTransport()
+  const transporter = paymentTx || createTransport()
+  const from = paymentTx ? getPaymentFromAddress() : getFromAddress()
   const amt =
     amount != null && Number.isFinite(Number(amount))
       ? Number(amount).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -213,7 +248,7 @@ export async function sendPaymentRejectedEmail({
   `
 
   await transporter.sendMail({
-    from: getFromAddress(),
+    from,
     to,
     subject: `UniHostel: Payment rejected for ${monthLabelText || 'your booking'}`,
     html,

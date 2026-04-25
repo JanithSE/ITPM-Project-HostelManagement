@@ -1,3 +1,6 @@
+/**
+ * Student payment history: fetch `/payments/my`, client search, open proof, edit/delete when pending.
+ */
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import toast from 'react-hot-toast'
@@ -9,10 +12,12 @@ function formatMoney(n) {
   return `LKR ${Number(n).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
 
+/** Prefer `proofFile`, fall back to legacy `proofUrl`. */
 function proofHref(p) {
   return p.proofFile || p.proofUrl || ''
 }
 
+/** Table cell text that wraps long strings without breaking layout. */
 function WrappableText({ children, empty = '—' }) {
   const text = children == null || children === '' ? null : String(children)
   if (!text) return <span className="text-slate-400 dark:text-slate-500">{empty}</span>
@@ -47,6 +52,7 @@ export default function StudentPayments() {
     )
   })
 
+  /** GET `/payments/my` into local table state. */
   const load = useCallback(async () => {
     setError('')
     setLoading(true)
@@ -65,6 +71,7 @@ export default function StudentPayments() {
     load()
   }, [load])
 
+  /** Soft-delete pending row via API then refresh list. */
   async function handleDelete(paymentId) {
     const ok = window.confirm('Delete this payment? This action cannot be undone.')
     if (!ok) return
