@@ -17,6 +17,13 @@ function formatInquiryNotificationMessage(message) {
   return s
 }
 
+function filterNotificationsByAudience(rows, audience) {
+  if (audience === 'admin') {
+    return rows.filter((item) => item?.type === 'inquiry_new')
+  }
+  return rows.filter((item) => item?.type === 'inquiry_reply')
+}
+
 function formatWhen(isoDate) {
   const dt = new Date(isoDate)
   if (Number.isNaN(dt.getTime())) return ''
@@ -29,11 +36,13 @@ function formatWhen(isoDate) {
   })
 }
 
-function InquiryNotificationDropdown({ notifications, loading, error, unreadCount, onItemActivate }) {
+function InquiryNotificationDropdown({ notifications, loading, error, unreadCount, onItemActivate, audience }) {
+  const title = audience === 'admin' ? 'Student inquiries' : 'Inquiry replies'
+  const emptyText = audience === 'admin' ? 'No new inquiry notifications.' : 'No inquiry notifications.'
   return (
     <div className="w-[min(24rem,calc(100vw-1rem))] rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-700 dark:bg-slate-900">
       <div className="border-b border-slate-100 px-4 py-3 dark:border-slate-800">
-        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">Inquiry replies</p>
+        <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{title}</p>
         <p className="text-xs text-slate-500 dark:text-slate-400">{unreadCount} unread</p>
       </div>
       <div className="min-h-[4rem] max-h-[24rem] overflow-y-auto p-2">
@@ -42,7 +51,7 @@ function InquiryNotificationDropdown({ notifications, loading, error, unreadCoun
         ) : error ? (
           <p className="px-2 py-4 text-center text-sm text-rose-600 dark:text-rose-300">{error}</p>
         ) : notifications.length === 0 ? (
-          <p className="px-2 py-4 text-center text-sm text-slate-500 dark:text-slate-400">No inquiry notifications.</p>
+          <p className="px-2 py-4 text-center text-sm text-slate-500 dark:text-slate-400">{emptyText}</p>
         ) : (
           notifications.map((item) => {
             const text = formatInquiryNotificationMessage(item.message)
@@ -75,7 +84,7 @@ function InquiryNotificationDropdown({ notifications, loading, error, unreadCoun
   )
 }
 
-export default function InquiryNotificationBell({ className = '', buttonClassName = '' }) {
+export default function InquiryNotificationBell({ className = '', buttonClassName = '', audience = 'student' }) {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -91,15 +100,16 @@ export default function InquiryNotificationBell({ className = '', buttonClassNam
     try {
       setError('')
       const data = await notificationApi.listMine()
-      const rows = Array.isArray(data?.notifications) ? data.notifications : []
+      const allRows = Array.isArray(data?.notifications) ? data.notifications : []
+      const rows = filterNotificationsByAudience(allRows, audience)
       setNotifications(rows)
-      setUnreadCount(Number(data?.unreadCount) || 0)
+      setUnreadCount(rows.filter((item) => !item?.isRead).length)
     } catch (err) {
       setError(err?.message || 'Unable to load notifications')
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [audience])
 
   useEffect(() => {
     loadNotifications()
@@ -150,10 +160,11 @@ export default function InquiryNotificationBell({ className = '', buttonClassNam
         }
       }
       const q = item?.inquiryId ? `?inquiryId=${item.inquiryId}` : ''
-      navigate(`/student/inquiries${q}`)
+      const basePath = audience === 'admin' ? '/admin/inquiries' : '/student/inquiries'
+      navigate(`${basePath}${q}`)
       setOpen(false)
     },
-    [navigate]
+    [audience, navigate]
   )
 
   return (
@@ -163,8 +174,8 @@ export default function InquiryNotificationBell({ className = '', buttonClassNam
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={`relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-slate-300 bg-white p-0 text-base leading-none text-slate-800 shadow-sm transition hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700 ${buttonClassName}`}
-        aria-label="Inquiry reply notifications"
-        title="Inquiry replies"
+        aria-label={audience === 'admin' ? 'Student inquiry notifications' : 'Inquiry reply notifications'}
+        title={audience === 'admin' ? 'Student inquiries' : 'Inquiry replies'}
       >
         <span aria-hidden className="text-sky-600 dark:text-sky-400">
           <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.75} stroke="currentColor" className="h-5 w-5">
@@ -195,6 +206,7 @@ export default function InquiryNotificationBell({ className = '', buttonClassNam
                 error={error}
                 unreadCount={unreadCount}
                 onItemActivate={onItemActivate}
+                audience={audience}
               />
             </div>,
             document.body

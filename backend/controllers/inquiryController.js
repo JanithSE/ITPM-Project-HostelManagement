@@ -7,6 +7,7 @@
  */
 import Inquiry from '../models/Inquiry.js'
 import Notification from '../models/Notification.js'
+import User from '../models/User.js'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -49,6 +50,18 @@ function inquiryReplyNotificationMessage(inquiry) {
     return `An admin replied — “${subject.slice(0, 45)}…”`
   }
   return 'An admin replied to your inquiry.'
+}
+
+function newInquiryNotificationMessage(inquiry, studentName) {
+  const name = String(studentName || '').trim() || 'A student'
+  const subject = String(inquiry?.subject || '').trim()
+  if (subject.length > 0 && subject.length <= 48) {
+    return `${name} sent a new inquiry — "${subject}"`
+  }
+  if (subject.length > 48) {
+    return `${name} sent a new inquiry — "${subject.slice(0, 45)}..."`
+  }
+  return `${name} sent a new inquiry.`
 }
 
 function inquiryPopulate(query) {
@@ -109,6 +122,23 @@ export const createInquiry = async (req, res) => {
         },
       ],
     })
+
+    try {
+      const admins = await User.find({ role: 'admin' }).select('_id').lean()
+      if (admins.length > 0) {
+        const notifyDocs = admins.map((admin) => ({
+          userId: admin._id,
+          message: newInquiryNotificationMessage(inquiry, req.user?.name),
+          type: 'inquiry_new',
+          isRead: false,
+          inquiryId: inquiry._id,
+        }))
+        await Notification.insertMany(notifyDocs, { ordered: false })
+      }
+    } catch (notifyErr) {
+      console.error('Failed to create new inquiry notifications:', notifyErr?.message || notifyErr)
+    }
+
     const populated = await inquiryPopulate(Inquiry.findById(inquiry._id))
     res.status(201).json(populated)
   } catch (err) {

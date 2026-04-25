@@ -1,17 +1,17 @@
 import Notification from '../models/Notification.js'
 
-const studentFilter = (userId) => ({ userId })
+const userFilter = (userId) => ({ userId })
 
 async function getUnreadCount(userId) {
-  return Notification.countDocuments({ ...studentFilter(userId), isRead: false })
+  return Notification.countDocuments({ ...userFilter(userId), isRead: false })
 }
 
 export async function getMyNotifications(req, res) {
   try {
-    if (req.user.role !== 'student') {
+    if (!['student', 'admin'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' })
     }
-    const filter = studentFilter(req.user._id)
+    const filter = userFilter(req.user._id)
     const notifications = await Notification.find(filter)
       .sort({ createdAt: -1 })
       .limit(100)
@@ -25,10 +25,10 @@ export async function getMyNotifications(req, res) {
 
 export async function markNotificationAsRead(req, res) {
   try {
-    if (req.user.role !== 'student') {
+    if (!['student', 'admin'].includes(req.user.role)) {
       return res.status(403).json({ error: 'Forbidden' })
     }
-    const filter = { ...studentFilter(req.user._id), _id: req.params.id }
+    const filter = { ...userFilter(req.user._id), _id: req.params.id }
     const notification = await Notification.findOneAndUpdate(
       filter,
       { $set: { isRead: true } },
