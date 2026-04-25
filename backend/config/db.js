@@ -43,8 +43,10 @@ async function connectWithUri(uri) {
 }
 
 export async function connectDB() {
-  const uri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/unihostel'
-  const fallbackUri = process.env.MONGODB_FALLBACK_URI?.trim()
+  const defaultLocalUri = 'mongodb://127.0.0.1:27017/unihostel'
+  const uri = process.env.MONGODB_URI || process.env.MONGO_URI || defaultLocalUri
+  const fallbackUri = process.env.MONGODB_FALLBACK_URI?.trim() ||
+    (uri !== defaultLocalUri ? defaultLocalUri : '')
 
   try {
     if (!uri) {
@@ -60,7 +62,7 @@ export async function connectDB() {
         isDnsOrSrvFailure(primaryErr)
       ) {
         console.warn(
-          '⚠️ Primary MongoDB URI failed (DNS/network). Retrying MONGODB_FALLBACK_URI...'
+          '⚠️ Primary MongoDB URI failed (DNS/network). Retrying fallback MongoDB URI...'
         )
         if (mongoose.connection.readyState !== 0) {
           await mongoose.disconnect().catch(() => {})
